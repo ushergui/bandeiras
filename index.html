@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Detetive Global</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+    <div class="main-container">
+
+        <div id="main-menu">
+            <h1>Detetive Global</h1>
+            <p>Escolha sua missão, pequeno explorador!</p>
+            <div class="menu-grid">
+                <button class="mode-button" id="start-flag-game">Qual a Bandeira?</button>
+                <button class="mode-button" data-gamemode="PaisPorCapital">Qual o País da Capital?</button>
+                <button class="mode-button" data-gamemode="ContinentePorPais">Qual o Continente?</button>
+                <button class="mode-button" data-gamemode="PaisPorContinente">País no Continente</button>
+            </div>
+            <button id="show-ranking-button" class="ranking-button">🏆 Ranking</button>
+        </div>
+
+        <div id="flag-game-menu" class="hidden">
+            <h2>Modo Bandeiras</h2>
+            <p>Como você quer jogar?</p>
+            <div class="menu-grid">
+                <button class="mode-button" data-gametype="Jornada">🌍 Modo Jornada</button>
+                <button class="mode-button" data-gametype="Rápido">⚡ Modo Rápido</button>
+            </div>
+            <button class="back-button" data-target="main-menu">Voltar</button>
+        </div>
+
+        <div id="level-select-menu" class="hidden">
+            <h2>Modo Rápido</h2>
+            <p>Escolha a dificuldade:</p>
+            <div class="menu-grid">
+                <button class="mode-button" data-level="1">Nível 1 - Muito Fácil</button>
+                <button class="mode-button" data-level="2">Nível 2 - Fácil</button>
+                <button class="mode-button" data-level="3">Nível 3 - Médio</button>
+                <button class="mode-button" data-level="4">Nível 4 - Difícil</button>
+                <button class="mode-button" data-level="5">Nível 5 - Expert</button>
+            </div>
+            <button class="back-button" data-target="flag-game-menu">Voltar</button>
+        </div>
+
+        <div id="lives-select-menu" class="hidden">
+            <h2>Modo Rápido</h2>
+            <p>Com quantas chances?</p>
+            <div class="menu-grid">
+                <button class="mode-button" data-lives="infinite">♾️ Infinitas</button>
+                <button class="mode-button" data-lives="5">❤️ 5 Chances</button>
+                <button class="mode-button" data-lives="10">❤️❤️ 10 Chances</button>
+            </div>
+            <button class="back-button" data-target="level-select-menu">Voltar</button>
+        </div>
+
+        <div id="game-screen" class="hidden">
+            <div class="stats-bar">
+                <div id="score" class="stat-item">Pontos: 0</div>
+                <div id="streak" class="stat-item">🔥 0</div>
+                <div id="chances" class="stat-item">❤️ 5</div>
+            </div>
+            <h2 id="instruction">A pergunta aparecerá aqui...</h2>
+            <div id="options-container" class="options-container">
+                <form id="save-score-form" class="hidden">
+                    <p>Parabéns! Você entrou para o ranking! Digite seu nome:</p>
+                    <input type="text" id="player-name" maxlength="20" placeholder="Seu Nome">
+                    <button type="submit">Salvar</button>
+                </form>
+            </div>
+            <div id="feedback" class="feedback"></div>
+            <div class="game-controls">
+                <button id="back-to-menu-button">Sair do Jogo</button>
+                <button id="next-button" class="hidden">Próxima</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="level-up-modal" class="modal-backdrop hidden">
+        <div class="modal-content">
+            <h2>LEVEL UP!</h2>
+            <p id="level-up-message">Você avançou para o próximo nível!</p>
+            <button id="level-up-continue-button">Continuar</button>
+        </div>
+    </div>
+
+    <div id="ranking-modal" class="modal-backdrop hidden">
+        <div class="modal-content">
+            <h2 id="ranking-title">🏆 Ranking 🏆</h2>
+            <div id="ranking-selector" class="ranking-selector">
+                <button class="ranking-mode-button" data-rankingkey="ranking_bandeira_jornada">Jornada</button>
+                <button class="ranking-mode-button" data-rankingkey="ranking_bandeira_rapido">Rápido</button>
+            </div>
+            <div id="ranking-list"></div>
+            <button id="close-ranking-button">Fechar</button>
+        </div>
+    </div>
+
+    <script src="countries.js"></script>
+    <script src="script.js"></script>
+</body>
+</html>
