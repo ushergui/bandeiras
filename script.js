@@ -1,8 +1,27 @@
 // script.js
-// VERSÃO FINAL CORRIGIDA - 23/07/2025
+// VERSÃO FINAL COM AUTOTESTE DE LOCALSTORAGE
+
+// --- AUTOTESTE DE DIAGNÓSTICO ---
+function testLocalStorage() {
+    const testKey = 'storageTest';
+    const testValue = 'funciona';
+    try {
+        localStorage.setItem(testKey, testValue);
+        const retrievedValue = localStorage.getItem(testKey);
+        if (retrievedValue === testValue) {
+            console.log('%c✅ SUCESSO: O localStorage está funcionando corretamente.', 'color: green; font-weight: bold;');
+            localStorage.removeItem(testKey); // Limpa o teste
+        } else {
+            throw new Error('Valor lido é diferente do valor salvo.');
+        }
+    } catch (e) {
+        console.error('%c❌ FALHA CRÍTICA: O localStorage não está funcionando neste navegador/ambiente.', 'color: red; font-weight: bold;');
+        console.error('Isso pode acontecer se você estiver em modo de navegação anônima ou se as configurações de segurança do navegador estiverem bloqueando o armazenamento de dados. O ranking não funcionará.', e);
+    }
+}
+testLocalStorage(); // Executa o teste assim que o script carrega
 
 // --- 1. CONFIGURAÇÃO E ELEMENTOS GLOBAIS ---
-// Telas
 const mainMenu = document.getElementById('main-menu');
 const flagGameMenu = document.getElementById('flag-game-menu');
 const levelSelectMenu = document.getElementById('level-select-menu');
@@ -11,7 +30,6 @@ const gameScreen = document.getElementById('game-screen');
 const levelUpModal = document.getElementById('level-up-modal');
 const rankingModal = document.getElementById('ranking-modal');
 
-// Botões e seletores
 const startFlagGameButton = document.getElementById('start-flag-game');
 const backButtons = document.querySelectorAll('.back-button');
 const levelUpContinueButton = document.getElementById('level-up-continue-button');
@@ -20,7 +38,6 @@ const closeRankingButton = document.getElementById('close-ranking-button');
 const backToMenuButton = document.getElementById('back-to-menu-button');
 const rankingSelector = document.getElementById('ranking-selector');
 
-// Elementos do Jogo
 const instructionElement = document.getElementById('instruction');
 const optionsContainer = document.getElementById('options-container');
 const feedbackElement = document.getElementById('feedback');
@@ -33,7 +50,6 @@ const saveScoreForm = document.getElementById('save-score-form');
 const playerNameInput = document.getElementById('player-name');
 const rankingList = document.getElementById('ranking-list');
 
-// Efeitos Sonoros (Pré-carregamento)
 const sounds = {
     win: new Audio('assets/audio/effects/win.mp3'),
     wrong: new Audio('assets/audio/effects/wrong.mp3'),
@@ -41,10 +57,9 @@ const sounds = {
     completed: new Audio('assets/audio/effects/completed.mp3')
 };
 
-// --- OBJETOS DE ESTADO E CONFIGURAÇÃO ---
 let gameConfig = {};
 let gameState = {};
-let correctAnswer = null; // Declarada globalmente
+let correctAnswer = null;
 
 // --- 2. LÓGICA DE PREPARAÇÃO DOS JOGOS ---
 
@@ -155,13 +170,11 @@ function startGame(config) {
 }
 
 function nextRound() {
-    // Para o jogo de bandeiras, verifica se o nível/jornada acabou
     if (gameConfig.mode === 'BandeiraPorPais' && gameState.availableCountries.length === 0) {
         if (gameConfig.type === 'Jornada') { levelUp(); } 
         else { gameOver(true); }
         return;
     }
-    // Para todos os jogos, verifica se as vidas acabaram
     if (gameState.chances === 0 && gameConfig.lives !== 'infinite') {
         gameOver(false); return;
     }
@@ -181,11 +194,9 @@ function handleOptionClick(event) {
     const type = clickedElement.dataset.type;
     let isCorrect = false;
 
-    // A verificação da resposta agora funciona para todos os tipos
     if (type === 'flag') { isCorrect = gameModes[gameConfig.mode].checkAnswer(clickedElement.dataset.codigo); } 
     else if (type === 'text') { isCorrect = gameModes[gameConfig.mode].checkAnswer(clickedElement.dataset.continente); }
     
-    // Lógica de pontuação complexa para o Jogo de Bandeiras
     if (gameConfig.mode === 'BandeiraPorPais') {
         if (isCorrect) {
             playSound('win');
@@ -226,7 +237,7 @@ function handleOptionClick(event) {
             gameState.attemptsThisRound++;
             if (gameState.chances === 0 && gameConfig.lives !== 'infinite') gameOver(false);
         }
-    } else { // Lógica de pontuação simples para os outros modos
+    } else { 
         if(isCorrect) {
             playSound('win');
             gameLocked = true;
@@ -308,13 +319,19 @@ function displayRanking(key) {
 }
 function checkAndSaveScore(finalScore) {
     if (gameConfig.mode !== 'BandeiraPorPais') return;
-    const key = `ranking_bandeira_${gameConfig.type.toLowerCase()}`;
+
+    // Remove acentos da palavra 'Rápido' para gerar a chave correta
+    const typeKey = gameConfig.type.toLowerCase() === 'rápido' ? 'rapido' : gameConfig.type.toLowerCase();
+    const key = `ranking_bandeira_${typeKey}`;
+    
     const ranking = getRanking(key);
     const lowestRankedScore = ranking.length < 10 ? 0 : ranking[9].score;
+
     if (finalScore > 0 && finalScore >= lowestRankedScore) {
         setTimeout(() => {
             optionsContainer.appendChild(saveScoreForm);
             saveScoreForm.classList.remove('hidden');
+            playerNameInput.value = '';
             playerNameInput.focus();
         }, 1000);
     }
@@ -339,7 +356,7 @@ function displayFlagOptions(options) {
         img.src = `assets/flags/${country.codigo}.png`;
         img.className = 'flag-option';
         img.dataset.codigo = country.codigo;
-        img.dataset.type = 'flag'; // Adicionado tipo para o handler
+        img.dataset.type = 'flag';
         img.addEventListener('click', handleOptionClick);
         optionsContainer.appendChild(img);
     });
@@ -352,7 +369,7 @@ function displayTextOptions(options) {
             button.textContent = optionText;
             button.className = 'text-option';
             button.dataset.continente = optionText;
-            button.dataset.type = 'text'; // Adicionado tipo para o handler
+            button.dataset.type = 'text';
             button.addEventListener('click', handleOptionClick);
             optionsContainer.appendChild(button);
         }
@@ -378,20 +395,18 @@ function shuffle(array) {
 }
 
 // --- 6. INICIALIZAÇÃO E EVENT LISTENERS ---
-// Navegação do Menu
 startFlagGameButton.addEventListener('click', () => showScreen('flag-game-menu'));
 backButtons.forEach(button => button.addEventListener('click', () => showScreen(button.dataset.target)));
 
-// Iniciar outros modos de jogo a partir do menu principal
-document.querySelectorAll('#main-menu .mode-button[data-gamemode]').forEach(button => {
+document.querySelectorAll('#main-menu .mode-button').forEach(button => {
     const mode = button.dataset.gamemode;
-    button.addEventListener('click', () => {
-        // Para estes modos, usamos uma configuração padrão
-        startGame({ mode: mode, lives: 'infinite' });
-    });
+    if (mode && button.id !== 'start-flag-game') {
+        button.addEventListener('click', () => {
+            startGame({ mode: mode, lives: 5, type: 'Outro' }); // Adiciona um 'type' genérico
+        });
+    }
 });
 
-// Configuração e início do Jogo de Bandeiras
 document.querySelectorAll('#flag-game-menu .mode-button').forEach(button => {
     button.addEventListener('click', () => {
         const config = { mode: 'BandeiraPorPais', type: button.dataset.gametype };
@@ -399,7 +414,7 @@ document.querySelectorAll('#flag-game-menu .mode-button').forEach(button => {
             config.lives = 'infinite';
             startGame(config);
         } else {
-            gameConfig = config; // Salva a configuração parcial
+            gameConfig = config;
             showScreen('level-select-menu');
         }
     });
@@ -418,20 +433,30 @@ document.querySelectorAll('#lives-select-menu .mode-button').forEach(button => {
     });
 });
 
-// Ranking
+// Listener do formulário de salvar (COM CORREÇÃO) 👇
 saveScoreForm.addEventListener('submit', (event) => {
     event.preventDefault();
     const playerName = playerNameInput.value.trim();
     if (!playerName) return;
-    const key = `ranking_bandeira_${gameConfig.type.toLowerCase()}`;
+
+    // Remove acentos da palavra 'Rápido' para gerar a chave correta
+    const typeKey = gameConfig.type.toLowerCase() === 'rápido' ? 'rapido' : gameConfig.type.toLowerCase();
+    const key = `ranking_bandeira_${typeKey}`;
+
     const ranking = getRanking(key);
     ranking.push({ nome: playerName, score: gameState.score });
     ranking.sort((a, b) => b.score - a.score);
     const finalRanking = ranking.slice(0, 10);
+
     saveRanking(key, finalRanking);
     saveScoreForm.classList.add('hidden');
     feedbackElement.textContent = 'Pontuação salva!';
 });
+
+backToMenuButton.addEventListener('click', () => showScreen('main-menu'));
+levelUpContinueButton.addEventListener('click', continueAfterLevelUp);
+nextButton.addEventListener('click', nextRound);
+
 showRankingButton.addEventListener('click', () => displayRanking('ranking_bandeira_jornada'));
 closeRankingButton.addEventListener('click', () => rankingModal.classList.add('hidden'));
 rankingSelector.addEventListener('click', (event) => {
@@ -440,10 +465,4 @@ rankingSelector.addEventListener('click', (event) => {
     }
 });
 
-// Controles do jogo
-backToMenuButton.addEventListener('click', () => showScreen('main-menu'));
-levelUpContinueButton.addEventListener('click', continueAfterLevelUp);
-nextButton.addEventListener('click', nextRound);
-
-// Inicia na tela principal
 showScreen('main-menu');
