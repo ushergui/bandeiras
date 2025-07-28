@@ -1,6 +1,5 @@
 // countries.js
-// VERSÃO ATUALIZADA COM NÍVEIS DE DIFICULDADE
-
+// Banco de dados com todos os países, seus códigos, continentes, capitais e níveis de dificuldade.
 const countries = [
     // Nível 1 (Muito Fácil)
     { nome: 'Alemanha', codigo: 'de', artigo: 'da', continente: 'Europa', capital: 'Berlim', nivel: 1 },
@@ -130,7 +129,7 @@ const countries = [
     { nome: 'Zâmbia', codigo: 'zm', artigo: 'da', continente: 'África', capital: 'Lusaca', nivel: 4 },
     { nome: 'Zimbábue', codigo: 'zw', artigo: 'do', continente: 'África', capital: 'Harare', nivel: 4 },
 
-    // Nível 5 (Muito Difícil)
+    // Nível 5 (Expert)
     { nome: 'Andorra', codigo: 'ad', artigo: 'de', continente: 'Europa', capital: 'Andorra-a-Velha', nivel: 5 },
     { nome: 'Antígua e Barbuda', codigo: 'ag', artigo: 'de', continente: 'América Central', capital: 'São João', nivel: 5 },
     { nome: 'Bahamas', codigo: 'bs', artigo: 'das', continente: 'América Central', capital: 'Nassau', nivel: 5 },
@@ -198,7 +197,7 @@ const countries = [
     { nome: 'Tonga', codigo: 'to', artigo: 'de', continente: 'Oceania', capital: 'Nucualofa', nivel: 5 },
     { nome: 'Trindade e Tobago', codigo: 'tt', artigo: 'de', continente: 'América Central', capital: 'Porto de Espanha', nivel: 5 },
     { nome: 'Tuvalu', codigo: 'tv', artigo: 'de', continente: 'Oceania', capital: 'Funafuti', nivel: 5 },
-    { nome: 'Uganda', codigo: 'ug', artigo: 'de', continente: 'África', capital: 'Campala', nivel: 5 },
+    { nome: 'Uganda', 'codigo': 'ug', artigo: 'de', continente: 'África', capital: 'Campala', nivel: 5 },
     { nome: 'Vanuatu', codigo: 'vu', artigo: 'de', continente: 'Oceania', capital: 'Porto Vila', nivel: 5 },
     { nome: 'Iêmen', codigo: 'ye', artigo: 'do', continente: 'Ásia', capital: 'Saná', nivel: 5 }
 ];
