@@ -33,7 +33,7 @@ const countries = [
     { nome: 'Emirados Árabes Unidos', codigo: 'ae', artigo: 'dos', continente: 'Ásia', capital: 'Abu Dabi', nivel: 2 },
     { nome: 'Finlândia', codigo: 'fi', artigo: 'da', continente: 'Europa', capital: 'Helsinque', nivel: 2 },
     { nome: 'Grécia', codigo: 'gr', artigo: 'da', continente: 'Europa', capital: 'Atenas', nivel: 2 },
-    { nome: 'Holanda', codigo: 'nl', artigo: 'da', continente: 'Europa', capital: 'Amesterdão', nivel: 2 },
+    { nome: 'Países Baixos', codigo: 'nl', artigo: 'da', continente: 'Europa', capital: 'Amesterdão', nivel: 2 },
     { nome: 'Indonésia', codigo: 'id', artigo: 'da', continente: 'Ásia', capital: 'Jacarta', nivel: 2 },
     { nome: 'Irã', codigo: 'ir', artigo: 'do', continente: 'Ásia', capital: 'Teerã', nivel: 2 },
     { nome: 'Irlanda', codigo: 'ie', artigo: 'da', continente: 'Europa', capital: 'Dublim', nivel: 2 },

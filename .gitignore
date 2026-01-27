@@ -8,5 +8,5 @@ venv/
 __pycache__/
 *.pyc
 
-# Arquivos de configuração do VS Code
+                                                            # Arquivos de configuração do VS Code
 .vscode/
