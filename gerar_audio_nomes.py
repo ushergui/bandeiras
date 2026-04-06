@@ -1,324 +1,699 @@
-import os
-from dotenv import load_dotenv
-from elevenlabs.client import ElevenLabs
-from elevenlabs import save
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ROI Din‚mico - Odontologia (RDC Anvisa 1002/2025)</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Font Awesome -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- jQuery -->
+    <script src="https://code.jquery.com/jquery-3.7.0.min.js"></script>
 
-load_dotenv()
-
-def gerar_audios_nomes():
-    CHAVE_API = os.getenv("ELEVENLABS_API_KEY")
-
-    if not CHAVE_API:
-        print("ERRO CR√çTICO: Chave 'ELEVENLABS_API_KEY' n√£o encontrada no arquivo .env")
-        return
-
-    # Mapeamento completo dos c√≥digos de bandeiras para nomes em PT-BR
-    # Baseado na lista de arquivos .png fornecida
-    paises_info = [
-        {'codigo': 'ad', 'nome': 'Andorra'},
-        {'codigo': 'ae', 'nome': 'Emirados √Årabes Unidos'},
-        {'codigo': 'af', 'nome': 'Afeganist√£o'},
-        {'codigo': 'ag', 'nome': 'Ant√≠gua e Barbuda'},
-        {'codigo': 'ai', 'nome': 'Anguila'},
-        {'codigo': 'al', 'nome': 'Alb√¢nia'},
-        {'codigo': 'am', 'nome': 'Arm√™nia'},
-        {'codigo': 'ao', 'nome': 'Angola'},
-        {'codigo': 'aq', 'nome': 'Ant√°rtida'},
-        {'codigo': 'ar', 'nome': 'Argentina'},
-        {'codigo': 'as', 'nome': 'Samoa Americana'},
-        {'codigo': 'at', 'nome': '√Åustria'},
-        {'codigo': 'au', 'nome': 'Austr√°lia'},
-        {'codigo': 'aw', 'nome': 'Aruba'},
-        {'codigo': 'ax', 'nome': 'Ilhas Aland'},
-        {'codigo': 'az', 'nome': 'Azerbaij√£o'},
-        {'codigo': 'ba', 'nome': 'B√≥snia e Herzegovina'},
-        {'codigo': 'bb', 'nome': 'Barbados'},
-        {'codigo': 'bd', 'nome': 'Bangladesh'},
-        {'codigo': 'be', 'nome': 'B√©lgica'},
-        {'codigo': 'bf', 'nome': 'Burquina Faso'},
-        {'codigo': 'bg', 'nome': 'Bulg√°ria'},
-        {'codigo': 'bh', 'nome': 'Barein'},
-        {'codigo': 'bi', 'nome': 'Burundi'},
-        {'codigo': 'bj', 'nome': 'Benin'},
-        {'codigo': 'bl', 'nome': 'S√£o Bartolomeu'},
-        {'codigo': 'bm', 'nome': 'Bermudas'},
-        {'codigo': 'bn', 'nome': 'Brunei'},
-        {'codigo': 'bo', 'nome': 'Bol√≠via'},
-        {'codigo': 'bq', 'nome': 'Caribe Holand√™s'},
-        {'codigo': 'br', 'nome': 'Brasil'},
-        {'codigo': 'bs', 'nome': 'Bahamas'},
-        {'codigo': 'bt', 'nome': 'But√£o'},
-        {'codigo': 'bv', 'nome': 'Ilha Bouvet'},
-        {'codigo': 'bw', 'nome': 'Botsuana'},
-        {'codigo': 'by', 'nome': 'Bielorr√∫ssia'},
-        {'codigo': 'bz', 'nome': 'Belize'},
-        {'codigo': 'ca', 'nome': 'Canad√°'},
-        {'codigo': 'cc', 'nome': 'Ilhas Cocos'},
-        {'codigo': 'cd', 'nome': 'Rep√∫blica Democr√°tica do Congo'},
-        {'codigo': 'cf', 'nome': 'Rep√∫blica Centro-Africana'},
-        {'codigo': 'cg', 'nome': 'Congo'},
-        {'codigo': 'ch', 'nome': 'Su√≠√ßa'},
-        {'codigo': 'ci', 'nome': 'Costa do Marfim'},
-        {'codigo': 'ck', 'nome': 'Ilhas Cook'},
-        {'codigo': 'cl', 'nome': 'Chile'},
-        {'codigo': 'cm', 'nome': 'Camar√µes'},
-        {'codigo': 'cn', 'nome': 'China'},
-        {'codigo': 'co', 'nome': 'Col√¥mbia'},
-        {'codigo': 'cr', 'nome': 'Costa Rica'},
-        {'codigo': 'cu', 'nome': 'Cuba'},
-        {'codigo': 'cv', 'nome': 'Cabo Verde'},
-        {'codigo': 'cw', 'nome': 'Cura√ßao'},
-        {'codigo': 'cx', 'nome': 'Ilha Christmas'},
-        {'codigo': 'cy', 'nome': 'Chipre'},
-        {'codigo': 'cz', 'nome': 'Rep√∫blica Tcheca'},
-        {'codigo': 'de', 'nome': 'Alemanha'},
-        {'codigo': 'dj', 'nome': 'Djibuti'},
-        {'codigo': 'dk', 'nome': 'Dinamarca'},
-        {'codigo': 'dm', 'nome': 'Dominica'},
-        {'codigo': 'do', 'nome': 'Rep√∫blica Dominicana'},
-        {'codigo': 'dz', 'nome': 'Arg√©lia'},
-        {'codigo': 'ec', 'nome': 'Equador'},
-        {'codigo': 'ee', 'nome': 'Est√¥nia'},
-        {'codigo': 'eg', 'nome': 'Egito'},
-        {'codigo': 'eh', 'nome': 'Saara Ocidental'},
-        {'codigo': 'er', 'nome': 'Eritreia'},
-        {'codigo': 'es', 'nome': 'Espanha'},
-        {'codigo': 'et', 'nome': 'Eti√≥pia'},
-        {'codigo': 'fi', 'nome': 'Finl√¢ndia'},
-        {'codigo': 'fj', 'nome': 'Fiji'},
-        {'codigo': 'fk', 'nome': 'Ilhas Malvinas'},
-        {'codigo': 'fm', 'nome': 'Micron√©sia'},
-        {'codigo': 'fo', 'nome': 'Ilhas Faro√©'},
-        {'codigo': 'fr', 'nome': 'Fran√ßa'},
-        {'codigo': 'ga', 'nome': 'Gab√£o'},
-        {'codigo': 'gb', 'nome': 'Reino Unido'},
-        {'codigo': 'gb-eng', 'nome': 'Inglaterra'},
-        {'codigo': 'gb-nir', 'nome': 'Irlanda do Norte'},
-        {'codigo': 'gb-sct', 'nome': 'Esc√≥cia'},
-        {'codigo': 'gb-wls', 'nome': 'Pa√≠s de Gales'},
-        {'codigo': 'gd', 'nome': 'Granada'},
-        {'codigo': 'ge', 'nome': 'Ge√≥rgia'},
-        {'codigo': 'gf', 'nome': 'Guiana Francesa'},
-        {'codigo': 'gg', 'nome': 'Guernsey'},
-        {'codigo': 'gh', 'nome': 'Gana'},
-        {'codigo': 'gi', 'nome': 'Gibraltar'},
-        {'codigo': 'gl', 'nome': 'Groenl√¢ndia'},
-        {'codigo': 'gm', 'nome': 'G√¢mbia'},
-        {'codigo': 'gn', 'nome': 'Guin√©'},
-        {'codigo': 'gp', 'nome': 'Guadalupe'},
-        {'codigo': 'gq', 'nome': 'Guin√© Equatorial'},
-        {'codigo': 'gr', 'nome': 'Gr√©cia'},
-        {'codigo': 'gs', 'nome': 'Ilhas Ge√≥rgia do Sul e Sandwich do Sul'},
-        {'codigo': 'gt', 'nome': 'Guatemala'},
-        {'codigo': 'gu', 'nome': 'Guam'},
-        {'codigo': 'gw', 'nome': 'Guin√©-Bissau'},
-        {'codigo': 'gy', 'nome': 'Guiana'},
-        {'codigo': 'hk', 'nome': 'Hong Kong'},
-        {'codigo': 'hm', 'nome': 'Ilha Heard e Ilhas McDonald'},
-        {'codigo': 'hn', 'nome': 'Honduras'},
-        {'codigo': 'hr', 'nome': 'Cro√°cia'},
-        {'codigo': 'ht', 'nome': 'Haiti'},
-        {'codigo': 'hu', 'nome': 'Hungria'},
-        {'codigo': 'id', 'nome': 'Indon√©sia'},
-        {'codigo': 'ie', 'nome': 'Irlanda'},
-        {'codigo': 'il', 'nome': 'Israel'},
-        {'codigo': 'im', 'nome': 'Ilha de Man'},
-        {'codigo': 'in', 'nome': '√çndia'},
-        {'codigo': 'io', 'nome': 'Territ√≥rio Brit√¢nico do Oceano √çndico'},
-        {'codigo': 'iq', 'nome': 'Iraque'},
-        {'codigo': 'ir', 'nome': 'Ir√£'},
-        {'codigo': 'is', 'nome': 'Isl√¢ndia'},
-        {'codigo': 'it', 'nome': 'It√°lia'},
-        {'codigo': 'je', 'nome': 'Jersey'},
-        {'codigo': 'jm', 'nome': 'Jamaica'},
-        {'codigo': 'jo', 'nome': 'Jord√¢nia'},
-        {'codigo': 'jp', 'nome': 'Jap√£o'},
-        {'codigo': 'ke', 'nome': 'Qu√™nia'},
-        {'codigo': 'kg', 'nome': 'Quirguist√£o'},
-        {'codigo': 'kh', 'nome': 'Camboja'},
-        {'codigo': 'ki', 'nome': 'Kiribati'},
-        {'codigo': 'km', 'nome': 'Comores'},
-        {'codigo': 'kn', 'nome': 'S√£o Crist√≥v√£o e N√©vis'},
-        {'codigo': 'kp', 'nome': 'Coreia do Norte'},
-        {'codigo': 'kr', 'nome': 'Coreia do Sul'},
-        {'codigo': 'kw', 'nome': 'Kuwait'},
-        {'codigo': 'ky', 'nome': 'Ilhas Cayman'},
-        {'codigo': 'kz', 'nome': 'Cazaquist√£o'},
-        {'codigo': 'la', 'nome': 'Laos'},
-        {'codigo': 'lb', 'nome': 'L√≠bano'},
-        {'codigo': 'lc', 'nome': 'Santa L√∫cia'},
-        {'codigo': 'li', 'nome': 'Liechtenstein'},
-        {'codigo': 'lk', 'nome': 'Sri Lanka'},
-        {'codigo': 'lr', 'nome': 'Lib√©ria'},
-        {'codigo': 'ls', 'nome': 'Lesoto'},
-        {'codigo': 'lt', 'nome': 'Litu√¢nia'},
-        {'codigo': 'lu', 'nome': 'Luxemburgo'},
-        {'codigo': 'lv', 'nome': 'Let√¥nia'},
-        {'codigo': 'ly', 'nome': 'L√≠bia'},
-        {'codigo': 'ma', 'nome': 'Marrocos'},
-        {'codigo': 'mc', 'nome': 'M√¥naco'},
-        {'codigo': 'md', 'nome': 'Mold√°via'},
-        {'codigo': 'me', 'nome': 'Montenegro'},
-        {'codigo': 'mf', 'nome': 'S√£o Martinho'},
-        {'codigo': 'mg', 'nome': 'Madag√°scar'},
-        {'codigo': 'mh', 'nome': 'Ilhas Marshall'},
-        {'codigo': 'mk', 'nome': 'Maced√¥nia do Norte'},
-        {'codigo': 'ml', 'nome': 'Mali'},
-        {'codigo': 'mm', 'nome': 'Mianmar'},
-        {'codigo': 'mn', 'nome': 'Mong√≥lia'},
-        {'codigo': 'mo', 'nome': 'Macau'},
-        {'codigo': 'mp', 'nome': 'Ilhas Marianas do Norte'},
-        {'codigo': 'mq', 'nome': 'Martinica'},
-        {'codigo': 'mr', 'nome': 'Maurit√¢nia'},
-        {'codigo': 'ms', 'nome': 'Montserrat'},
-        {'codigo': 'mt', 'nome': 'Malta'},
-        {'codigo': 'mu', 'nome': 'Maur√≠cio'},
-        {'codigo': 'mv', 'nome': 'Maldivas'},
-        {'codigo': 'mw', 'nome': 'Malaui'},
-        {'codigo': 'mx', 'nome': 'M√©xico'},
-        {'codigo': 'my', 'nome': 'Mal√°sia'},
-        {'codigo': 'mz', 'nome': 'Mo√ßambique'},
-        {'codigo': 'na', 'nome': 'Nam√≠bia'},
-        {'codigo': 'nc', 'nome': 'Nova Caled√¥nia'},
-        {'codigo': 'ne', 'nome': 'N√≠ger'},
-        {'codigo': 'nf', 'nome': 'Ilha Norfolk'},
-        {'codigo': 'ng', 'nome': 'Nig√©ria'},
-        {'codigo': 'ni', 'nome': 'Nicar√°gua'},
-        {'codigo': 'nl', 'nome': 'Pa√≠ses Baixos'},
-        {'codigo': 'no', 'nome': 'Noruega'},
-        {'codigo': 'np', 'nome': 'Nepal'},
-        {'codigo': 'nr', 'nome': 'Nauru'},
-        {'codigo': 'nu', 'nome': 'Niue'},
-        {'codigo': 'nz', 'nome': 'Nova Zel√¢ndia'},
-        {'codigo': 'om', 'nome': 'Om√£'},
-        {'codigo': 'pa', 'nome': 'Panam√°'},
-        {'codigo': 'pe', 'nome': 'Peru'},
-        {'codigo': 'pf', 'nome': 'Polin√©sia Francesa'},
-        {'codigo': 'pg', 'nome': 'Papua-Nova Guin√©'},
-        {'codigo': 'ph', 'nome': 'Filipinas'},
-        {'codigo': 'pk', 'nome': 'Paquist√£o'},
-        {'codigo': 'pl', 'nome': 'Pol√¥nia'},
-        {'codigo': 'pm', 'nome': 'S√£o Pedro e Miquel√£o'},
-        {'codigo': 'pn', 'nome': 'Ilhas Pitcairn'},
-        {'codigo': 'pr', 'nome': 'Porto Rico'},
-        {'codigo': 'ps', 'nome': 'Palestina'},
-        {'codigo': 'pt', 'nome': 'Portugal'},
-        {'codigo': 'pw', 'nome': 'Palau'},
-        {'codigo': 'py', 'nome': 'Paraguai'},
-        {'codigo': 'qa', 'nome': 'Catar'},
-        {'codigo': 're', 'nome': 'Reuni√£o'},
-        {'codigo': 'ro', 'nome': 'Rom√™nia'},
-        {'codigo': 'rs', 'nome': 'S√©rvia'},
-        {'codigo': 'ru', 'nome': 'R√∫ssia'},
-        {'codigo': 'rw', 'nome': 'Ruanda'},
-        {'codigo': 'sa', 'nome': 'Ar√°bia Saudita'},
-        {'codigo': 'sb', 'nome': 'Ilhas Salom√£o'},
-        {'codigo': 'sc', 'nome': 'Seicheles'},
-        {'codigo': 'sd', 'nome': 'Sud√£o'},
-        {'codigo': 'se', 'nome': 'Su√©cia'},
-        {'codigo': 'sg', 'nome': 'Singapura'},
-        {'codigo': 'sh', 'nome': 'Santa Helena'},
-        {'codigo': 'si', 'nome': 'Eslov√™nia'},
-        {'codigo': 'sj', 'nome': 'Svalbard e Jan Mayen'},
-        {'codigo': 'sk', 'nome': 'Eslov√°quia'},
-        {'codigo': 'sl', 'nome': 'Serra Leoa'},
-        {'codigo': 'sm', 'nome': 'San Marino'},
-        {'codigo': 'sn', 'nome': 'Senegal'},
-        {'codigo': 'so', 'nome': 'Som√°lia'},
-        {'codigo': 'sr', 'nome': 'Suriname'},
-        {'codigo': 'ss', 'nome': 'Sud√£o do Sul'},
-        {'codigo': 'st', 'nome': 'S√£o Tom√© e Pr√≠ncipe'},
-        {'codigo': 'sv', 'nome': 'El Salvador'},
-        {'codigo': 'sx', 'nome': 'S√£o Martinho Holand√™s'},
-        {'codigo': 'sy', 'nome': 'S√≠ria'},
-        {'codigo': 'sz', 'nome': 'Essuat√≠ni'}, # Antiga Suazil√¢ndia
-        {'codigo': 'tc', 'nome': 'Ilhas Turcas e Caicos'},
-        {'codigo': 'td', 'nome': 'Chade'},
-        {'codigo': 'tf', 'nome': 'Terras Austrais e Ant√°rticas Francesas'},
-        {'codigo': 'tg', 'nome': 'Togo'},
-        {'codigo': 'th', 'nome': 'Tail√¢ndia'},
-        {'codigo': 'tj', 'nome': 'Tajiquist√£o'},
-        {'codigo': 'tk', 'nome': 'Tokelau'},
-        {'codigo': 'tl', 'nome': 'Timor-Leste'},
-        {'codigo': 'tm', 'nome': 'Turcomenist√£o'},
-        {'codigo': 'tn', 'nome': 'Tun√≠sia'},
-        {'codigo': 'to', 'nome': 'Tonga'},
-        {'codigo': 'tr', 'nome': 'Turquia'},
-        {'codigo': 'tt', 'nome': 'Trindade e Tobago'},
-        {'codigo': 'tv', 'nome': 'Tuvalu'},
-        {'codigo': 'tw', 'nome': 'Taiwan'},
-        {'codigo': 'tz', 'nome': 'Tanz√¢nia'},
-        {'codigo': 'ua', 'nome': 'Ucr√¢nia'},
-        {'codigo': 'ug', 'nome': 'Uganda'},
-        {'codigo': 'um', 'nome': 'Ilhas Menores Distantes dos EUA'},
-        {'codigo': 'us', 'nome': 'Estados Unidos'},
-        {'codigo': 'uy', 'nome': 'Uruguai'},
-        {'codigo': 'uz', 'nome': 'Uzbequist√£o'},
-        {'codigo': 'va', 'nome': 'Vaticano'},
-        {'codigo': 'vc', 'nome': 'S√£o Vicente e Granadinas'},
-        {'codigo': 've', 'nome': 'Venezuela'},
-        {'codigo': 'vg', 'nome': 'Ilhas Virgens Brit√¢nicas'},
-        {'codigo': 'vi', 'nome': 'Ilhas Virgens Americanas'},
-        {'codigo': 'vn', 'nome': 'Vietn√£'},
-        {'codigo': 'vu', 'nome': 'Vanuatu'},
-        {'codigo': 'wf', 'nome': 'Wallis e Futuna'},
-        {'codigo': 'ws', 'nome': 'Samoa'},
-        {'codigo': 'xk', 'nome': 'Kosovo'},
-        {'codigo': 'ye', 'nome': 'I√™men'},
-        {'codigo': 'yt', 'nome': 'Mayotte'},
-        {'codigo': 'za', 'nome': '√Åfrica do Sul'},
-        {'codigo': 'zm', 'nome': 'Z√¢mbia'},
-        {'codigo': 'zw', 'nome': 'Zimb√°bue'}
-    ]
-
-    # Pasta de sa√≠da
-    output_folder = "assets/audio/nomes_paises"
-    
-    # Voz sugerida para nomes (clara e neutra) - Jessica
-    voice_id = "cgSgspJ2msm6clMCkdW9" 
-
-    try:
-        client = ElevenLabs(api_key=CHAVE_API)
-        os.makedirs(output_folder, exist_ok=True)
+    <style>
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: #f3f4f6; padding-bottom: 120px; }
+        .critical-badge { background-color: #fee2e2; color: #991b1b; border: 1px solid #f87171; }
+        .nc-badge { background-color: #e0e7ff; color: #3730a3; border: 1px solid #818cf8; }
+        .radio-option:checked + div { border-color: #3b82f6; background-color: #eff6ff; }
+        .score-0-2 { border-left: 4px solid #ef4444 !important; }
+        .score-3 { border-left: 4px solid #eab308 !important; }
+        .score-4-5 { border-left: 4px solid #22c55e !important; }
         
-        print(f"--- GERANDO √ÅUDIOS (NOMES DOS PA√çSES) ---")
-        print(f"Total de arquivos na lista: {len(paises_info)}")
-        print(f"Salvando em: {output_folder}")
+        #dashboard {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            width: 100%;
+            background: #ffffff;
+            box-shadow: 0 -4px 6px -1px rgba(0, 0, 0, 0.1);
+            z-index: 50;
+            transition: all 0.3s ease;
+        }
 
-        for pais in paises_info:
-            nome_pais = pais['nome']
+        @media print {
+            body { background-color: #fff; padding-bottom: 0; }
+            #dashboard, #setup-panel, .no-print { display: none !important; }
+            .radio-option:not(:checked) + div { display: none; }
+            .radio-option:checked + div { border: 1px solid #000; background-color: #fff; }
+            .question-container { break-inside: avoid; page-break-inside: avoid; border-bottom: 1px solid #ccc; padding-bottom: 10px; margin-bottom: 10px; }
+            header { border: none; box-shadow: none; }
+        }
+    </style>
+</head>
+<body class="text-gray-800">
+
+    <div class="max-w-6xl mx-auto p-4 sm:p-6 lg:p-8">
+        
+        <!-- CabeÁalho -->
+        <header class="bg-white rounded-xl shadow-md p-6 mb-6 border-t-4 border-blue-600">
+            <div class="flex justify-between items-start">
+                <div>
+                    <h1 class="text-3xl font-bold text-gray-900 mb-2"><i class="fa-solid fa-tooth text-blue-600 mr-2"></i>AutoinspeÁ„o / ROI Odontologia</h1>
+                    <p class="text-sm text-gray-600">ClassificaÁ„o inteligente baseada na <b>RDC Anvisa n∫ 1.002/2025</b>.</p>
+                </div>
+                <button onclick="window.print()" class="no-print bg-gray-800 hover:bg-gray-700 text-white font-semibold py-2 px-4 rounded shadow hidden" id="btn-print">
+                    <i class="fa-solid fa-print mr-2"></i> Imprimir Laudo
+                </button>
+            </div>
+
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mt-6 bg-gray-50 p-4 rounded-lg border border-gray-200">
+                <div>
+                    <label class="block text-xs font-bold text-gray-700 uppercase">Raz„o Social / Nome Fantasia</label>
+                    <input type="text" class="mt-1 block w-full border-gray-300 rounded-md shadow-sm p-2 border focus:ring-blue-500 focus:border-blue-500" placeholder="Nome do Estabelecimento">
+                </div>
+                <div>
+                    <label class="block text-xs font-bold text-gray-700 uppercase">CNPJ / CPF</label>
+                    <input type="text" class="mt-1 block w-full border-gray-300 rounded-md shadow-sm p-2 border focus:ring-blue-500 focus:border-blue-500" placeholder="00.000.000/0000-00">
+                </div>
+                <div>
+                    <label class="block text-xs font-bold text-gray-700 uppercase">Avaliador (Fiscal ou RT)</label>
+                    <input type="text" class="mt-1 block w-full border-gray-300 rounded-md shadow-sm p-2 border focus:ring-blue-500 focus:border-blue-500" placeholder="Nome do Avaliador">
+                </div>
+                <div>
+                    <label class="block text-xs font-bold text-gray-700 uppercase">Data da AvaliaÁ„o</label>
+                    <input type="date" class="mt-1 block w-full border-gray-300 rounded-md shadow-sm p-2 border focus:ring-blue-500 focus:border-blue-500">
+                </div>
+            </div>
+        </header>
+
+        <!-- PASSO 1: Setup do Estabelecimento (Classificador) -->
+        <div id="setup-panel" class="bg-white rounded-xl shadow-lg border-2 border-indigo-100 p-6 mb-8">
+            <h2 class="text-xl font-black text-indigo-900 mb-2"><i class="fa-solid fa-sliders mr-2"></i>Passo 1: Perfil do Estabelecimento</h2>
+            <p class="text-sm text-gray-600 mb-6">Selecione abaixo os serviÁos e equipamentos que a clÌnica possui. O Roteiro ser· gerado apenas com as perguntas aplic·veis.</p>
+
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+                <label class="flex items-center p-4 border rounded-lg cursor-pointer hover:bg-indigo-50 transition">
+                    <input type="checkbox" id="chk-rx-fixo" class="w-5 h-5 text-indigo-600 rounded border-gray-300 focus:ring-indigo-500">
+                    <span class="ml-3 font-semibold text-gray-700">Possui Raio-X Intraoral (Fixo na Parede)</span>
+                </label>
+                
+                <label class="flex items-center p-4 border rounded-lg cursor-pointer hover:bg-indigo-50 transition">
+                    <input type="checkbox" id="chk-rx-portatil" class="w-5 h-5 text-indigo-600 rounded border-gray-300 focus:ring-indigo-500">
+                    <span class="ml-3 font-semibold text-gray-700">Possui Raio-X Port·til (M„o/TripÈ)</span>
+                </label>
+
+                <label class="flex items-center p-4 border rounded-lg cursor-pointer hover:bg-indigo-50 transition">
+                    <input type="checkbox" id="chk-rx-extraoral" class="w-5 h-5 text-indigo-600 rounded border-gray-300 focus:ring-indigo-500">
+                    <span class="ml-3 font-semibold text-gray-700">Possui Sala de Imagem (Panor‚mico / Tomografia)</span>
+                </label>
+
+                <label class="flex items-center p-4 border rounded-lg cursor-pointer hover:bg-indigo-50 transition">
+                    <input type="checkbox" id="chk-sedacao" class="w-5 h-5 text-indigo-600 rounded border-gray-300 focus:ring-indigo-500">
+                    <span class="ml-3 font-semibold text-gray-700">Realiza SedaÁ„o (InalatÛria com ”xido Nitroso ou Endovenosa)</span>
+                </label>
+
+                <label class="flex items-center p-4 border rounded-lg cursor-pointer hover:bg-indigo-50 transition">
+                    <input type="checkbox" id="chk-lpd" class="w-5 h-5 text-indigo-600 rounded border-gray-300 focus:ring-indigo-500">
+                    <span class="ml-3 font-semibold text-gray-700">Possui LaboratÛrio de PrÛtese Dent·ria (LPD) prÛprio</span>
+                </label>
+            </div>
+
+            <div class="flex justify-end">
+                <button id="btn-generate" class="bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-3 px-6 rounded-lg shadow-md transition-colors text-lg">
+                    <i class="fa-solid fa-wand-magic-sparkles mr-2"></i> Gerar ROI Personalizado
+                </button>
+            </div>
+        </div>
+
+        <!-- PASSO 2: Container do Formul·rio Gerado dinamicamente -->
+        <div id="roi-wrapper" class="hidden">
+            <div class="mb-4 text-xs text-gray-500 flex gap-4 bg-white p-3 rounded shadow-sm border border-gray-200">
+                <span class="font-bold mr-2">Legenda de AvaliaÁ„o:</span>
+                <span class="flex items-center"><span class="w-3 h-3 rounded-full bg-red-500 mr-1"></span> 0 a 2: Inaceit·vel</span>
+                <span class="flex items-center"><span class="w-3 h-3 rounded-full bg-yellow-500 mr-1"></span> 3: Aceit·vel (MÌnimo da Norma)</span>
+                <span class="flex items-center"><span class="w-3 h-3 rounded-full bg-green-500 mr-1"></span> 4 e 5: Baixo Risco (Padr„o Ouro)</span>
+            </div>
             
-            # O texto a ser falado √© APENAS o nome do pa√≠s
-            texto_falar = nome_pais
+            <form id="roi-form" class="space-y-8">
+                <!-- Conte˙do injetado via jQuery -->
+            </form>
+        </div>
+
+    </div>
+
+    <!-- Painel de Dashboard Fixo (Escondido inicialmente) -->
+    <div id="dashboard" class="hidden p-4 border-t-4 border-gray-300">
+        <div class="max-w-6xl mx-auto flex flex-col md:flex-row justify-between items-center gap-4">
             
-            # Sanitiza o nome para criar o arquivo (min√∫sculo, sem espa√ßos, sem acentos se preferir, mas aqui mantemos acentos na fala e limpamos no arquivo)
-            nome_arquivo = f"{nome_pais.lower().replace(' ', '_')}.mp3"
+            <div class="flex items-center gap-6">
+                <div class="text-center">
+                    <p class="text-xs text-gray-500 font-bold uppercase">Progresso</p>
+                    <p class="text-2xl font-black text-gray-800"><span id="lbl-answered">0</span><span class="text-sm text-gray-400">/<span id="lbl-total">0</span></span></p>
+                </div>
+                <div class="h-10 w-px bg-gray-300"></div>
+                <div class="text-center">
+                    <p class="text-xs text-gray-500 font-bold uppercase">PontuaÁ„o</p>
+                    <p class="text-2xl font-black text-blue-600"><span id="lbl-score">0</span> <span class="text-sm text-gray-400">pts</span></p>
+                </div>
+                <div class="h-10 w-px bg-gray-300"></div>
+                <div class="text-center">
+                    <p class="text-xs text-gray-500 font-bold uppercase">Conformidade</p>
+                    <p class="text-2xl font-black text-gray-800"><span id="lbl-percent">0</span>%</p>
+                </div>
+            </div>
+
+            <div class="flex items-center gap-4 w-full md:w-auto">
+                <div id="alert-critical" class="hidden flex items-center bg-red-100 text-red-800 px-4 py-2 rounded-lg border border-red-300 shadow-sm animate-pulse">
+                    <i class="fa-solid fa-triangle-exclamation text-xl mr-2"></i>
+                    <div class="text-sm">
+                        <p class="font-bold">Gatilho de Risco Ativado!</p>
+                        <p class="text-xs">Item CrÌtico com nota < 3 detectado.</p>
+                    </div>
+                </div>
+
+                <div id="status-card" class="bg-gray-100 text-gray-600 px-6 py-3 rounded-lg border-2 border-gray-300 shadow-sm min-w-[250px] text-center transition-colors duration-300">
+                    <p class="text-xs font-bold uppercase mb-1">Risco Sanit·rio Global</p>
+                    <p id="lbl-status" class="text-lg font-black uppercase">Aguardando...</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Script de Dados e LÛgica MARP Din‚mica -->
+    <script>
+        // O Banco de Dados Completo com Condicionais (tags)
+        const roiMasterData = [
+            {
+                bloco: "BLOCO 1: Gest„o, Licenciamento e Infraestrutura",
+                indicadores: [
+                    {
+                        id: "q1", tag: "geral", titulo: "Alvar· / LicenÁa Sanit·ria", critico: false, norma: "RDC 1002/2025 - Art. 8∫",
+                        opcoes: [
+                            "N„o possui LicenÁa Sanit·ria ou est· exercendo atividade n„o licenciada.",
+                            "LicenÁa Sanit·ria vencida, sem protocolo de renovaÁ„o.",
+                            "LicenÁa Sanit·ria vencida, com protocolo de renovaÁ„o apenas iniciado.",
+                            "Possui LicenÁa Sanit·ria inicial ou de renovaÁ„o atualizada, concedida pela autoridade competente.",
+                            "LicenÁa atualizada e exibe em local visÌvel ao p˙blico.",
+                            "LicenÁa atualizada, possui histÛrico de renovaÁıes sempre antecipadas."
+                        ]
+                    },
+                    {
+                        id: "q2", tag: "geral", titulo: "Responsabilidade TÈcnica (RT)", critico: false, norma: "RDC 1002/2025 - Art. 5∫ e Art. 7∫",
+                        opcoes: [
+                            "Sem Respons·vel TÈcnico definido perante a VISA.",
+                            "RT designado, mas n„o possui habilitaÁ„o legal (inscriÁ„o ativa no CRO).",
+                            "ClÌnica com mais de um CD, mas o RT n„o possui substituto formalmente designado.",
+                            "RT cirurgi„o-dentista (e substituto, se aplic·vel) legalmente habilitados e formalmente designados pelo Respons·vel Legal.",
+                            "”rg„o sanit·rio notificado de todas as alteraÁıes recentes de RT.",
+                            "RT possui especializaÁ„o formal na principal ·rea de atuaÁ„o da clÌnica."
+                        ]
+                    },
+                    {
+                        id: "q3", tag: "geral", titulo: "SÈrie de Documentos de Boas Pr·ticas (SDBPF)", critico: false, norma: "RDC 1002/2025 - Art. 110, Art. 111 e Art. 113",
+                        opcoes: [
+                            "N„o possui a SÈrie de Documentos de Boas Pr·ticas de Funcionamento (SDBPF).",
+                            "SDBPF existe, mas n„o est· assinada pelo Respons·vel Legal ou n„o È acessÌvel aos profissionais.",
+                            "SDBPF acessÌvel, mas falta conte˙do mÌnimo (ex: sem projeto de RH, sem POPs de processamento).",
+                            "SDBPF elaborada pelo RT, assinada pelo RL, contendo rotinas, POPs e planos previstos no Art. 113.",
+                            "SDBPF revisada nos ˙ltimos 2 anos ou apÛs mudanÁa de perfil epidemiolÛgico.",
+                            "Termo de ciÍncia assinado por todos os profissionais comprometendo-se a cumprir a SDBPF (Art. 6∫, P. ⁄nico)."
+                        ]
+                    },
+                    {
+                        id: "q4", tag: "geral", titulo: "Projeto B·sico de Arquitetura (PBA)", critico: false, norma: "RDC 1002/2025 - Art. 13",
+                        opcoes: [
+                            "N„o possui PBA aprovado pela VISA local.",
+                            "Possui PBA antigo, mas realizou ampliaÁ„o ou reforma sem nova aprovaÁ„o.",
+                            "PBA desatualizado, mas j· protocolado na VISA para avaliaÁ„o da reforma recente.",
+                            "Possui PBA aprovado pela VISA, perfeitamente compatÌvel com a estrutura atual.",
+                            "PBA atualizado e arquivado formalmente junto ‡ SDBPF do serviÁo.",
+                            "Possui procedimento institucional proibindo qualquer intervenÁ„o fÌsica sem prÈvia aprovaÁ„o."
+                        ]
+                    },
+                    {
+                        id: "q5", tag: "geral", titulo: "Revestimentos FÌsicos e InstalaÁıes", critico: false, norma: "RDC 1002/2025 - Art. 22",
+                        opcoes: [
+                            "Pisos, paredes ou tetos de materiais porosos, ou com frestas e mofo nas ·reas assistenciais.",
+                            "Materiais adequados, mas com danos estruturais extensos prejudicando a limpeza.",
+                            "Maioria Ìntegra, mas com instalaÁıes elÈtricas/hidr·ulicas aparentes e sem proteÁ„o de calhas.",
+                            "Revestimentos lisos, imperme·veis e resistentes nas ·reas assistenciais. InstalaÁıes embutidas ou em calhas.",
+                            "ManutenÁ„o predial impec·vel, sem nenhuma trinca ou infiltraÁ„o observada.",
+                            "SuperfÌcies de alto desempenho facilitando a limpeza terminal e concorrente."
+                        ]
+                    },
+                    {
+                        id: "q6", tag: "geral", titulo: "Sanit·rios e DepÛsito de Material de Limpeza (DML)", critico: false, norma: "RDC 1002/2025 - Art. 17 a Art. 21",
+                        opcoes: [
+                            "N„o possui sanit·rio ou DML separados da ·rea de assistÍncia.",
+                            "ClÌnica com 3 ou mais consultÛrios n„o possui sanit·rios diferenciados para pacientes e funcion·rios.",
+                            "ClÌnica n„o possui ao menos um sanit·rio acessÌvel para Pessoa com DeficiÍncia (PcD).",
+                            "Sanit·rios e DML estruturados conforme o porte (1 PcD p/ atÈ 2 consultÛrios; diferenciados p/ 3+).",
+                            "ConsultÛrio individual Classe I (sem clÌnica) utiliza sanit·rio compartilhado com DML, mas com arm·rio c/ chave e ponto de ·gua baixo.",
+                            "DML e sanit·rios perfeitamente estruturados, identificados e dimensionados acima do mÌnimo."
+                        ]
+                    },
+                    {
+                        id: "q7", tag: "geral", titulo: "Pias dos Ambientes FinalÌsticos (ConsultÛrios)", critico: true, norma: "RDC 1002/2025 - Art. 14",
+                        opcoes: [
+                            "ConsultÛrio n„o possui lavatÛrio exclusivo para higienizaÁ„o das m„os.",
+                            "Possui lavatÛrio, mas a torneira exige contato manual ou usa toalha de tecido.",
+                            "Torneira adequada, mas falta sabonete lÌquido, lixeira c/ pedal ou dispensador de ·lcool.",
+                            "LavatÛrio exclusivo, torneira sem contato manual, papel toalha em suporte fechado, sab„o lÌquido, lixeira c/ pedal e dispensador de ·lcool.",
+                            "Dispensadores instalados em alturas ergonÙmicas e todos devidamente identificados.",
+                            "Monitoramento da ades„o ‡ higienizaÁ„o das m„os formalizado."
+                        ]
+                    }
+                ]
+            },
+            {
+                bloco: "BLOCO 2: ¡gua, Equipamentos e Sa˙de do Trabalhador",
+                indicadores: [
+                    {
+                        id: "q8", tag: "geral", titulo: "¡gua do Equipo OdontolÛgico", critico: true, norma: "RDC 1002/2025 - Art. 40, Art. 41 e Art. 42",
+                        opcoes: [
+                            "¡gua do equipo n„o È pot·vel ou mangueiras apresentam fissuras/sujidade externa.",
+                            "ReservatÛrios de ·gua e mangueiras n„o s„o drenados/vazios ao final do expediente de trabalho.",
+                            "Usa sistema de purificaÁ„o, mas n„o possui registros de manutenÁ„o preventiva do filtro.",
+                            "¡gua pot·vel, mangueiras Ìntegras e reservatÛrios/mangueiras devidamente drenados e vazios ao final do expediente.",
+                            "Registro formal da manutenÁ„o do sistema de purificaÁ„o arquivado na SDBPF.",
+                            "SubstituiÁ„o preventiva programada de mangueiras antes de apresentarem fissuras."
+                        ]
+                    },
+                    {
+                        id: "q9", tag: "geral", titulo: "Gest„o e ManutenÁ„o de Equipamentos", critico: false, norma: "RDC 1002/2025 - Art. 38, Art. 130 e Art. 134",
+                        opcoes: [
+                            "Equipamentos e aparelhos avariados, oxidados ou fora das especificaÁıes do fabricante em uso.",
+                            "N„o h· registros de atividades de assistÍncia tÈcnica ou manutenÁ„o.",
+                            "Registros de manutenÁ„o existem, mas est„o incompletos (falta identificaÁ„o ou assinatura).",
+                            "Equipamentos em bom estado; manutenÁ„o, calibraÁ„o e ajuste executados e registrados conforme o fabricante.",
+                            "Plano de Gerenciamento de Tecnologias (PGT) implantado e atualizado (Art. 131).",
+                            "Mobili·rio e equipamentos fora de uso devidamente retirados das ·reas de trabalho (Art. 39)."
+                        ]
+                    },
+                    {
+                        id: "q10", tag: "geral", titulo: "Equipamentos de ProteÁ„o Individual (EPIs)", critico: true, norma: "RDC 1002/2025 - Art. 108 Par·grafo ˙nico",
+                        opcoes: [
+                            "Equipe n„o utiliza EPIs b·sicos ou o serviÁo n„o os disponibiliza.",
+                            "EPIs disponÌveis, mas n„o est„o em conformidade com a Norma Regulamentadora n∫ 32.",
+                            "EPIs incompatÌveis com a complexidade dos procedimentos (ex: ausÍncia de proteÁ„o respiratÛria adequada).",
+                            "ServiÁo provÍ e profissionais utilizam EPIs completos, adequados e em quantidade suficiente, conforme NR 32.",
+                            "ComprovaÁ„o de capacitaÁ„o da equipe sobre uso e descarte de EPIs.",
+                            "Auditoria contÌnua da ades„o ao uso de EPIs pela equipe."
+                        ]
+                    },
+                    {
+                        id: "q11", tag: "geral", titulo: "Sa˙de Ocupacional e CapacitaÁ„o", critico: false, norma: "RDC 1002/2025 - Art. 113 (II, III, XIV), Art. 114 e Art. 115",
+                        opcoes: [
+                            "Sem controle de sa˙de ocupacional ou comprovaÁ„o de vacinaÁ„o.",
+                            "N„o possui protocolo de encaminhamento em caso de acidentes com perfurocortantes.",
+                            "N„o h· registro de capacitaÁ„o admissional sobre a SDBPF e rotinas.",
+                            "Fichas de sa˙de ocupacional em dia, protocolo de acidente perfurocortante implementado, capacitaÁ„o registrada.",
+                            "Plano anual de educaÁ„o permanente em execuÁ„o e arquivado.",
+                            "PCMSO plenamente integrado e revisıes periÛdicas da SDBPF absorvidas pela equipe."
+                        ]
+                    },
+                    {
+                        id: "q12", tag: "geral", titulo: "N˙cleo de SeguranÁa do Paciente (NSP) e NotificaÁıes", critico: false, norma: "RDC 1002/2025 - Art. 117 a Art. 120",
+                        opcoes: [
+                            "N„o aplica aÁıes de seguranÁa do paciente ou n„o notifica eventos adversos.",
+                            "ClÌnica com 2+ consultÛrios (ou ensino) N√O constituiu o NSP obrigatÛrio.",
+                            "Possui PSP (Plano de SeguranÁa do Paciente), mas n„o realiza as notificaÁıes mensais via Anvisa.",
+                            "AÁıes do PSP implementadas; NSP instituÌdo (se exigido); notificaÁıes realizadas atÈ o 15∫ dia ˙til do mÍs subsequente.",
+                            "Eventos graves (Ûbito/surtos) notificados rigorosamente em atÈ 24 horas.",
+                            "An·lise e investigaÁ„o sistÍmica de eventos adversos gerando melhoria contÌnua."
+                        ]
+                    }
+                ]
+            },
+            {
+                bloco: "BLOCO 3: Processamento de Dispositivos MÈdicos (CME)",
+                indicadores: [
+                    {
+                        id: "q13", tag: "geral", titulo: "Estrutura para Processamento", critico: true, norma: "RDC 1002/2025 - Art. 25 a Art. 30",
+                        opcoes: [
+                            "Processamento na mesma bancada de atendimento clÌnico ou no lavatÛrio de m„os (proibido Art. 25 ß2∫).",
+                            "ConsultÛrio coletivo / CCO utilizando bancada setorizada (proibido Art. 26).",
+                            "Bancada ou sala sem separaÁ„o fÌsica mÌnima de 50 cm entre ·rea suja e limpa.",
+                            "Adequado: Bancada setorizada (p/ ConsultÛrio Indiv.), sala ˙nica ou duas salas, respeitando fluxo unidirecional sujo->limpo.",
+                            "Cuba c/ afastamento mÌnimo de 30 cm e dispensador de ·lcool na ·rea limpa.",
+                            "Ambiente com conforto ac˙stico, tÈrmico e luminoso adequado (Art. 28)."
+                        ]
+                    },
+                    {
+                        id: "q14", tag: "geral", titulo: "PrÈ-Limpeza", critico: false, norma: "RDC 1002/2025 - Art. 59 e Art. 60",
+                        opcoes: [
+                            "Nenhuma prÈ-limpeza È executada apÛs o atendimento.",
+                            "Dispositivos mÈdicos (DM) ficam imersos em detergente no ponto de assistÍncia (proibido Art. 59 p.˙.).",
+                            "PrÈ-limpeza executada muito tempo apÛs o tÈrmino do atendimento.",
+                            "PrÈ-limpeza mec‚nica executada imediatamente apÛs atendimento; Turbinas acionadas sem broca para limpeza interna.",
+                            "Procedimento documentado no POP de processamento da SDBPF.",
+                            "Fluxo imediato ao expurgo, evitando qualquer ressecamento de matÈria org‚nica."
+                        ]
+                    },
+                    {
+                        id: "q15", tag: "geral", titulo: "Insumos e ¡gua para Limpeza", critico: true, norma: "RDC 1002/2025 - Art. 63 a Art. 66",
+                        opcoes: [
+                            "Uso de detergente de uso domiciliar ou pasta abrasiva (proibido Art. 66 ß2∫).",
+                            "¡gua n„o pot·vel ou n„o troca a soluÁ„o de detergente a cada uso (Art. 66 ß4∫).",
+                            "Saneantes regulares, mas diluiÁ„o feita a olho (sem recipiente volumÈtrico graduado).",
+                            "¡gua pot·vel, saneantes registrados na Anvisa, diluiÁ„o com medidor volumÈtrico, soluÁ„o trocada a cada uso.",
+                            "¡gua de enx·gue atende especificaÁıes rigorosas e objetos de escovaÁ„o n„o soltam partÌculas.",
+                            "Objetos de limpeza descartados imediatamente ao comprometerem funcionalidade."
+                        ]
+                    },
+                    {
+                        id: "q16", tag: "geral", titulo: "TÈcnica de Limpeza e InspeÁ„o", critico: true, norma: "RDC 1002/2025 - Art. 62, Art. 67, Art. 68 e Art. 71",
+                        opcoes: [
+                            "Limpeza manual ineficiente, com sujidade residual visÌvel.",
+                            "DM de conformaÁ„o complexa n„o s„o submetidos a limpeza automatizada (ex: cuba ultrassÙnica).",
+                            "Materiais canulados limpos sem escovas adequadas ou sem pistola de ·gua sob press„o.",
+                            "Limpeza manual correta; cuba ultrassÙnica para DM complexos; pistola sob press„o para canulados.",
+                            "Desmontagem de DMs reutiliz·veis aplicada quando indicada pelo fabricante.",
+                            "InspeÁ„o visual executada rigorosamente com auxÌlio de lentes intensificadoras de no mÌnimo 8 vezes (Art. 71)."
+                        ]
+                    },
+                    {
+                        id: "q18", tag: "geral", titulo: "Embalagem e Selagem", critico: true, norma: "RDC 1002/2025 - Art. 73 a Art. 76",
+                        opcoes: [
+                            "Uso de caixas met·licas s/ furos, papel kraft, toalha, alumÌnio ou pl·sticos puros (proibido Art. 73).",
+                            "Embalagens descart·veis sendo reutilizadas (proibido Art. 76).",
+                            "Embalagem grau cir˙rgico fechada com fita zebrada ou s/ termosseladora adequada (proibido Art. 75).",
+                            "Embalagens especÌficas, selagem por termosseladora, sem rugas/fissuras, permitindo abertura assÈptica.",
+                            "Embalagem dimensionada permitindo circulaÁ„o do vapor.",
+                            "Testes rotineiros de integridade da seladora arquivados."
+                        ]
+                    },
+                    {
+                        id: "q19", tag: "geral", titulo: "Etiquetagem e Validade da Esterilidade", critico: false, norma: "RDC 1002/2025 - Art. 79 a Art. 82",
+                        opcoes: [
+                            "Nenhuma etiqueta ou identificaÁ„o nos pacotes.",
+                            "IdentificaÁ„o escrita ‡ caneta comum derretendo na face do papel (n„o aprovada p/ esterilizaÁ„o).",
+                            "Etiqueta n„o contÈm todos os dados obrigatÛrios do Art. 81 (Data, Respons·vel, Lote, Conte˙do).",
+                            "Etiquetas com todas as informaÁıes na face pl·stica. Validade de 6 meses aplicada (na ausÍncia de validaÁ„o prÛpria).",
+                            "Validade cientÌfica superior a 6 meses atestada por estudos prÛprios aprovados.",
+                            "Sistema informatizado imprimindo etiquetas de rastreabilidade ‡ prova d'·gua."
+                        ]
+                    },
+                    {
+                        id: "q20", tag: "geral", titulo: "Equipamento de EsterilizaÁ„o", critico: true, norma: "RDC 1002/2025 - Art. 84 a Art. 88",
+                        opcoes: [
+                            "Uso de estufas (calor seco) ou caixas de luz UV para esterilizaÁ„o (Expressamente proibido Art. 84).",
+                            "Ciclo a vapor n„o compatÌvel com o tipo de carga, ou pacotes encostados nas paredes da c‚mara.",
+                            "Pacotes empilhados na horizontal ou papel encostado em pl·stico na vertical (proibido Art. 86).",
+                            "Autoclave adequada, ·gua atende especificaÁıes, pacotes organizados papel-papel/pl·stico-pl·stico, espaÁados.",
+                            "Se autoclave prÈ-v·cuo, realiza teste Bowie & Dick no 1∫ ciclo do dia (Art. 88).",
+                            "QualificaÁ„o do equipamento arquivada em relatÛrio da engenharia clÌnica."
+                        ]
+                    },
+                    {
+                        id: "q21", tag: "geral", titulo: "Monitoramento FÌsico, QuÌmico e BiolÛgico", critico: true, norma: "RDC 1002/2025 - Art. 78, Art. 89, Art. 90 e Art. 91",
+                        opcoes: [
+                            "N„o realiza testes biolÛgicos ou quÌmicos internos.",
+                            "Uso apenas de fita zebrada (Tipo 1), sem integradores tipo 5/6 internos.",
+                            "N„o realiza o teste biolÛgico semanalmente ou n„o registra os par‚metros fÌsicos.",
+                            "Indicador externo (T1) em todos; Integrador (T5/6) em ciclos subsequentes; Teste BiolÛgico + Integrador (T5/6) semanal no 1∫ ciclo.",
+                            "Registros arquivados por 5 anos, contendo lote, operador, resultado, tempo, temp. e press„o (Art. 91, 92).",
+                            "Incubadora biolÛgica com manutenÁ„o preventiva anual comprovada (Art. 136)."
+                        ]
+                    },
+                    {
+                        id: "q22", tag: "geral", titulo: "Armazenamento de Dispositivos Processados", critico: false, norma: "RDC 1002/2025 - Art. 102",
+                        opcoes: [
+                            "Pacotes estÈreis armazenados em gavetas clÌnicas sujas, abertas ou com luz solar direta.",
+                            "Armazenados em ·rea prÛxima a sif„o de pias (proibido Art. 102 ß3∫).",
+                            "Pacotes armazenados apertados, comprimindo e danificando a integridade da embalagem.",
+                            "Local de armazenamento exclusivo, seco, escuro, longe de fontes de umidade/sif„o.",
+                            "Manuseio mÌnimo, inspecionando integridade antes do uso (rejeita se amassada/molhada).",
+                            "Controle rigoroso de FIFO (Primeiro a vencer, primeiro a sair)."
+                        ]
+                    }
+                ]
+            },
+            {
+                bloco: "BLOCO 4: Gest„o de ResÌduos (PGRSS)",
+                indicadores: [
+                    {
+                        id: "q23", tag: "geral", titulo: "ResÌduos SÛlidos e Perfurocortantes (Grupos A, D, E)", critico: true, norma: "RDC 1002/2025 - Art. 122 e Art. 128",
+                        opcoes: [
+                            "N„o possui PGRSS ou descarta perfurocortantes em lixo comum.",
+                            "Reaproveitamento de tubetes anestÈsicos vazios ou agulhas (proibido Art. 128 p.˙.).",
+                            "Perfurocortantes alÈm do limite do coletor, ou lixeiras de resÌduos infectantes sem tampa/pedal.",
+                            "PGRSS elaborado, lixeiras regulares, descarte correto de agulhas e tubetes sem reaproveitamento.",
+                            "DestinaÁ„o final assegurada por empresa licenciada e contratada.",
+                            "OperacionalizaÁ„o do PGRSS monitorada com indicadores internos de reduÁ„o."
+                        ]
+                    },
+                    {
+                        id: "q24", tag: "geral", titulo: "ResÌduos QuÌmicos (Am·lgama e Radiologia)", critico: false, norma: "RDC 1002/2025 - Art. 123 a Art. 126",
+                        opcoes: [
+                            "Descarte de revelador/fixador ou resÌduo de am·lgama diretamente no esgoto.",
+                            "LÌquidos guardados, mas sem recipiente rÌgido e sem identificaÁ„o de risco.",
+                            "Am·lgama armazenado, mas n„o sob selo d'·gua.",
+                            "Revelador neutralizado (se no esgoto c/ fita pH) ou coletado; Fixador e PelÌculas coletados; Am·lgama sob selo d'·gua.",
+                            "C·psulas de am·lgama estocadas separadamente para recuperaÁ„o.",
+                            "ClÌnica isenta de geraÁ„o destes resÌduos (Digital e sem am·lgama)."
+                        ]
+                    }
+                ]
+            },
+            {
+                bloco: "BLOCO 5: Radiologia OdontolÛgica (MÛdulo Din‚mico)",
+                indicadores: [
+                    {
+                        id: "q25", tag: "rx-fixo", titulo: "Levantamento RadiomÈtrico e ProteÁ„o (Equipamento Fixo)", critico: false, norma: "RDC 1002/2025 - Art. 15, 141 e 144",
+                        opcoes: [
+                            "N„o realiza levantamento radiomÈtrico ou usa mais de um RX na mesma sala (Art. 15 ß4∫).",
+                            "Levantamento vencido (> 4 anos) ou n„o refez apÛs mudanÁa do equipamento.",
+                            "Operador a menos de 2 metros de dist‚ncia sem uso de disparador externo ou biombo.",
+                            "Levantamento v·lido (< 4 anos), RX cadastrado na VISA, operador protegido a 2m, contato visual mantido.",
+                            "Vestimenta plumbÌfera (0,25 mmPb) garantindo proteÁ„o de tireoide e gÙnadas disponÌvel.",
+                            "Programa de ProteÁ„o RadiolÛgica com Supervisor designado formalmente (Art. 146)."
+                        ]
+                    },
+                    {
+                        id: "q26", tag: "rx-portatil", titulo: "Equipamento Port·til de Radiografia", critico: true, norma: "RDC 1002/2025 - Art. 143",
+                        opcoes: [
+                            "Uso de RX port·til sem qualquer certificaÁ„o e segurando diretamente com as m„os sem cabo.",
+                            "Uso de RX port·til sem comprovaÁ„o de seguranÁa radiomÈtrica atualizada.",
+                            "Usa RX Port·til segurando com as m„os, sem certificaÁ„o tÈcnica formal atestando seguranÁa sem cabo.",
+                            "RX Port·til utilizado com suporte de tripÈ/parede e cabo disparador de no mÌnimo 2m.",
+                            "Utiliza sem cabo suportado por certificaÁ„o tÈcnica explÌcita do fabricante (radiaÁ„o de fuga ok).",
+                            "Equipamento submetido a rigoroso controle de qualidade digital de imagem."
+                        ]
+                    },
+                    {
+                        id: "q27", tag: "rx-extraoral", titulo: "Salas de Imagem (Radiologia Extraoral / Panor‚mica)", critico: false, norma: "RDC 1002/2025 - Art. 148 a 151",
+                        opcoes: [
+                            "Sala de RX extraoral sem nenhuma blindagem ou projeto de proteÁ„o.",
+                            "RX Extraoral sem Projeto de Blindagem aprovado pela VISA local.",
+                            "Falta sinalizaÁ„o de ·rea controlada ou sala de laudos (quando n„o h· terceirizaÁ„o).",
+                            "Projeto de Blindagem aprovado, ·reas delimitadas. Se laudo a dist‚ncia, possui contrato e assinatura digital.",
+                            "Filmes acondicionados corretamente ou ambiente 100% digitalizado.",
+                            "Softwares de planejamento digital regularizados pela Anvisa (Art. 154)."
+                        ]
+                    }
+                ]
+            },
+            {
+                bloco: "BLOCO 6: UrgÍncias, SedaÁ„o e PrÛtese (MÛdulo Din‚mico)",
+                indicadores: [
+                    {
+                        id: "q28", tag: "geral", titulo: "UrgÍncia e EmergÍncia (Equipamentos B·sicos)", critico: true, norma: "RDC 1002/2025 - Art. 36 e Art. 116",
+                        opcoes: [
+                            "N„o possui protocolo de urgÍncia nem qualquer maleta/kit de emergÍncia mÈdica.",
+                            "Falta fluxograma de encaminhamento para UPA/SAMU ou maleta incompleta.",
+                            "Kit disponÌvel, mas contÈm medicamentos de emergÍncia vitais vencidos.",
+                            "Protocolo de encaminhamento ativo, equipe sabe acionar SAMU, maleta/kit de primeiros socorros organizada e no prazo.",
+                            "AlÈm do b·sico, possui suporte ventilatÛrio b·sico (Amb˙) disponÌvel.",
+                            "Equipe realiza simulaÁıes semestrais de suporte b·sico de vida (BLS)."
+                        ]
+                    },
+                    {
+                        id: "q29", tag: "sedacao", titulo: "Procedimento de SedaÁ„o (InalatÛria ou Endovenosa)", critico: true, norma: "RDC 1002/2025 - Art. 14, 36 e 116",
+                        opcoes: [
+                            "Realiza sedaÁ„o sem ter oxÌmetro, monitor ou ressuscitador (Amb˙) e cilindros de O2 soltos na sala.",
+                            "Profissional realiza sem capacitaÁ„o ou estrutura do g·s n„o possui exaust„o.",
+                            "MonitorizaÁ„o existe, mas falta desfibrilador (DEA) obrigatÛrio para sedaÁ„o endovenosa.",
+                            "Profissional capacitado, cilindros fixos, monitorizaÁ„o de sinais vitais ininterrupta, ressuscitador e protocolo.",
+                            "Sala possui exaust„o mec‚nica para diluiÁ„o de g·s anestÈsico residual (N2O).",
+                            "DEA (Desfibrilador) presente e operante no local."
+                        ]
+                    },
+                    {
+                        id: "q30", tag: "lpd", titulo: "LaboratÛrio de PrÛtese Dent·ria - LPD PrÛprio", critico: false, norma: "RDC 1002/2025 - Art. 157 a 181",
+                        opcoes: [
+                            "LPD funcionando no mesmo ambiente de atendimento clÌnico, gerando alta contaminaÁ„o cruzada.",
+                            "LPD n„o possui divisÛria atÈ o teto isolando-o da ·rea clÌnica (Art. 163).",
+                            "LPD sem RT TÈcnico em PrÛtese ou sem pia com caixa de decantaÁ„o de gesso.",
+                            "LPD com barreira fÌsica/porta, RT exclusivo, lavatÛrio prÛprio e protocolo de desinfecÁ„o de moldes (Art. 175).",
+                            "Registros de serviÁos de prÛtese rigorosamente controlados (Art. 177).",
+                            "Exaust„o de gases para fundiÁ„o ativa e EPIs especÌficos monitorados (Art. 173)."
+                        ]
+                    }
+                ]
+            }
+        ];
+
+        let totalQuestionsActive = 0;
+
+        $(document).ready(function() {
             
-            # Para evitar problemas com nomes muito longos ou caracteres especiais no sistema de arquivos, 
-            # voc√™ pode querer adicionar mais limpeza no nome do arquivo aqui se der erro.
-            # Mas o replace de espa√ßo por underline j√° resolve 90%.
+            // Bot„o "Gerar ROI"
+            $('#btn-generate').click(function() {
+                const config = {
+                    'rx-fixo': $('#chk-rx-fixo').is(':checked'),
+                    'rx-portatil': $('#chk-rx-portatil').is(':checked'),
+                    'rx-extraoral': $('#chk-rx-extraoral').is(':checked'),
+                    'sedacao': $('#chk-sedacao').is(':checked'),
+                    'lpd': $('#chk-lpd').is(':checked'),
+                    'geral': true // Tags gerais sempre entram
+                };
 
-            caminho_completo = os.path.join(output_folder, nome_arquivo)
+                renderizarFormulario(config);
 
-            if os.path.exists(caminho_completo):
-                print(f" -> [Pular] '{nome_pais}' j√° existe.")
-                continue
+                // UI Transitions
+                $('#setup-panel').slideUp(400, function() {
+                    $('#roi-wrapper').fadeIn(400);
+                    $('#dashboard').removeClass('hidden').addClass('flex');
+                    $('#btn-print').removeClass('hidden');
+                });
+            });
 
-            try:
-                audio_gerado = client.text_to_speech.convert(
-                    voice_id=voice_id,
-                    text=texto_falar,
-                    model_id="eleven_multilingual_v2"
-                )
-                save(audio_gerado, caminho_completo)
-                print(f" -> [Gerado] '{nome_pais}'")
-            except Exception as e:
-                print(f"‚ùå ERRO ao gerar '{nome_pais}': {e}")
+            function renderizarFormulario(config) {
+                let html = '';
+                totalQuestionsActive = 0;
+                
+                roiMasterData.forEach((bloco) => {
+                    // Filtra os indicadores baseados na configuraÁ„o escolhida
+                    let indicadoresFiltrados = bloco.indicadores.filter(ind => config[ind.tag] === true);
 
-        print("\n‚úÖ Processo conclu√≠do!")
+                    if(indicadoresFiltrados.length > 0) {
+                        html += `
+                        <fieldset class="bg-white rounded-xl shadow-md overflow-hidden border border-gray-200 question-container">
+                            <div class="bg-indigo-900 text-white p-4">
+                                <h2 class="text-xl font-bold">${bloco.bloco}</h2>
+                            </div>
+                            <div class="p-6 space-y-8">
+                        `;
 
-    except Exception as e:
-        print(f"\nOcorreu um erro inesperado: {e}")
+                        indicadoresFiltrados.forEach((ind) => {
+                            totalQuestionsActive++;
+                            const criticalBadge = ind.critico ? 
+                                `<span class="text-xs font-bold px-2 py-1 rounded critical-badge"><i class="fa-solid fa-triangle-exclamation mr-1"></i> CRÕTICO</span>` : 
+                                `<span class="text-xs font-bold px-2 py-1 rounded nc-badge">N√O CRÕTICO</span>`;
 
-if __name__ == "__main__":
-    gerar_audios_nomes()
+                            html += `
+                                <div class="border-b border-gray-100 pb-8 last:border-0 last:pb-0" id="item-${ind.id}">
+                                    <div class="flex flex-col md:flex-row md:items-center gap-2 mb-4">
+                                        <h3 class="text-lg font-bold text-gray-800 flex-1">${ind.titulo}</h3>
+                                        <div class="flex gap-2 items-center">
+                                            <span class="text-xs text-gray-500 bg-gray-100 px-2 py-1 rounded border border-gray-200" title="Marco RegulatÛrio">
+                                                <i class="fa-solid fa-scale-balanced mr-1"></i> ${ind.norma}
+                                            </span>
+                                            ${criticalBadge}
+                                        </div>
+                                    </div>
+                                    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+                            `;
+
+                            ind.opcoes.forEach((opcao, val) => {
+                                let colorClass = '';
+                                if (val <= 2) colorClass = 'hover:border-red-400 focus-within:ring-red-200';
+                                else if (val == 3) colorClass = 'hover:border-yellow-400 focus-within:ring-yellow-200';
+                                else colorClass = 'hover:border-green-400 focus-within:ring-green-200';
+
+                                html += `
+                                    <label class="relative cursor-pointer group">
+                                        <input type="radio" name="${ind.id}" value="${val}" data-critical="${ind.critico}" class="sr-only radio-option">
+                                        <div class="h-full p-4 rounded-lg border-2 border-gray-200 bg-white transition-all duration-200 ${colorClass} flex gap-3 items-start shadow-sm">
+                                            <div class="flex-shrink-0 w-8 h-8 rounded-full bg-gray-100 flex items-center justify-center font-bold text-gray-500 border border-gray-300 group-hover:bg-blue-50 mt-1">
+                                                ${val}
+                                            </div>
+                                            <div class="text-sm text-gray-700 font-medium py-1">
+                                                ${opcao}
+                                            </div>
+                                        </div>
+                                    </label>
+                                `;
+                            });
+
+                            html += `
+                                    </div>
+                                </div>
+                            `;
+                        });
+
+                        html += `
+                            </div>
+                        </fieldset>
+                        `;
+                    }
+                });
+
+                $('#roi-form').html(html);
+                $('#lbl-total').text(totalQuestionsActive);
+                
+                // Reinicia os c·lculos para o novo formul·rio vazio
+                calcularRisco(); 
+            }
+
+            // Motor de C·lculo MARP Din‚mico
+            function calcularRisco() {
+                let totalScore = 0;
+                let answeredCount = 0;
+                let triggerCritical = false;
+
+                $('.radio-option:checked').each(function() {
+                    let val = parseInt($(this).val());
+                    let isCritical = $(this).data('critical');
+                    
+                    totalScore += val;
+                    answeredCount++;
+
+                    let parentContainer = $(this).closest('.grid').parent();
+                    parentContainer.removeClass('score-0-2 score-3 score-4-5');
+                    
+                    if(val <= 2) parentContainer.addClass('score-0-2');
+                    else if(val === 3) parentContainer.addClass('score-3');
+                    else parentContainer.addClass('score-4-5');
+
+                    if (isCritical && val < 3) {
+                        triggerCritical = true;
+                    }
+                });
+
+                $('#lbl-answered').text(answeredCount);
+                $('#lbl-score').text(totalScore);
+
+                let percentage = 0;
+                if(answeredCount > 0) {
+                    // O peso total m·ximo È baseado apenas nas questıes exibidas que j· foram respondidas
+                    let maxScore = answeredCount * 5; 
+                    percentage = Math.round((totalScore / maxScore) * 100);
+                }
+                $('#lbl-percent').text(percentage);
+
+                let statusText = "Aguardando...";
+                let statusClasses = "bg-gray-100 text-gray-600 border-gray-300";
+
+                if (answeredCount > 0) {
+                    if (triggerCritical) {
+                        $('#alert-critical').removeClass('hidden');
+                        statusText = "Risco Inaceit·vel / InterdiÁ„o";
+                        statusClasses = "bg-red-600 text-white border-red-800";
+                    } else {
+                        $('#alert-critical').addClass('hidden');
+                        
+                        if (percentage < 60) {
+                            statusText = "Risco Alto";
+                            statusClasses = "bg-orange-500 text-white border-orange-700";
+                        } else if (percentage < 80) {
+                            statusText = "Risco Aceit·vel (AtenÁ„o)";
+                            statusClasses = "bg-yellow-400 text-gray-900 border-yellow-600";
+                        } else {
+                            statusText = "Baixo Risco (Padr„o Ouro)";
+                            statusClasses = "bg-green-600 text-white border-green-800";
+                        }
+                    }
+                }
+
+                $('#status-card').removeClass().addClass(`px-6 py-3 rounded-lg border-2 shadow-sm min-w-[250px] text-center transition-colors duration-300 ${statusClasses}`);
+                $('#lbl-status').text(statusText);
+            }
+
+            $(document).on('change', '.radio-option', calcularRisco);
+        });
+    </script>
+</body>
+</html>
