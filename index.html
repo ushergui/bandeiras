@@ -267,7 +267,14 @@
     <div id="ranking-modal" class="modal-backdrop hidden">
         <div class="modal-content">
             <h2>Ranking 🏆</h2>
-            <div id="ranking-list" style="text-align: left; margin: 15px 0;"></div>
+            <select id="ranking-filter" style="margin-bottom: 10px; padding: 5px; width: 100%; font-family: inherit; font-size: 1em; border-radius: 5px;">
+                <option value="Todos">Todos os Modos</option>
+                <option value="Qual a Bandeira?">Qual a Bandeira?</option>
+                <option value="Qual o País?">Qual o País?</option>
+                <option value="Qual o Continente?">Qual o Continente?</option>
+                <option value="Jogo da Memória">Jogo da Memória</option>
+            </select>
+            <div id="ranking-list" style="text-align: left; margin: 15px 0; max-height: 300px; overflow-y: auto;"></div>
             <button id="close-ranking-button">Fechar</button>
         </div>
     </div>

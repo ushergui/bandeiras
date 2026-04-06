@@ -333,10 +333,10 @@ document.addEventListener('DOMContentLoaded', () => {
 
             if (type === 'flag') {
                 const c = countries.find(x => x.codigo === val);
-                document.getElementById('constructive-img-wrong').src = `assets/flags/${val}.svg`;
+                document.getElementById('constructive-img-wrong').src = `assets/flags/${val}.png`;
                 document.getElementById('constructive-name-wrong').textContent = c ? c.nome : 'Desconhecido';
                 
-                document.getElementById('constructive-img-right').src = `assets/flags/${correctAnswer.codigo}.svg`;
+                document.getElementById('constructive-img-right').src = `assets/flags/${correctAnswer.codigo}.png`;
                 document.getElementById('constructive-name-right').textContent = correctAnswer.nome;
                 
                 document.getElementById('constructive-feedback-modal').classList.remove('hidden');
@@ -572,11 +572,27 @@ document.addEventListener('DOMContentLoaded', () => {
     buttons.closeRanking.addEventListener('click', () => modals.ranking.classList.add('hidden'));
 
     // Passaporte e Ranking
-    buttons.showRanking.addEventListener('click', () => {
-        const l = JSON.parse(localStorage.getItem('ranking_global')) || [];
+    function renderRanking(filter) {
+        let l = JSON.parse(localStorage.getItem('ranking_global')) || [];
+        if (filter && filter !== 'Todos') {
+            l = l.filter(r => r.mode === filter);
+        }
         const c = document.getElementById('ranking-list'); c.innerHTML = '';
-        l.forEach((r, i) => c.innerHTML += `<p>${i + 1}. ${r.nome} - ${r.score}</p>`);
+        if (l.length === 0) {
+            c.innerHTML = '<p style="color:#777; text-align:center;">Nenhum detetive nesta categoria ainda!</p>';
+        } else {
+            l.forEach((r, i) => c.innerHTML += `<p><strong>${i + 1}. ${r.nome}</strong>: <span style="color:#32CD32; font-weight:bold;">${r.score}</span> <small style="color:#777;">(${r.mode || 'Geral'})</small></p>`);
+        }
+    }
+
+    buttons.showRanking.addEventListener('click', () => {
+        document.getElementById('ranking-filter').value = 'Todos';
+        renderRanking('Todos');
         modals.ranking.classList.remove('hidden');
+    });
+
+    document.getElementById('ranking-filter').addEventListener('change', (e) => {
+        renderRanking(e.target.value);
     });
     buttons.showPassport.addEventListener('click', () => {
         const p = loadPlayerProgress(); const g = elements.passportGrid; g.innerHTML = ''; let u = 0, go = 0;
@@ -624,6 +640,11 @@ document.addEventListener('DOMContentLoaded', () => {
 
     document.getElementById('close-constructive-button').addEventListener('click', () => {
         document.getElementById('constructive-feedback-modal').classList.add('hidden');
+        if (gameConfig.lives === 'infinite' || gameState.chances > 0) {
+            if (gameState.availableCountries.length > 0) {
+                nextRound();
+            }
+        }
     });
 
     document.querySelectorAll('.back-button').forEach(b => b.addEventListener('click', () => {
