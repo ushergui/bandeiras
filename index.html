@@ -65,9 +65,9 @@
             </div>
 
             <div class="menu-footer">
+                <button id="show-album-button" class="ranking-button">📘 Álbum</button>
                 <button id="show-passport-button" class="ranking-button">🛂 Passaporte</button>
                 <button id="show-ranking-button" class="ranking-button">🏆 Ranking</button>
-
             </div>
         </div>
 
@@ -113,6 +113,18 @@
             <p>Descobertos: <span id="passport-count">0</span> | <span style="color:gold">Ouro: <span
                         id="passport-gold">0</span></span></p>
             <div id="passport-grid" class="passport-grid"></div>
+            <button class="back-button" data-target="main-menu">Voltar</button>
+        </div>
+
+        <div id="album-menu" class="screen hidden">
+            <h1>Álbum de Figurinhas 📘</h1>
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
+                <p>Completado: <span id="album-progress">0%</span></p>
+                <button id="open-pack-btn" class="special-mode mode-button" style="padding: 10px; font-size: 0.9em; box-shadow: 0 0 10px gold;">
+                    🎁 Abrir Pacotinho (<span id="packs-count">0</span>)
+                </button>
+            </div>
+            <div id="album-grid" class="album-grid"></div>
             <button class="back-button" data-target="main-menu">Voltar</button>
         </div>
 
@@ -284,6 +296,20 @@
             <h2>Curiosidades</h2>
             <p id="facts-content" style="font-size: 1.1em; line-height: 1.5; text-align: left;"></p>
             <button id="close-facts-button">Fechar</button>
+        </div>
+    </div>
+
+    <div id="pack-modal" class="modal-backdrop hidden">
+        <div class="modal-content pack-opening-content" style="max-width: 600px; text-align: center;">
+            <h2>Pacotinho de Figurinhas 🎁</h2>
+            <div id="pack-animation-container" style="margin: 20px 0; cursor: pointer;">
+                <div class="pack-wrapper" style="background: linear-gradient(135deg, #FFD700, #DAA520); padding: 50px 20px; border-radius: 15px; border: 4px dashed white; box-shadow: 0 10px 20px rgba(0,0,0,0.3); transition: transform 0.2s;">
+                    <h3 style="color: white; text-shadow: 1px 1px 2px rgba(0,0,0,0.5); font-size: 1.5em; margin: 0;">🌍 Detetive Global</h3>
+                    <p style="color: white; margin-top: 10px;">Toque para rasgar!</p>
+                </div>
+            </div>
+            <div id="opened-stickers" class="opened-stickers-grid hidden" style="display: flex; justify-content: center; gap: 15px; flex-wrap: wrap; margin-top: 20px;"></div>
+            <button id="close-pack-button" class="hidden">Coletar Tudo!</button>
         </div>
     </div>
 

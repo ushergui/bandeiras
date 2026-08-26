@@ -14,6 +14,7 @@ document.addEventListener('DOMContentLoaded', () => {
         livesSelect: document.getElementById('lives-select-menu'),
         game: document.getElementById('game-screen'),
         passport: document.getElementById('passport-menu'),
+        album: document.getElementById('album-menu'),
         partyLobbyHost: document.getElementById('party-lobby-host'),
         partyJoinClient: document.getElementById('party-join-client'),
         partyWaitClient: document.getElementById('party-wait-client'),
@@ -26,7 +27,8 @@ document.addEventListener('DOMContentLoaded', () => {
         levelUp: document.getElementById('level-up-modal'),
         ranking: document.getElementById('ranking-modal'),
         facts: document.getElementById('facts-modal'),
-        achievement: document.getElementById('achievement-modal')
+        achievement: document.getElementById('achievement-modal'),
+        pack: document.getElementById('pack-modal')
     };
 
     const elements = {
@@ -49,6 +51,11 @@ document.addEventListener('DOMContentLoaded', () => {
         passportGold: document.getElementById('passport-gold'),
         achievementText: document.getElementById('achievement-text'),
         levelButtonsContainer: document.getElementById('level-buttons-container'),
+        albumGrid: document.getElementById('album-grid'),
+        albumProgress: document.getElementById('album-progress'),
+        packsCount: document.getElementById('packs-count'),
+        packAnimationContainer: document.getElementById('pack-animation-container'),
+        openedStickers: document.getElementById('opened-stickers'),
         // Multiplayer Elements
         hostRoomCode: document.getElementById('host-room-code'),
         hostPlayerCount: document.getElementById('host-player-count'),
@@ -80,6 +87,9 @@ document.addEventListener('DOMContentLoaded', () => {
         closeAchievement: document.getElementById('close-achievement-button'),
         showRanking: document.getElementById('show-ranking-button'),
         showPassport: document.getElementById('show-passport-button'),
+        showAlbum: document.getElementById('show-album-button'),
+        openPack: document.getElementById('open-pack-btn'),
+        closePack: document.getElementById('close-pack-button'),
         levelBack: document.getElementById('level-back-btn'),
         // Multiplayer Buttons
         btnHostParty: document.getElementById('btn-host-party'),
@@ -142,6 +152,7 @@ document.addEventListener('DOMContentLoaded', () => {
     function selectProfile(name) {
         currentUser = name;
         elements.welcomeMessage.textContent = `Olá, ${currentUser}!`;
+        checkDailyPack();
         showScreen('main');
     }
 
@@ -532,16 +543,27 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     function checkAchievements() {
-        const p = loadPlayerProgress(); const u = JSON.parse(localStorage.getItem(`detetive_achievements_${currentUser}`)) || [];
-        [{ id: '1', t: 'Primeiro Passo', c: x => Object.values(x).some(v => v.acertos > 0) },
-        { id: '10', t: 'Explorador', c: x => Object.values(x).filter(v => v.acertos > 0).length >= 10 }]
-            .forEach(a => {
-                if (!u.includes(a.id) && a.c(p)) {
-                    elements.achievementText.textContent = a.t; modals.achievement.classList.remove('hidden');
-                    playSound('win'); dispararConfetes(); u.push(a.id);
-                    localStorage.setItem(`detetive_achievements_${currentUser}`, JSON.stringify(u));
-                }
-            });
+        const p = loadPlayerProgress(); 
+        const u = JSON.parse(localStorage.getItem(`detetive_achievements_${currentUser}`)) || [];
+        
+        const achs = [
+            { id: '1', t: 'Primeiro Passo', desc: 'Acertou sua primeira bandeira! (+1 Pacote)', packs: 1, c: x => Object.values(x).some(v => v.acertos > 0) },
+            { id: '10', t: 'Explorador', desc: 'Acertou 10 bandeiras diferentes! (+1 Pacote)', packs: 1, c: x => Object.values(x).filter(v => v.acertos > 0).length >= 10 },
+            { id: '50', t: 'Mochileiro', desc: 'Acertou 50 bandeiras diferentes! (+2 Pacotes)', packs: 2, c: x => Object.values(x).filter(v => v.acertos > 0).length >= 50 },
+            { id: 'perfect', t: 'Intocável', desc: 'Fez uma sequência de 20 acertos em um país! (+3 Pacotes)', packs: 3, c: x => Object.values(x).some(v => v.streak >= 20) },
+            { id: 'master', t: 'Mestre Geográfico', desc: 'Fez 100 acertos no total! (+5 Pacotes)', packs: 5, c: x => Object.values(x).reduce((acc, curr) => acc + curr.acertos, 0) >= 100 }
+        ];
+
+        achs.forEach(a => {
+            if (!u.includes(a.id) && a.c(p)) {
+                elements.achievementText.innerHTML = `<strong>${a.t}</strong><br><span style="font-size:0.8em; color:#555;">${a.desc}</span>`; 
+                modals.achievement.classList.remove('hidden');
+                playSound('win'); dispararConfetes(); 
+                u.push(a.id);
+                localStorage.setItem(`detetive_achievements_${currentUser}`, JSON.stringify(u));
+                if (a.packs > 0 && typeof addPacks === 'function') addPacks(a.packs);
+            }
+        });
     }
 
     function dispararConfetes() { 
@@ -603,6 +625,122 @@ document.addEventListener('DOMContentLoaded', () => {
             i.innerHTML = `<img src="assets/flags/${c.codigo}.png">`; g.appendChild(i);
         });
         elements.passportCount.textContent = u; elements.passportGold.textContent = go; showScreen('passport');
+    });
+
+    // --- ÁLBUM DE FIGURINHAS ---
+    function loadStickers() {
+        return JSON.parse(localStorage.getItem(`detetive_stickers_${currentUser}`)) || [];
+    }
+    
+    function saveStickers(s) {
+        localStorage.setItem(`detetive_stickers_${currentUser}`, JSON.stringify(s));
+    }
+
+    function getPacksCount() {
+        return parseInt(localStorage.getItem(`detetive_packs_${currentUser}`)) || 0;
+    }
+
+    function addPacks(n) {
+        let current = getPacksCount();
+        localStorage.setItem(`detetive_packs_${currentUser}`, current + n);
+        if (elements.packsCount) elements.packsCount.textContent = getPacksCount();
+    }
+
+    function removePack() {
+        let current = getPacksCount();
+        if (current > 0) {
+            localStorage.setItem(`detetive_packs_${currentUser}`, current - 1);
+            elements.packsCount.textContent = getPacksCount();
+            return true;
+        }
+        return false;
+    }
+
+    function checkDailyPack() {
+        const lastLogin = localStorage.getItem(`detetive_last_login_${currentUser}`);
+        const today = new Date().toDateString();
+        if (lastLogin !== today) {
+            addPacks(1); // Ganha 1 pacotinho por dia
+            localStorage.setItem(`detetive_last_login_${currentUser}`, today);
+            setTimeout(() => {
+                alert("Você ganhou 1 pacotinho diário! 🎁 Vá ao Álbum para abrir.");
+            }, 500);
+        }
+    }
+
+    if (buttons.showAlbum) buttons.showAlbum.addEventListener('click', () => {
+        const stickers = loadStickers();
+        const grid = elements.albumGrid;
+        grid.innerHTML = '';
+        
+        countries.forEach(c => {
+            const hasSticker = stickers.includes(c.codigo);
+            const item = document.createElement('div');
+            item.className = 'album-item' + (hasSticker ? '' : ' locked');
+            if (hasSticker) {
+                item.innerHTML = `<img src="assets/flags/${c.codigo}.png" title="${c.nome}">`;
+            } else {
+                item.innerHTML = `<span>?</span>`;
+            }
+            grid.appendChild(item);
+        });
+
+        const progress = Math.round((stickers.length / countries.length) * 100);
+        elements.albumProgress.textContent = `${progress}%`;
+        elements.packsCount.textContent = getPacksCount();
+
+        showScreen('album');
+    });
+
+    if (buttons.openPack) buttons.openPack.addEventListener('click', () => {
+        if (getPacksCount() <= 0) {
+            alert("Você não tem pacotinhos! Jogue partidas ou volte amanhã para ganhar mais.");
+            return;
+        }
+        
+        elements.openedStickers.innerHTML = '';
+        elements.openedStickers.classList.add('hidden');
+        elements.packAnimationContainer.classList.remove('hidden');
+        buttons.closePack.classList.add('hidden');
+        modals.pack.classList.remove('hidden');
+    });
+
+    if (elements.packAnimationContainer) elements.packAnimationContainer.addEventListener('click', () => {
+        if (!removePack()) return; 
+
+        playSound('match');
+        if (!calmMode && typeof confetti !== 'undefined') confetti({ particleCount: 50, spread: 60, origin: { y: 0.5 } });
+
+        elements.packAnimationContainer.classList.add('hidden');
+        elements.openedStickers.innerHTML = '';
+        
+        const stickers = loadStickers();
+        
+        for (let i = 0; i < 3; i++) {
+            const drawn = shuffle([...countries])[0];
+            const isNew = !stickers.includes(drawn.codigo);
+            if (isNew) {
+                stickers.push(drawn.codigo);
+            }
+            
+            const div = document.createElement('div');
+            div.style.textAlign = 'center';
+            div.style.width = '80px';
+            div.innerHTML = `
+                <img src="assets/flags/${drawn.codigo}.png" style="width: 100%; border-radius: 5px; border: 2px solid ${isNew ? '#FFD700' : '#ccc'}; box-shadow: 0 4px 8px rgba(0,0,0,0.2);">
+                <p style="font-size: 0.8em; margin-top: 5px; color: ${isNew ? '#FFD700' : '#555'}; font-weight: bold;">${isNew ? 'NOVA!' : 'Repetida'}</p>
+            `;
+            elements.openedStickers.appendChild(div);
+        }
+        
+        saveStickers(stickers);
+        elements.openedStickers.classList.remove('hidden');
+        buttons.closePack.classList.remove('hidden');
+    });
+
+    if (buttons.closePack) buttons.closePack.addEventListener('click', () => {
+        modals.pack.classList.add('hidden');
+        buttons.showAlbum.click(); 
     });
 
     // Eventos Multiplayer
