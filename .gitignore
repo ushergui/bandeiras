@@ -32,3 +32,6 @@ ui-ux-pro-max-skill/
 # Build / deploy
 .netlify/
 dist/
+
+# packs de audio baixados (ja extraidos para assets/audio/effects/)
+kenney-*/
