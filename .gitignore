@@ -1,12 +1,34 @@
-# Arquivo de chave de API - NUNCA ENVIE ISSO!
+# Chave de API - NUNCA ENVIE ISSO!
 .env
+.env.local
 
-# Pasta do ambiente virtual do Python
+# Ambiente virtual Python
 venv/
 
-# Arquivos de cache do Python
+# Cache Python
 __pycache__/
 *.pyc
 
-                                                            # Arquivos de configuração do VS Code
+# VS Code
 .vscode/
+
+# Bancos de dados locais da versão antiga (Django/Flask)
+*.db
+game.db
+game_django.db
+
+# Áudio bruto (WAV) das curiosidades - só a versão .mp3 vai pro deploy
+assets/audio/curiosidades/*.wav
+assets/audio/**/*.wav
+
+# Arquivos de trabalho / material de referência não publicado
+_arquivo_morto/
+.cache/
+FigurinhasCopa/
+album copa.png
+Envolpe.png
+ui-ux-pro-max-skill/
+
+# Build / deploy
+.netlify/
+dist/

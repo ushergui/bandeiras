@@ -1,0 +1,123 @@
+/* =====================================================
+   APP SHELL — camada base (carrega DEPOIS de style.css)
+   Objetivo: sensação de aplicativo no celular, layout
+   centralizado e contido no desktop, áreas seguras,
+   alvos de toque grandes, respeito a "reduzir movimento".
+   ===================================================== */
+
+:root {
+  /* áreas seguras (notch / barra de gestos) */
+  --safe-top: env(safe-area-inset-top, 0px);
+  --safe-bottom: env(safe-area-inset-bottom, 0px);
+  --safe-left: env(safe-area-inset-left, 0px);
+  --safe-right: env(safe-area-inset-right, 0px);
+
+  /* alvo mínimo de toque */
+  --tap-min: 48px;
+
+  /* altura da barra de navegação inferior (mobile) */
+  --bottomnav-h: 0px;
+
+  /* largura máxima de conteúdo no desktop */
+  --content-max: clamp(720px, 62vw, 1040px);
+}
+
+/* usa a altura real da viewport em mobile (evita "pulo" da barra do navegador) */
+html, body { height: 100%; min-height: 100%; }
+
+body {
+  min-height: 100dvh;
+  /* no mobile o conteúdo encosta nas bordas; padding só nas áreas seguras */
+  padding: var(--safe-top) var(--safe-right) var(--safe-bottom) var(--safe-left);
+}
+
+/* ---------- MOBILE: shell de tela cheia ---------- */
+@media (max-width: 767.98px) {
+  body {
+    display: block;
+    background: var(--bg-main);
+  }
+
+  .main-container {
+    max-width: none;
+    width: 100%;
+    min-height: 100dvh;
+    max-height: none;
+    border: 0;
+    border-radius: 0;
+    box-shadow: none;
+    padding: 16px 16px calc(16px + var(--bottomnav-h));
+    gap: 14px;
+  }
+
+  .main-container.memory-mode { max-width: none; }
+
+  /* alvos de toque confortáveis */
+  button,
+  .mode-button,
+  .ranking-button,
+  .back-button,
+  .text-option,
+  select,
+  input[type="text"],
+  input[type="number"],
+  input[type="password"] {
+    min-height: var(--tap-min);
+  }
+
+  .mode-button { min-height: 84px; font-size: 1rem; }
+
+  /* modais viram folhas que sobem de baixo */
+  .modal-backdrop { align-items: flex-end !important; padding: 0 !important; }
+  .modal-content {
+    max-width: none !important;
+    width: 100% !important;
+    border-radius: 22px 22px 0 0 !important;
+    max-height: 92dvh !important;
+    padding-bottom: calc(24px + var(--safe-bottom)) !important;
+  }
+}
+
+/* ---------- DESKTOP / TABLET: cartão centralizado ---------- */
+@media (min-width: 768px) {
+  body {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 24px;
+  }
+
+  .main-container {
+    width: 100%;
+    max-width: var(--content-max);
+    max-height: min(92dvh, 900px);
+  }
+}
+
+/* ---------- utilidades de toque / seleção ---------- */
+button, a, .mode-button, .flag-option, .text-option, .continent-tab {
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
+}
+
+img, svg { -webkit-user-drag: none; user-select: none; }
+
+/* foco visível para teclado (acessibilidade) */
+:focus-visible {
+  outline: 3px solid var(--accent-blue);
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+
+/* ---------- reduzir movimento ---------- */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+/* ---------- transição entre telas ---------- */
+.screen { will-change: transform, opacity; }

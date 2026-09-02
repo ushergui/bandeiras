@@ -1,0 +1,38 @@
+# Configuração de deploy no Netlify — Detetive Global (PWA estática)
+
+[build]
+  publish = "."
+  command = ""
+
+# SPA: qualquer rota desconhecida cai no index.html
+[[redirects]]
+  from = "/*"
+  to = "/index.html"
+  status = 200
+
+# HTML sempre revalida (para pegar versão nova do app rápido)
+[[headers]]
+  for = "/index.html"
+  [headers.values]
+    Cache-Control = "public, max-age=0, must-revalidate"
+
+[[headers]]
+  for = "/sw.js"
+  [headers.values]
+    Cache-Control = "public, max-age=0, must-revalidate"
+
+# Assets estáticos (bandeiras, áudios, ícones) — cache longo e imutável
+[[headers]]
+  for = "/assets/*"
+  [headers.values]
+    Cache-Control = "public, max-age=31536000, immutable"
+
+[[headers]]
+  for = "/countries.js"
+  [headers.values]
+    Cache-Control = "public, max-age=86400"
+
+[[headers]]
+  for = "/curiosities.js"
+  [headers.values]
+    Cache-Control = "public, max-age=86400"

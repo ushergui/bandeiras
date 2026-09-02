@@ -1,3 +1,219 @@
+
+// ═══════════════════════════════════════════════════════
+// CAMADA DE DADOS — "modo local" (localStorage)
+// Mesma interface que será usada pelo backend (Supabase).
+// Trocar só esta implementação quando o backend existir.
+// ═══════════════════════════════════════════════════════
+const Store = {
+    _get(key, fallback) {
+        try { const v = localStorage.getItem(key); return v == null ? fallback : JSON.parse(v); }
+        catch (e) { return fallback; }
+    },
+    _set(key, value) {
+        try { localStorage.setItem(key, JSON.stringify(value)); } catch (e) { console.warn('Store cheio?', e); }
+    },
+    _profilesKey: 'dg_profiles',
+    _progressKey: n => `dg_progress_${n}`,
+    _journeyKey: n => `dg_journey_${n}`,
+    _stickersKey: n => `dg_stickers_${n}`,
+    _packsCountKey: n => `detetive_packs_${n}`,
+    _packsDateKey: n => `detetive_daily_pack_date_${n}`,
+    _rankingKey: 'ranking_global',
+};
+
+const API = {
+    async getProfiles() {
+        const list = Store._get(Store._profilesKey, []);
+        return list.map(p => ({
+            name: p.name,
+            avatar: p.avatar || '🌍',
+            created_at: p.created_at,
+            sticker_count: Store._get(Store._stickersKey(p.name), []).length,
+            journey_level: Store._get(Store._journeyKey(p.name), 1),
+        }));
+    },
+    async createProfile(name, avatar) {
+        name = (name || '').trim();
+        if (!name || name.length > 16) return { error: 'Nome inválido' };
+        const list = Store._get(Store._profilesKey, []);
+        if (list.some(p => p.name.toLowerCase() === name.toLowerCase())) return { error: 'Esse nome já existe' };
+        const profile = { name, avatar: avatar || '🌍', created_at: new Date().toISOString() };
+        list.push(profile);
+        Store._set(Store._profilesKey, list);
+        Store._set(Store._packsCountKey(name), 1);
+        return profile;
+    },
+    async deleteProfile(name) {
+        Store._set(Store._profilesKey, Store._get(Store._profilesKey, []).filter(p => p.name !== name));
+        [Store._progressKey, Store._journeyKey, Store._stickersKey, Store._packsCountKey, Store._packsDateKey]
+            .forEach(k => localStorage.removeItem(k(name)));
+        localStorage.removeItem(`detetive_achievements_${name}`);
+    },
+    async getProgress(name) { return Store._get(Store._progressKey(name), {}); },
+    async saveProgress(name, data) { Store._set(Store._progressKey(name), data); },
+    async getStickers(name) { return Store._get(Store._stickersKey(name), []); },
+    async saveStickers(name, stickers) { Store._set(Store._stickersKey(name), stickers); },
+    async getPacks(name) {
+        return {
+            count: Number(localStorage.getItem(Store._packsCountKey(name)) || 0),
+            last_daily_at: localStorage.getItem(Store._packsDateKey(name)) || null,
+        };
+    },
+    async savePacks(name, count, last_daily_at) {
+        localStorage.setItem(Store._packsCountKey(name), Number(count) || 0);
+        if (last_daily_at) localStorage.setItem(Store._packsDateKey(name), last_daily_at);
+    },
+    async getJourney(name) { return { level: Store._get(Store._journeyKey(name), 1) }; },
+    async saveJourney(name, level) { Store._set(Store._journeyKey(name), Number(level) || 1); },
+    async getRanking(mode) {
+        let l = Store._get(Store._rankingKey, []);
+        if (mode && mode !== 'Todos') l = l.filter(r => r.mode === mode);
+        return l.sort((a, b) => b.score - a.score).slice(0, 20);
+    },
+    async addRanking(nome, score, mode) {
+        const l = Store._get(Store._rankingKey, []);
+        l.push({ nome, score: Number(score) || 0, mode, played_at: new Date().toISOString() });
+        l.sort((a, b) => b.score - a.score);
+        Store._set(Store._rankingKey, l.slice(0, 200));
+    },
+};
+
+// In-memory cache for current session (to avoid too many API calls during a game)
+const _cache = {};
+
+// ═══════════════════════════════════════════════════════
+// AVATAR PICKER — Seletor de avatares com categorias
+// ═══════════════════════════════════════════════════════
+const AVATAR_CATEGORIES = [
+    {
+        label: '🌍 Mundo',
+        emojis: ['🌍','🌎','🌏','🗺️','🧭','🏔️','🌋','🏝️','🏜️','🌊','🌄','🌅','🌆','🌇','🌃','🌌','⭐','🌟','💫','✨','☄️','🌠','🎆','🎇','🗼','🗽','🏰','🏯','🗿','🧱']
+    },
+    {
+        label: '🏆 Vitória',
+        emojis: ['🏆','🥇','🥈','🥉','🎯','🎖️','🏅','👑','💎','💰','🎰','🎲','🃏','♟️','🎮','🕹️','🎳','🎱','🎪','🎠','🎡','🎢','🎭','🎨','🎬','🎤','🎧','🎼','🎵','🎶']
+    },
+    {
+        label: '🦁 Animais',
+        emojis: ['🦁','🐯','🐻','🦊','🐺','🐗','🦝','🦨','🦡','🦦','🦥','🐼','🐨','🦘','🦛','🦏','🐘','🦒','🐪','🐫','🦙','🦔','🐇','🦌','🦬','🐂','🐃','🐄','🐎','🐖','🐏','🐑','🦙','🐐','🦣','🐕','🐩','🦮','🐕‍🦺','🐈','🐈‍⬛','🪶','🐓','🦃','🦤','🦚','🦜','🦢','🦩','🕊️','🐇','🦝']
+    },
+    {
+        label: '🦅 Aves',
+        emojis: ['🦅','🦆','🐦','🦉','🦇','🐺','🦋','🐛','🐌','🐜','🐝','🐞','🦗','🦟','🦠','🦈','🐬','🐳','🐋','🦭','🐊','🐢','🦎','🐍','🦕','🦖','🦎','🐸','🦑','🐙','🦀','🦞','🦐','🦪']
+    },
+    {
+        label: '🌺 Natureza',
+        emojis: ['🌺','🌸','🌹','🌻','🌼','💐','🌷','🌿','🍀','🍁','🍂','🍃','🌱','🌲','🌳','🌴','🎋','🎍','🍄','🌾','🍇','🍈','🍉','🍊','🍋','🍌','🍍','🥭','🍎','🍏','🍐','🍑','🍒','🍓','🫐','🥝','🍅','🫒','🥥','🥑','🫑']
+    },
+    {
+        label: '🔥 Elementos',
+        emojis: ['🔥','💧','🌊','⚡','❄️','🌪️','🌈','⛈️','🌩️','🌨️','☁️','⛅','🌤️','☀️','🌙','🌛','🌜','🌝','🌞','🪐','💥','🌀','🌂','⚓','🗡️','⚔️','🛡️','🪬','🔮','🪄','🎩','🧿']
+    },
+    {
+        label: '🚀 Aventura',
+        emojis: ['🚀','🛸','🛩️','✈️','🚂','🚢','🛥️','⛵','🏄','🧗','🤿','🏊','🏇','🚴','🏋️','⛷️','🏂','🧘','🏌️','🏹','🎣','🤺','🥊','🎽','⛷️','🪂','🧳','🗺️','🔭','🪁','🎿']
+    },
+    {
+        label: '🎭 Diversão',
+        emojis: ['🎭','🃏','🎪','🤡','👹','👺','👻','💀','☠️','👽','👾','🤖','😈','👿','🦄','🐉','🐲','🦋','🌈','🎠','🎡','🎢','🎰','🎳','🎯','🎱','🎲','🎮','🕹️','🎴','🀄']
+    },
+    {
+        label: '😎 Rostos',
+        emojis: ['😎','🤩','🥳','😏','😤','🤠','🥸','🤓','👽','🤡','💩','😈','👻','🦸','🦹','🧙','🧝','🧛','🧟','🧞','🧜','🧚','👮','🕵️','💂','🥷','👷','🤴','👸','🤶','🎅']
+    },
+    {
+        label: '⚽ Esportes',
+        emojis: ['⚽','🏀','🏈','⚾','🥎','🎾','🏐','🏉','🥏','🎱','🏓','🏸','🏒','🥍','🏑','🏏','🪃','⛳','🏹','🎣','🤿','🥊','🥋','🎽','🛹','🛼','🛷','⛸️','🥌','🎿','🪂']
+    }
+];
+
+function initAvatarPicker() {
+    const modal = document.getElementById('avatar-picker-modal');
+    const tabsContainer = document.getElementById('avatar-picker-tabs');
+    const gridContainer = document.getElementById('avatar-picker-grid');
+    const preview = document.getElementById('avatar-preview-bubble');
+    const hiddenInput = document.getElementById('selected-avatar');
+    const openBtn = document.getElementById('open-avatar-picker');
+    const closeBtn = document.getElementById('close-avatar-picker');
+
+    if (!modal || !openBtn) {
+        console.warn('Avatar picker: elementos nao encontrados no DOM');
+        return;
+    }
+
+    // Prevent duplicate listeners
+    if (openBtn._avatarInitialized) return;
+    openBtn._avatarInitialized = true;
+
+    let currentCategory = 0;
+    let selectedEmoji = hiddenInput ? hiddenInput.value : '??';
+
+    function renderTabs() {
+        if (tabsContainer.children.length === 0) {
+            AVATAR_CATEGORIES.forEach((cat, i) => {
+                const btn = document.createElement('button');
+                btn.className = 'avatar-tab-btn' + (i === currentCategory ? ' active' : '');
+                btn.textContent = cat.label;
+                btn.addEventListener('click', () => {
+                    currentCategory = i;
+                    renderTabs();
+                    renderGrid();
+                });
+                tabsContainer.appendChild(btn);
+            });
+        } else {
+            Array.from(tabsContainer.children).forEach((btn, i) => {
+                btn.className = 'avatar-tab-btn' + (i === currentCategory ? ' active' : '');
+            });
+        }
+    }
+
+    function renderGrid() {
+        gridContainer.innerHTML = '';
+        const cat = AVATAR_CATEGORIES[currentCategory];
+        if (!cat) return;
+        cat.emojis.forEach(emoji => {
+            const btn = document.createElement('button');
+            btn.className = 'avatar-emoji-btn' + (emoji === selectedEmoji ? ' selected' : '');
+            btn.textContent = emoji;
+            btn.title = emoji;
+            btn.addEventListener('click', () => {
+                selectedEmoji = emoji;
+                if (preview) preview.textContent = emoji;
+                if (hiddenInput) hiddenInput.value = emoji;
+                gridContainer.querySelectorAll('.avatar-emoji-btn').forEach(b => b.classList.remove('selected'));
+                btn.classList.add('selected');
+                setTimeout(() => modal.classList.add('hidden'), 280);
+            });
+            gridContainer.appendChild(btn);
+        });
+    }
+
+    openBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        modal.classList.remove('hidden');
+        renderTabs();
+        renderGrid();
+    });
+
+    closeBtn.addEventListener('click', () => modal.classList.add('hidden'));
+
+    modal.addEventListener('click', (e) => {
+        if (e.target === modal) modal.classList.add('hidden');
+    });
+
+    if (preview) preview.textContent = selectedEmoji;
+    console.log('Avatar picker inicializado com sucesso!');
+}
+
+const continentSVGs = {
+    'América do Sul': '<svg viewBox="0 0 100 100" fill="currentColor" width="40" height="40"><path d="M40,20 Q50,30 45,50 Q40,70 50,90 Q30,95 25,75 Q20,55 30,35 Q35,25 40,20 Z"/></svg>',
+    'América do Norte': '<svg viewBox="0 0 100 100" fill="currentColor" width="40" height="40"><path d="M20,10 Q50,5 70,20 Q80,40 60,60 Q40,50 30,65 Q10,40 20,10 Z"/></svg>',
+    'Europa': '<svg viewBox="0 0 100 100" fill="currentColor" width="40" height="40"><path d="M40,30 Q60,25 75,35 Q80,55 60,65 Q45,55 40,50 Q30,40 40,30 Z"/></svg>',
+    'África': '<svg viewBox="0 0 100 100" fill="currentColor" width="40" height="40"><path d="M30,30 Q60,20 80,40 Q75,70 50,85 Q40,65 25,50 Q20,40 30,30 Z"/></svg>',
+    'Ásia': '<svg viewBox="0 0 100 100" fill="currentColor" width="40" height="40"><path d="M40,20 Q80,10 90,40 Q85,70 70,80 Q50,75 30,60 Q20,30 40,20 Z"/></svg>',
+    'Oceania': '<svg viewBox="0 0 100 100" fill="currentColor" width="40" height="40"><path d="M50,50 Q80,45 90,60 Q85,85 60,80 Q40,70 50,50 Z"/></svg>'
+};
 if ('serviceWorker' in navigator) {
     window.addEventListener('load', () => {
         navigator.serviceWorker.register('./sw.js').catch(err => console.log('SW falhou:', err));
@@ -71,7 +287,11 @@ document.addEventListener('DOMContentLoaded', () => {
         partyClientInstruction: document.getElementById('party-client-instruction'),
         partyClientOptions: document.getElementById('party-client-options'),
         partyClientFeedback: document.getElementById('party-client-feedback'),
-        partyFinalPodium: document.getElementById('party-final-podium')
+        partyFinalPodium: document.getElementById('party-final-podium'),
+        // Album Pagination
+        albumPrevPage: document.getElementById('album-prev-page'),
+        albumNextPage: document.getElementById('album-next-page'),
+        albumPageInfo: document.getElementById('album-page-info')
     };
 
     const buttons = {
@@ -94,7 +314,7 @@ document.addEventListener('DOMContentLoaded', () => {
         // Multiplayer Buttons
         btnHostParty: document.getElementById('btn-host-party'),
         btnJoinParty: document.getElementById('btn-join-party'),
-        calmModeToggle: document.getElementById('calm-mode-toggle'),
+         calmModeToggle: document.getElementById('calm-mode-toggle'),
         closeConstructive: document.getElementById('close-constructive-button'),
         startPartyBtn: document.getElementById('start-party-btn'),
         joinRoomBtn: document.getElementById('join-room-btn'),
@@ -112,13 +332,38 @@ document.addEventListener('DOMContentLoaded', () => {
     };
 
     // --- ESTADO ---
-    let currentUser = null;
+    let currentUser = localStorage.getItem("currentUser") || null;
     let gameConfig = {};
+    let currentRound = 0;
+    let lastCorrectFlag = null;
+
+    // --- TOAST NOTIFICATIONS ---
+    function showToast(message, type = 'info') {
+        const container = document.getElementById('toast-container');
+        if (!container) return;
+        
+        const toast = document.createElement('div');
+        toast.className = `toast toast-${type}`;
+        
+        let icon = 'ℹ️';
+        if (type === 'success') icon = '✅';
+        if (type === 'error') icon = '❌';
+        if (message.toLowerCase().includes('pacotinho')) icon = '🎁';
+
+        toast.innerHTML = `<span>${icon}</span> <span>${message}</span>`;
+        container.appendChild(toast);
+        
+        setTimeout(() => {
+            toast.classList.add('toast-leave');
+            toast.addEventListener('animationend', () => toast.remove());
+        }, 3000);
+    }
+
     let gameState = {};
     let correctAnswer = null;
     let gameLocked = false;
     let selectedVoice = null;
-    let calmMode = localStorage.getItem('detetive_calm_mode') === 'true';
+     let calmMode = localStorage.getItem('detetive_calm_mode') === 'true';
 
     // Variáveis da Memória
     let memoryCards = [];
@@ -129,30 +374,80 @@ document.addEventListener('DOMContentLoaded', () => {
     let memoryMoves = 0;
 
     // --- PERFIL ---
-    function initProfiles() {
-        const profiles = JSON.parse(localStorage.getItem('detetive_profiles')) || [];
-        elements.profilesList.innerHTML = '';
-        if (profiles.length === 0) elements.profilesList.innerHTML = '<p>Crie um novo perfil abaixo!</p>';
-        else profiles.forEach(name => {
-            const btn = document.createElement('div'); btn.className = 'profile-btn';
-            btn.textContent = name; btn.onclick = () => selectProfile(name);
-            elements.profilesList.appendChild(btn);
-        });
+    async function initProfiles() {
+        const container = document.getElementById('profiles-list');
+        if (!container) return;
+        container.innerHTML = '<p class="profiles-empty-state">Carregando...</p>';
+        
+        try {
+            const profiles = await API.getProfiles();
+            container.innerHTML = '';
+            
+            if (profiles.length === 0) {
+                container.innerHTML = '<p class="profiles-empty-state">✨ Nenhum explorador ainda.<br>Crie seu perfil abaixo!</p>';
+                return;
+            }
+            
+            profiles.forEach(p => {
+                const card = document.createElement('div');
+                card.className = 'profile-card-fancy';
+                card.innerHTML = `
+                    <button class="pc-delete" title="Remover" onclick="event.stopPropagation(); deleteProfileUI('${p.name}')">✕</button>
+                    <span class="pc-avatar">${p.avatar}</span>
+                    <div class="pc-name">${p.name}</div>
+                    <div class="pc-meta">🃏 ${p.sticker_count} fig. • Nv ${p.journey_level}</div>
+                `;
+                card.addEventListener('click', () => selectProfile(p.name, p.avatar));
+                container.appendChild(card);
+            });
+        } catch(e) {
+            container.innerHTML = '<p class="profiles-empty-state">Erro ao carregar. Verifique o servidor.</p>';
+            console.error('initProfiles error:', e);
+        }
     }
-
-    function createProfile() {
-        const name = elements.newProfileInput.value.trim();
-        if (!name) return alert('Digite um nome!');
-        const profiles = JSON.parse(localStorage.getItem('detetive_profiles')) || [];
-        if (profiles.includes(name)) return alert('Este nome já existe!');
-        profiles.push(name); localStorage.setItem('detetive_profiles', JSON.stringify(profiles));
-        elements.newProfileInput.value = ''; initProfiles(); selectProfile(name);
+    
+    async function deleteProfileUI(name) {
+        if (!confirm(`Remover o perfil "${name}"? Todo o progresso será apagado!`)) return;
+        await API.deleteProfile(name);
+        initProfiles();
     }
+    window.deleteProfileUI = deleteProfileUI;
 
-    function selectProfile(name) {
+
+    async function selectProfile(name, avatar) {
         currentUser = name;
+    localStorage.setItem("currentUser", name);
         elements.welcomeMessage.textContent = `Olá, ${currentUser}!`;
-        checkDailyPack();
+        
+        // Load progress from API into cache
+        try {
+            _cache.progress = await API.getProgress(name);
+        } catch(e) {
+            console.warn('Erro ao carregar progress:', e);
+            _cache.progress = {};
+        }
+        
+        // Load journey level
+        try {
+            const journeyData = await API.getJourney(name);
+            _cache.journeyLevel = journeyData.level;
+        } catch(e) { _cache.journeyLevel = 1; }
+        
+        // Load packs from API
+        try {
+            const packsData = await API.getPacks(name);
+            const todayStr = new Date().toDateString();
+            let count = packsData.count;
+            if (packsData.last_daily_at !== todayStr) {
+                count++;
+                await API.savePacks(name, count, todayStr);
+                setTimeout(() => showToast("Você ganhou 1 pacotinho diário! 🎁 Vá ao Álbum para abrir.", "success"), 800);
+            }
+            if (elements.packsCount) elements.packsCount.textContent = count;
+        } catch(e) {
+            console.warn('Erro ao carregar packs:', e);
+        }
+        
         showScreen('main');
     }
 
@@ -177,8 +472,15 @@ document.addEventListener('DOMContentLoaded', () => {
     setTimeout(loadVoices, 500);
 
     // --- PROGRESSO ---
-    function loadPlayerProgress() { return JSON.parse(localStorage.getItem(`detetive_progress_${currentUser}`)) || {}; }
-    function savePlayerProgress(p) { localStorage.setItem(`detetive_progress_${currentUser}`, JSON.stringify(p)); }
+    function loadPlayerProgress() { 
+        return _cache.progress || {}; 
+    }
+    function savePlayerProgress(p) {
+        _cache.progress = p;
+        if (currentUser) {
+            API.saveProgress(currentUser, p).catch(console.warn);
+        }
+    }
 
     function updateCountryStats(code, isCorrect) {
         const p = loadPlayerProgress();
@@ -286,7 +588,7 @@ document.addEventListener('DOMContentLoaded', () => {
         } else {
             elements.mainContainer.classList.remove('memory-mode');
             let sl = 1;
-            if (gameConfig.type === 'Jornada') sl = parseInt(localStorage.getItem(`detetive_journey_${currentUser}`)) || 1;
+            if (gameConfig.type === 'Jornada') sl = (_cache.journeyLevel || 1);
             else sl = gameConfig.level || 1;
 
             let pool = (gameConfig.type === 'Rápido' || gameConfig.type === 'Jornada') ? countries.filter(c => c.nivel === sl) : [...countries];
@@ -431,7 +733,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 disableCards();
                 playSound('match');
 
-                if (!calmMode) {
+                 if (!calmMode) {
                     confetti({ particleCount: 30, spread: 50, origin: { y: 0.6 } });
                 }
 
@@ -455,7 +757,7 @@ document.addEventListener('DOMContentLoaded', () => {
     function handleLevelComplete() {
         updateProgressBar(100); playSound('completed'); dispararConfetes();
         if (gameConfig.type === 'Jornada') {
-            gameState.currentLevel++; localStorage.setItem(`detetive_journey_${currentUser}`, gameState.currentLevel);
+            gameState.currentLevel++; (_cache.journeyLevel = gameState.currentLevel, API.saveJourney(currentUser, gameState.currentLevel));
             if (gameState.currentLevel > 5) gameOver(true);
             else {
                 modals.levelUp.querySelector('p').textContent = `Nível ${gameState.currentLevel - 1} Completo!`;
@@ -517,8 +819,21 @@ document.addEventListener('DOMContentLoaded', () => {
     function displayTextOptions(opts) {
         elements.options.innerHTML = '';
         opts.forEach(t => {
-            const b = document.createElement('button'); b.textContent = t; b.className = 'text-option';
-            b.dataset.continente = t; b.dataset.type = 'text'; b.addEventListener('click', handleOptionClick);
+            const b = document.createElement('button'); 
+            b.className = 'text-option';
+            
+            if (gameConfig.mode === 'ContinentePorPais' && continentSVGs[t]) {
+                b.innerHTML = `<div style="display: flex; flex-direction: column; align-items: center; gap: 5px;">
+                    ${continentSVGs[t]}
+                    <span>${t}</span>
+                </div>`;
+            } else {
+                b.textContent = t;
+            }
+            
+            b.dataset.continente = t; 
+            b.dataset.type = 'text'; 
+            b.addEventListener('click', handleOptionClick);
             elements.options.appendChild(b);
         });
     }
@@ -530,16 +845,15 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     function playSound(k) { 
-        if (calmMode && (k === 'wrong' || k === 'win' || k === 'match')) return; // Silenciar sons bruscos
+         if (calmMode && (k === 'wrong' || k === 'win' || k === 'match')) return; // Silenciar sons bruscos
         if (sounds[k]) { sounds[k].currentTime = 0; sounds[k].play().catch(e => { }); } 
     }
 
     function shuffle(a) { for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1));[a[i], a[j]] = [a[j], a[i]]; } return a; }
 
     function saveGlobalScore(s) {
-        const l = JSON.parse(localStorage.getItem('ranking_global')) || [];
-        l.push({ nome: currentUser, score: s, mode: gameModes[gameConfig.mode].title });
-        l.sort((a, b) => b.score - a.score); localStorage.setItem('ranking_global', JSON.stringify(l.slice(0, 10)));
+        if (!currentUser || !gameConfig.mode || !gameModes[gameConfig.mode]) return;
+        API.addRanking(currentUser, s, gameModes[gameConfig.mode].title);
     }
 
     function checkAchievements() {
@@ -567,7 +881,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     function dispararConfetes() { 
-        if (calmMode) {
+         if (calmMode) {
             confetti({ particleCount: 15, spread: 30, origin: { y: 0.6 }, disableForReducedMotion: true });
         } else {
             confetti({ particleCount: 100, spread: 70, origin: { y: 0.6 } }); 
@@ -575,21 +889,167 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     // Event Listeners
-    buttons.createProfile.addEventListener('click', createProfile);
-    buttons.changeProfile.addEventListener('click', () => { currentUser = null; showScreen('profile'); });
+    if (buttons.createProfile) buttons.createProfile.addEventListener('click', async () => {
+        const name = elements.newProfileInput.value.trim();
+        if (!name) return showToast('Digite um nome!', 'error');
+        // Get selected avatar from hidden input
+        const hiddenAvatar = document.getElementById('selected-avatar');
+        const avatar = hiddenAvatar ? hiddenAvatar.value : '🌍';
+        
+        const result = await API.createProfile(name, avatar);
+        if (result.error) return showToast(result.error === 'Nome ja existe' ? 'Este nome já existe!' : result.error, 'error');
+        
+        elements.newProfileInput.value = '';
+        await initProfiles();
+        selectProfile(name, avatar);
+    });
+    
+    // Re-init avatar picker when returning to profile screen
+    buttons.changeProfile.addEventListener('click', () => { 
+        currentUser = null;
+          localStorage.removeItem("currentUser"); 
+        _cache.progress = null;
+        _cache.stickers = null;
+        showScreen('profile'); 
+        setTimeout(initAvatarPicker, 50);
+    });
 
     // Event Listeners de VOZ removidos
 
-    buttons.backToMenu.addEventListener('click', () => { elements.mainContainer.classList.remove('memory-mode'); showScreen('main'); });
-    buttons.playAgain.addEventListener('click', () => startGame(gameConfig));
-    buttons.levelUpContinue.addEventListener('click', () => { modals.levelUp.classList.add('hidden'); startGame(gameConfig); });
-    buttons.next.addEventListener('click', nextRound);
-    buttons.facts.addEventListener('click', () => {
-        const f = curiosities[correctAnswer.codigo];
-        document.getElementById('facts-content').textContent = f ? f[0] : '...';
-        modals.facts.classList.remove('hidden');
+    if(buttons.backToMenu) buttons.backToMenu.addEventListener('click', () => { elements.mainContainer.classList.remove('memory-mode'); showScreen('main'); });
+    
+    // --- CONTROLE DE CURIOSIDADES ALEATORIAS SEM REPETICAO & AUDIO ---
+    const seenFactsMap = {};
+    let currentFactContext = { countryCode: null, factIndex: 0 };
+    let factAudioInstance = null;
+
+    function showRandomFactForCountry(countryCode, countryName) {
+        countryCode = (countryCode || '').toLowerCase().trim();
+        const curDb = (typeof curiosities !== 'undefined') ? curiosities : null;
+        if (!curDb || !curDb[countryCode]) {
+            document.getElementById('facts-content').textContent = 'Nenhuma curiosidade disponível para este país.';
+            return;
+        }
+
+        const allFacts = curDb[countryCode];
+        if (!seenFactsMap[countryCode]) {
+            seenFactsMap[countryCode] = [];
+        }
+
+        let unseenIndices = allFacts.map((_, i) => i).filter(i => !seenFactsMap[countryCode].includes(i));
+        let justReset = false;
+
+        // Se ja viu todas as curiosidades, recomeca o ciclo
+        if (unseenIndices.length === 0) {
+            seenFactsMap[countryCode] = [];
+            unseenIndices = allFacts.map((_, i) => i);
+            justReset = true;
+        }
+
+        // Escolhe um indice aleatorio nao visto
+        const chosenIndex = unseenIndices[Math.floor(Math.random() * unseenIndices.length)];
+        seenFactsMap[countryCode].push(chosenIndex);
+        currentFactContext = { countryCode, factIndex: chosenIndex };
+
+        // Atualiza elementos visuais
+        const nameEl = document.getElementById('facts-country-name');
+        if (nameEl) nameEl.textContent = countryName ? (' (' + countryName + ')') : '';
+
+        const badgeEl = document.getElementById('facts-badge');
+        if (badgeEl) {
+            badgeEl.textContent = 'Curiosidade ' + seenFactsMap[countryCode].length + ' de ' + allFacts.length + (justReset ? ' • Ciclo reiniciado! 🔄' : '');
+            badgeEl.style.backgroundColor = justReset ? '#FEF3C7' : '#eef4fb';
+            badgeEl.style.color = justReset ? '#D97706' : '#3b82f6';
+        }
+
+        const contentEl = document.getElementById('facts-content');
+        if (contentEl) {
+            contentEl.textContent = allFacts[chosenIndex];
+        }
+
+        // Toca automaticamente a narracao ao abrir/mudar curiosidade
+        playCurrentFactAudio();
+    }
+
+    function playCurrentFactAudio() {
+        if (!currentFactContext.countryCode && currentFactContext.countryCode !== 0) return;
+        const iconEl = document.getElementById('facts-audio-icon');
+        const textEl = document.getElementById('facts-audio-text');
+
+        if (factAudioInstance && !factAudioInstance.paused) {
+            stopFactAudio();
+            return;
+        }
+
+        stopFactAudio();
+
+        const base = 'assets/audio/curiosidades/' + currentFactContext.countryCode + '_' + currentFactContext.factIndex;
+        const pathMp3 = base + '.mp3';
+        const pathWav = base + '.wav';
+
+        if (textEl) textEl.textContent = 'Reproduzindo...';
+        if (iconEl) iconEl.textContent = '🔊';
+
+        factAudioInstance = new Audio(pathMp3);
+        const playPromise = factAudioInstance.play();
+        if (playPromise !== undefined) {
+            playPromise.then(() => {
+                if (textEl) textEl.textContent = 'Pausar Áudio';
+                if (iconEl) iconEl.textContent = '⏸️';
+            }).catch(() => {
+                factAudioInstance = new Audio(pathWav);
+                factAudioInstance.play().then(() => {
+                    if (textEl) textEl.textContent = 'Pausar Áudio';
+                    if (iconEl) iconEl.textContent = '⏸️';
+                }).catch((e) => {
+                    console.log('Audio de curiosidade em geracao ou bloqueado:', e);
+                    if (textEl) textEl.textContent = 'Ouvir Narradora';
+                    if (iconEl) iconEl.textContent = '🔊';
+                });
+            });
+        }
+
+        factAudioInstance.onended = () => {
+            stopFactAudio();
+        };
+    }
+
+    function stopFactAudio() {
+        if (factAudioInstance) {
+            factAudioInstance.pause();
+            factAudioInstance.currentTime = 0;
+            factAudioInstance = null;
+        }
+        const iconEl = document.getElementById('facts-audio-icon');
+        const textEl = document.getElementById('facts-audio-text');
+        if (textEl) textEl.textContent = 'Ouvir Narradora';
+        if (iconEl) iconEl.textContent = '🔊';
+    }
+
+    if(buttons.playAgain) buttons.playAgain.addEventListener('click', () => startGame(gameConfig));
+    if(buttons.levelUpContinue) buttons.levelUpContinue.addEventListener('click', () => { modals.levelUp.classList.add('hidden'); startGame(gameConfig); });
+    if(buttons.next) buttons.next.addEventListener('click', nextRound);
+    if(buttons.facts) buttons.facts.addEventListener('click', () => {
+    if (correctAnswer && correctAnswer.codigo) {
+        showRandomFactForCountry(correctAnswer.codigo, correctAnswer.nome);
+    }
+    modals.facts.classList.remove('hidden');
+  });
+
+  const nextFactBtn = document.getElementById('next-fact-btn');
+  if (nextFactBtn) {
+    if(nextFactBtn) nextFactBtn.addEventListener('click', () => {
+        if (currentFactContext.countryCode) {
+            showRandomFactForCountry(currentFactContext.countryCode, correctAnswer ? correctAnswer.nome : '');
+        }
     });
-    buttons.closeFacts.addEventListener('click', () => modals.facts.classList.add('hidden'));
+  }
+
+  const playFactAudioBtn = document.getElementById('play-facts-audio-btn');
+  if (playFactAudioBtn) {
+    playFactAudioBtn.addEventListener('click', playCurrentFactAudio);
+  }
+    buttons.closeFacts.addEventListener('click', () => { stopFactAudio(); modals.facts.classList.add('hidden'); });
     buttons.closeAchievement.addEventListener('click', () => modals.achievement.classList.add('hidden'));
     buttons.closeRanking.addEventListener('click', () => modals.ranking.classList.add('hidden'));
 
@@ -616,8 +1076,11 @@ document.addEventListener('DOMContentLoaded', () => {
     document.getElementById('ranking-filter').addEventListener('change', (e) => {
         renderRanking(e.target.value);
     });
-    buttons.showPassport.addEventListener('click', () => {
-        const p = loadPlayerProgress(); const g = elements.passportGrid; g.innerHTML = ''; let u = 0, go = 0;
+    buttons.showPassport.addEventListener('click', async () => {
+        if (!_cache.progress && currentUser) {
+                _cache.progress = await API.getProgress(currentUser);
+            }
+            const p = loadPlayerProgress(); const g = elements.passportGrid; g.innerHTML = ''; let u = 0, go = 0;
         countries.forEach(c => {
             const s = p[c.codigo] || { acertos: 0 }; if (s.acertos > 0) { u++; if (s.acertos >= 5 && s.erros < 2) go++; }
             const i = document.createElement('div'); i.className = 'passport-item';
@@ -628,128 +1091,288 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 
     // --- ÁLBUM DE FIGURINHAS ---
+
+    // loadStickers: auto-migra saves antigos (strings → objetos) de forma transparente
     function loadStickers() {
-        return JSON.parse(localStorage.getItem(`detetive_stickers_${currentUser}`)) || [];
+        // Returns cached stickers (loaded async when album opens)
+        return _cache.stickers || [];
     }
+
+    function migrateStickers() { /* Agora é feito dentro de loadStickers() */ }
     
     function saveStickers(s) {
-        localStorage.setItem(`detetive_stickers_${currentUser}`, JSON.stringify(s));
+        _cache.stickers = s;
+        if (currentUser) API.saveStickers(currentUser, s);
     }
 
     function getPacksCount() {
-        return parseInt(localStorage.getItem(`detetive_packs_${currentUser}`)) || 0;
+        return _cache.packsCount || 0;
+    }
+
+    function savePacks(n) {
+        localStorage.setItem(`detetive_packs_${currentUser}`, n);
+        if (elements.packsCount) elements.packsCount.textContent = n;
     }
 
     function addPacks(n) {
         let current = getPacksCount();
-        localStorage.setItem(`detetive_packs_${currentUser}`, current + n);
-        if (elements.packsCount) elements.packsCount.textContent = getPacksCount();
+        savePacks(current + n);
     }
 
     function removePack() {
         let current = getPacksCount();
         if (current > 0) {
-            localStorage.setItem(`detetive_packs_${currentUser}`, current - 1);
-            elements.packsCount.textContent = getPacksCount();
+            savePacks(current - 1);
             return true;
         }
         return false;
     }
 
+    // --- SISTEMA DE RARIDADE (GACHA) ---
+    function rollRarity() {
+        const roll = Math.random();
+        if (roll < 1 / 150) return 'ouro';
+        if (roll < 1 / 125) return 'prata';
+        if (roll < 1 / 100) return 'bronze';
+        if (roll < 1 / 70) return 'roxa';
+        return 'base';
+    }
+
+    const RARITY_LABELS = {
+        ouro:   { text: 'LENDA DOURADA ✨', color: '#FFD700', border: '#FFD700' },
+        prata:  { text: 'LENDA PRATA 🥈',   color: '#C0C0C0', border: '#C0C0C0' },
+        bronze: { text: 'LENDA BRONZE 🥉',  color: '#CD7F32', border: '#CD7F32' },
+        roxa:   { text: 'LENDA RARA 💜',    color: '#9b59b6', border: '#9b59b6' },
+        base:   { text: 'NOVA! 🌍',          color: '#32CD32', border: '#32CD32' }
+    };
+
     function checkDailyPack() {
-        const lastLogin = localStorage.getItem(`detetive_last_login_${currentUser}`);
-        const today = new Date().toDateString();
-        if (lastLogin !== today) {
-            addPacks(1); // Ganha 1 pacotinho por dia
-            localStorage.setItem(`detetive_last_login_${currentUser}`, today);
+        const lastDailyPackDate = localStorage.getItem(`detetive_daily_pack_date_${currentUser}`);
+        const todayStr = new Date().toDateString();
+        if (lastDailyPackDate !== todayStr) {
+            let packs = getPacksCount();
+            savePacks(packs + 1);
+            localStorage.setItem(`detetive_daily_pack_date_${currentUser}`, todayStr);
             setTimeout(() => {
-                alert("Você ganhou 1 pacotinho diário! 🎁 Vá ao Álbum para abrir.");
+                showToast("Você ganhou 1 pacotinho diário! 🎁 Vá ao Álbum para abrir.", "success");
             }, 500);
         }
     }
 
-    if (buttons.showAlbum) buttons.showAlbum.addEventListener('click', () => {
+    // --- NAVEGAÇÃO E RENDERIZAÇÃO DO ÁLBUM POR CONTINENTE ---
+    const CONTINENTS_ORDER = [
+        'América do Sul', 'América do Norte', 'América Central',
+        'Europa', 'Ásia', 'África', 'Oceania'
+    ];
+    let currentContinent = null;
+    let currentAlbumPage = 0;
+    const ALBUM_PAGE_SIZE = 6;
+
+    function buildContinentNav() {
+        const nav = document.getElementById('continent-nav');
+        if (!nav) return;
+        nav.innerHTML = '';
+        CONTINENTS_ORDER.forEach(cont => {
+            const btn = document.createElement('button');
+            btn.className = 'continent-tab' + (cont === currentContinent ? ' active' : '');
+            btn.textContent = cont;
+            btn.addEventListener('click', () => {
+                currentContinent = cont;
+                currentAlbumPage = 0;
+                renderAlbumPage();
+                buildContinentNav();
+            });
+            nav.appendChild(btn);
+        });
+    }
+
+    // Continent background colors
+    const CONTINENT_COLORS = {
+        'América do Sul': { bg: 'linear-gradient(135deg, #1a472a, #2d6a4f)', bar: '#1a472a', accent: '#52b788' },
+        'América do Norte': { bg: 'linear-gradient(135deg, #1d3557, #457b9d)', bar: '#1d3557', accent: '#a8dadc' },
+        'América Central': { bg: 'linear-gradient(135deg, #6a0572, #ab83a1)', bar: '#6a0572', accent: '#e0c3fc' },
+        'Europa': { bg: 'linear-gradient(135deg, #002366, #1560bd)', bar: '#002366', accent: '#89cff0' },
+        'Ásia': { bg: 'linear-gradient(135deg, #8b0000, #c0392b)', bar: '#8b0000', accent: '#f48c84' },
+        'África': { bg: 'linear-gradient(135deg, #7d3c00, #e07b00)', bar: '#7d3c00', accent: '#f9c74f' },
+        'Oceania': { bg: 'linear-gradient(135deg, #00609c, #0096c7)', bar: '#00609c', accent: '#90e0ef' }
+    };
+
+    function renderAlbumPage() {
         const stickers = loadStickers();
         const grid = elements.albumGrid;
         grid.innerHTML = '';
-        
-        countries.forEach(c => {
-            const hasSticker = stickers.includes(c.codigo);
-            const item = document.createElement('div');
-            item.className = 'album-item' + (hasSticker ? '' : ' locked');
-            if (hasSticker) {
-                item.innerHTML = `<img src="assets/flags/${c.codigo}.png" title="${c.nome}">`;
-            } else {
-                item.innerHTML = `<span>?</span>`;
-            }
-            grid.appendChild(item);
+
+        const filtered = currentContinent
+            ? countries.filter(c => c.continente === currentContinent)
+            : countries;
+
+        const totalPages = Math.ceil(filtered.length / ALBUM_PAGE_SIZE);
+        if (currentAlbumPage >= totalPages) currentAlbumPage = 0;
+        const start = currentAlbumPage * ALBUM_PAGE_SIZE;
+        const end = start + ALBUM_PAGE_SIZE;
+        const pageCountries = filtered.slice(start, end);
+
+        const colors = CONTINENT_COLORS[currentContinent] || { bg: 'linear-gradient(135deg, #333, #555)', bar: '#333', accent: '#aaa' };
+
+        pageCountries.forEach(c => {
+            const stickerData = stickers.find(s => s.codigo === c.codigo);
+            const hasSticker = !!stickerData;
+            const rarity = hasSticker ? (stickerData.rarity || 'base') : null;
+            const isFixedShiny = !!c.fixedShiny;
+
+                          const item = document.createElement('div');
+              
+              // Panini style index (global index for country)
+              const globalIndex = countries.findIndex(x => x.codigo === c.codigo) + 1;
+              item.setAttribute('data-number', globalIndex);
+
+              let classes = 'album-item';
+              if (!hasSticker) {
+                  classes += ' missing';
+              } else {
+                  classes += ' collected';
+                  if ((rarity !== 'base' || isFixedShiny)) classes += ` legend-${isFixedShiny && rarity === 'base' ? 'ouro' : rarity}`;
+                  if (isFixedShiny) classes += ' shiny';
+              }
+              item.className = classes;
+  
+              if (!hasSticker) {
+                  // Handled entirely by CSS .missing::after using data-number
+                  item.innerHTML = '';
+              } else {
+                  // Unlocked: Panini-style card
+                  item.innerHTML = `
+                      <img src="assets/flags/${c.codigo}.png" title="${c.nome}" alt="Bandeira ${c.nome}">
+                      <div class="country-name">${c.nome}</div>
+                  `;
+                  // We removed inline background to let CSS handle it.
+              }
+              grid.appendChild(item);
         });
+
+        // Pagination info
+        if (elements.albumPageInfo) elements.albumPageInfo.textContent = `Pág ${currentAlbumPage + 1}/${totalPages || 1}`;
+        if (elements.albumPrevPage) {
+            elements.albumPrevPage.disabled = currentAlbumPage === 0;
+            elements.albumPrevPage.style.opacity = currentAlbumPage === 0 ? '0.4' : '1';
+        }
+        if (elements.albumNextPage) {
+            elements.albumNextPage.disabled = currentAlbumPage >= totalPages - 1;
+            elements.albumNextPage.style.opacity = currentAlbumPage >= totalPages - 1 ? '0.4' : '1';
+        }
+    }
+
+    if (elements.albumPrevPage) {
+        elements.albumPrevPage.addEventListener('click', () => {
+            if (currentAlbumPage > 0) { currentAlbumPage--; renderAlbumPage(); }
+        });
+        elements.albumNextPage.addEventListener('click', () => {
+            const filtered = currentContinent ? countries.filter(c => c.continente === currentContinent) : countries;
+            const totalPages = Math.ceil(filtered.length / ALBUM_PAGE_SIZE);
+            if (currentAlbumPage < totalPages - 1) { currentAlbumPage++; renderAlbumPage(); }
+        });
+    }
+
+    if (buttons.showAlbum) buttons.showAlbum.addEventListener('click', () => {
+        migrateStickers();
+        const stickers = loadStickers();
+        currentAlbumPage = 0;
+        if (!currentContinent) currentContinent = CONTINENTS_ORDER[0];
+        buildContinentNav();
+        renderAlbumPage();
 
         const progress = Math.round((stickers.length / countries.length) * 100);
         elements.albumProgress.textContent = `${progress}%`;
         elements.packsCount.textContent = getPacksCount();
-
         showScreen('album');
     });
 
     if (buttons.openPack) buttons.openPack.addEventListener('click', () => {
         if (getPacksCount() <= 0) {
-            alert("Você não tem pacotinhos! Jogue partidas ou volte amanhã para ganhar mais.");
+            showToast("Você não tem pacotinhos! Jogue partidas ou volte amanhã para ganhar mais.", "error");
             return;
         }
-        
         elements.openedStickers.innerHTML = '';
         elements.openedStickers.classList.add('hidden');
         elements.packAnimationContainer.classList.remove('hidden');
-        buttons.closePack.classList.add('hidden');
         modals.pack.classList.remove('hidden');
     });
 
+    // Clique para abrir o pacotinho
     if (elements.packAnimationContainer) elements.packAnimationContainer.addEventListener('click', () => {
-        if (!removePack()) return; 
-
-        playSound('match');
-        if (!calmMode && typeof confetti !== 'undefined') confetti({ particleCount: 50, spread: 60, origin: { y: 0.5 } });
-
-        elements.packAnimationContainer.classList.add('hidden');
-        elements.openedStickers.innerHTML = '';
-        
-        const stickers = loadStickers();
-        
-        for (let i = 0; i < 3; i++) {
-            const drawn = shuffle([...countries])[0];
-            const isNew = !stickers.includes(drawn.codigo);
-            if (isNew) {
-                stickers.push(drawn.codigo);
-            }
-            
-            const div = document.createElement('div');
-            div.style.textAlign = 'center';
-            div.style.width = '80px';
-            div.innerHTML = `
-                <img src="assets/flags/${drawn.codigo}.png" style="width: 100%; border-radius: 5px; border: 2px solid ${isNew ? '#FFD700' : '#ccc'}; box-shadow: 0 4px 8px rgba(0,0,0,0.2);">
-                <p style="font-size: 0.8em; margin-top: 5px; color: ${isNew ? '#FFD700' : '#555'}; font-weight: bold;">${isNew ? 'NOVA!' : 'Repetida'}</p>
-            `;
-            elements.openedStickers.appendChild(div);
+        if (!removePack()) {
+            showToast("Você não tem pacotinhos! Jogue partidas ou volte amanhã para ganhar mais.", "error");
+            return;
         }
-        
-        saveStickers(stickers);
-        elements.openedStickers.classList.remove('hidden');
-        buttons.closePack.classList.remove('hidden');
+
+        const tearAudio = new Audio('assets/audio/effects/win.mp3');
+        tearAudio.play().catch(() => playSound('match'));
+
+        const packWrapper = elements.packAnimationContainer.querySelector('.pack-wrapper');
+        if (packWrapper) packWrapper.classList.add('ripping');
+
+        setTimeout(() => {
+             if (!calmMode && typeof confetti !== 'undefined') confetti({ particleCount: 60, spread: 70, origin: { y: 0.5 } });
+
+            elements.packAnimationContainer.classList.add('hidden');
+            elements.openedStickers.innerHTML = '';
+
+            const stickers = loadStickers();
+
+            for (let i = 0; i < 3; i++) {
+                const drawn = shuffle([...countries])[0];
+                const existingEntry = stickers.find(s => s.codigo === drawn.codigo);
+                const isNew = !existingEntry;
+                const rarity = rollRarity();
+
+                if (isNew) {
+                    stickers.push({ codigo: drawn.codigo, rarity });
+                } else if (rarity !== 'base' && (!existingEntry || existingEntry.rarity === 'base')) {
+                    // Upgrade rarity if we got a better version
+                    const rarityOrder = ['base', 'roxa', 'bronze', 'prata', 'ouro'];
+                    const existingIdx = rarityOrder.indexOf(existingEntry.rarity || 'base');
+                    const newIdx = rarityOrder.indexOf(rarity);
+                    if (newIdx > existingIdx) existingEntry.rarity = rarity;
+                }
+
+                const div = document.createElement('div');
+                div.style.cssText = 'text-align:center; width:90px; padding:5px;';
+
+                const isFixedShiny = !!drawn.fixedShiny;
+                const displayRarity = isFixedShiny && rarity === 'base' ? 'ouro' : rarity;
+                const label = isNew
+                    ? (RARITY_LABELS[displayRarity] || RARITY_LABELS.base)
+                    : { text: 'Repetida', color: '#aaa', border: '#ddd' };
+
+                div.innerHTML = `
+                    <div style="position:relative; border:3px solid ${label.border}; border-radius:8px; overflow:hidden; box-shadow:0 4px 12px rgba(0,0,0,0.2);">
+                        <img src="assets/flags/${drawn.codigo}.png" style="width:100%; display:block;">
+                    </div>
+                    <p style="font-size:0.75em; margin-top:5px; color:${label.color}; font-weight:bold;">${label.text}</p>
+                    <p style="font-size:0.7em; color:#555;">${drawn.nome}</p>
+                `;
+                elements.openedStickers.appendChild(div);
+            }
+
+            saveStickers(stickers);
+            elements.openedStickers.classList.remove('hidden');
+            if (buttons.closePack) buttons.closePack.classList.remove('hidden');
+            if (packWrapper) packWrapper.classList.remove('ripping');
+        }, 800);
     });
 
     if (buttons.closePack) buttons.closePack.addEventListener('click', () => {
         modals.pack.classList.add('hidden');
-        buttons.showAlbum.click(); 
+        currentAlbumPage = 0;
+        if (buttons.showAlbum) buttons.showAlbum.click(); 
     });
 
     // Eventos Multiplayer
     buttons.btnHostParty.addEventListener('click', initPartyHostMode);
     buttons.btnJoinParty.addEventListener('click', () => {
         const profiles = JSON.parse(localStorage.getItem('detetive_profiles')) || [];
-        elements.joinPlayerName.innerHTML = '';
-        if (profiles.length === 0) {
-            alert("Você precisa criar um perfil na tela principal antes de jogar online!");
+        if (!currentUser) {
+            showToast("Você precisa criar um perfil na tela principal antes de jogar online!", "error");
             return;
         }
         profiles.forEach(name => {
@@ -765,15 +1388,15 @@ document.addEventListener('DOMContentLoaded', () => {
     buttons.partyHostPlayAgain.addEventListener('click', startPartyGame);
     document.getElementById('cancel-party-btn').addEventListener('click', partyCleanup);
 
-    // Configuração do Modo Calmo
-    if (calmMode) {
-        document.body.classList.add('calm-mode');
-        buttons.calmModeToggle.checked = true;
+     // Configuração do Modo Calmo
+     if (calmMode) {
+         document.body.classList.add('calm-mode');
+         buttons.calmModeToggle.checked = true;
     }
-    buttons.calmModeToggle.addEventListener('change', (e) => {
-        calmMode = e.target.checked;
-        localStorage.setItem('detetive_calm_mode', calmMode);
-        document.body.classList.toggle('calm-mode', calmMode);
+     if (buttons.calmModeToggle) buttons.calmModeToggle.addEventListener('change', (e) => {
+         calmMode = e.target.checked;
+         localStorage.setItem('detetive_calm_mode', calmMode);
+         document.body.classList.toggle('calm-mode', calmMode);
     });
 
     document.getElementById('close-constructive-button').addEventListener('click', () => {
@@ -864,7 +1487,7 @@ document.addEventListener('DOMContentLoaded', () => {
         });
         myPeer.on('error', (err) => {
             console.error(err);
-            alert("Erro ao criar sala. Tente novamente.");
+            showToast("Erro ao criar sala. Tente novamente.", "error");
             partyCleanup();
             showScreen('main');
         });
@@ -919,7 +1542,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 elements.mainContainer.classList.remove('party-mobile-view');
             });
             myConnection.on('close', () => {
-                alert("A sala foi fechada.");
+                showToast("A sala foi fechada.", "error");
                 partyCleanup();
                 showScreen('main');
             });
@@ -1142,5 +1765,15 @@ document.addEventListener('DOMContentLoaded', () => {
         sessionStorage.removeItem('detetive_host_id');
     }
 
-    initProfiles(); showScreen('profile');
+    // ─── BOOTSTRAP ───────────────────────────────────────
+    initAvatarPicker();
+    if (currentUser) {
+        const savedAvatar = localStorage.getItem('detetive_avatar') || '🌍';
+        selectProfile(currentUser, savedAvatar);
+    } else {
+        initProfiles();
+        showScreen('profile');
+    }
 });
+
+    
