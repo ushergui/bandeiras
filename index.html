@@ -70,40 +70,59 @@
             </div>
         </div>
 
-        <div id="main-menu" class="screen hidden">
-                        <div class="header-info" style="display: flex; align-items: center; justify-content: center; gap: 15px; margin-bottom: 15px;">
-                <h2 id="welcome-message" style="margin: 0; font-size: 1.5em; text-shadow: 0 2px 4px rgba(0,0,0,0.5);">Olá!</h2>
-                <button id="change-profile-btn" style="padding: 6px 14px; font-size: 0.85rem; font-weight: bold; background: rgba(239, 68, 68, 0.15); border: 1px solid rgba(239, 68, 68, 0.4); border-radius: 8px; color: #fca5a5; cursor: pointer; transition: 0.2s; white-space: nowrap;">Sair</button>
+        <div id="main-menu" class="screen hub hidden">
+            <header class="hub-header">
+                <div class="hub-user">
+                    <span class="hub-avatar" id="hub-avatar">🌍</span>
+                    <span class="hub-hello">Olá,<br><b id="welcome-message">explorador</b></span>
+                </div>
+                <button id="change-profile-btn" class="hub-logout" title="Sair da conta">Sair</button>
+            </header>
+
+            <div class="hub-stats">
+                <div class="hub-stat">
+                    <span class="hs-value" id="hub-stat-known">0</span>
+                    <span class="hs-label">conhecidas</span>
+                </div>
+                <div class="hub-stat">
+                    <span class="hs-value" id="hub-stat-mastered">0</span>
+                    <span class="hs-label">dominadas</span>
+                </div>
+                <div class="hub-stat">
+                    <span class="hs-value" id="hub-stat-stickers">0</span>
+                    <span class="hs-label">figurinhas</span>
+                </div>
             </div>
 
-            <h1>Detetive Global 🌍</h1>
+            <section class="hub-section">
+                <h2 class="hub-title">Modos de jogo</h2>
+                <div class="menu-grid hub-modes">
+                    <button class="mode-button" data-gamemode="BandeiraPorPais">
+                        <span class="mb-icon">🏳️</span><span>Qual a Bandeira?</span>
+                    </button>
+                    <button class="mode-button" data-gamemode="PaisPorCapital">
+                        <span class="mb-icon">🏛️</span><span>Qual o País?</span>
+                    </button>
+                    <button class="mode-button" data-gamemode="ContinentePorPais">
+                        <span class="mb-icon">🌎</span><span>Qual o Continente?</span>
+                    </button>
+                    <button class="mode-button special-mode" data-gamemode="Memoria">
+                        <span class="mb-icon">🃏</span><span>Jogo da Memória</span>
+                    </button>
+                </div>
+            </section>
 
-            <div class="menu-grid">
-                <button class="mode-button" data-gamemode="BandeiraPorPais">
-                    🏳️ Qual a Bandeira?
-                </button>
-                <button class="mode-button" data-gamemode="PaisPorCapital">
-                    🏛️ Qual o País?
-                </button>
-                <button class="mode-button" data-gamemode="ContinentePorPais">
-                    🌎 Qual o Continente?
-                </button>
-                <button class="mode-button special-mode" data-gamemode="Memoria">
-                    🃏 Jogo da Memória
-                </button>
-                <button class="mode-button party-mode" id="btn-host-party">
-                    📺 Criar Sala (TV)
-                </button>
-                <button class="mode-button party-mode" id="btn-join-party">
-                    📱 Entrar c/ Celular
-                </button>
-            </div>
-
-            <div class="menu-footer">
-                <button id="show-album-button" class="ranking-button">📘 Álbum</button>
-                <button id="show-passport-button" class="ranking-button">🛂 Passaporte</button>
-                <button id="show-ranking-button" class="ranking-button">🏆 Ranking</button>
-            </div>
+            <section class="hub-section">
+                <h2 class="hub-title">Jogar com amigos <span class="hub-badge">beta</span></h2>
+                <div class="menu-grid hub-party">
+                    <button class="mode-button party-mode" id="btn-host-party">
+                        <span class="mb-icon">📺</span><span>Criar sala (TV)</span>
+                    </button>
+                    <button class="mode-button party-mode" id="btn-join-party">
+                        <span class="mb-icon">📱</span><span>Entrar c/ celular</span>
+                    </button>
+                </div>
+            </section>
         </div>
 
         <div id="game-type-menu" class="screen hidden">
@@ -302,6 +321,21 @@
         </div>
 
     </div>
+
+    <nav id="app-nav" class="app-nav hidden" aria-label="Navegação principal">
+        <button class="nav-item active" data-nav="jogar">
+            <span class="nav-ic">🎮</span><span class="nav-tx">Jogar</span>
+        </button>
+        <button class="nav-item" data-nav="album">
+            <span class="nav-ic">📘</span><span class="nav-tx">Álbum</span>
+        </button>
+        <button class="nav-item" data-nav="passport">
+            <span class="nav-ic">🛂</span><span class="nav-tx">Passaporte</span>
+        </button>
+        <button class="nav-item" data-nav="ranking">
+            <span class="nav-ic">🏆</span><span class="nav-tx">Ranking</span>
+        </button>
+    </nav>
 
     <div id="level-up-modal" class="modal-backdrop hidden">
         <div class="modal-content">

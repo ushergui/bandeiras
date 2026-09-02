@@ -436,9 +436,9 @@ document.addEventListener('DOMContentLoaded', () => {
 
     async function selectProfile(name, avatar) {
         currentUser = name;
-    localStorage.setItem("currentUser", name);
-        elements.welcomeMessage.textContent = `Olá, ${currentUser}!`;
-        
+        localStorage.setItem('currentUser', name);
+        if (avatar) localStorage.setItem('detetive_avatar', avatar);
+
         // Load progress from API into cache
         try {
             _cache.progress = await API.getProgress(name);
@@ -446,13 +446,18 @@ document.addEventListener('DOMContentLoaded', () => {
             console.warn('Erro ao carregar progress:', e);
             _cache.progress = {};
         }
-        
+
+        // Load stickers (para o contador do hub e o álbum)
+        try {
+            _cache.stickers = await API.getStickers(name);
+        } catch(e) { _cache.stickers = []; }
+
         // Load journey level
         try {
             const journeyData = await API.getJourney(name);
             _cache.journeyLevel = journeyData.level;
         } catch(e) { _cache.journeyLevel = 1; }
-        
+
         // Load packs from API
         try {
             const packsData = await API.getPacks(name);
@@ -802,7 +807,55 @@ document.addEventListener('DOMContentLoaded', () => {
         saveGlobalScore(gameState.score);
     }
 
-    function showScreen(key) { Object.values(screens).forEach(s => s.classList.add('hidden')); screens[key].classList.remove('hidden'); }
+    function showScreen(key) {
+        Object.values(screens).forEach(s => s.classList.add('hidden'));
+        screens[key].classList.remove('hidden');
+        updateAppNav(key);
+        if (key === 'main') refreshHub();
+        try { elements.mainContainer.scrollTop = 0; window.scrollTo(0, 0); } catch (e) {}
+    }
+
+    // --- BARRA DE NAVEGAÇÃO PERSISTENTE ---
+    const NAV_KEY_FOR_SCREEN = { main: 'jogar', album: 'album', passport: 'passport' };
+    function updateAppNav(key) {
+        const nav = document.getElementById('app-nav');
+        if (!nav) return;
+        const show = key === 'main' || key === 'album' || key === 'passport';
+        nav.classList.toggle('hidden', !show);
+        document.body.classList.toggle('has-nav', show);
+        const active = NAV_KEY_FOR_SCREEN[key];
+        nav.querySelectorAll('.nav-item').forEach(el => el.classList.toggle('active', el.dataset.nav === active));
+    }
+    document.querySelectorAll('#app-nav .nav-item').forEach(item => {
+        item.addEventListener('click', () => {
+            const dest = item.dataset.nav;
+            if (dest === 'jogar') showScreen('main');
+            else if (dest === 'album') openAlbum();
+            else if (dest === 'passport') openPassport();
+            else if (dest === 'ranking') openRanking();
+        });
+    });
+
+    // --- CABEÇALHO DO HUB (avatar, saudação, mini-estatísticas) ---
+    function refreshHub() {
+        const nameEl = document.getElementById('welcome-message');
+        if (nameEl) nameEl.textContent = currentUser || 'explorador';
+        const avEl = document.getElementById('hub-avatar');
+        if (avEl) avEl.textContent = Auth.avatarOf(currentUser) || localStorage.getItem('detetive_avatar') || '🌍';
+
+        const p = (_cache.progress && typeof _cache.progress === 'object') ? _cache.progress : {};
+        let known = 0, mastered = 0;
+        Object.values(p).forEach(s => {
+            if (!s) return;
+            if ((s.acertos || 0) > 0) known++;
+            if ((s.acertos || 0) >= 5 && (s.erros || 0) < 2) mastered++;
+        });
+        const stickers = Array.isArray(_cache.stickers) ? _cache.stickers.length : 0;
+        const set = (id, v) => { const el = document.getElementById(id); if (el) el.textContent = v; };
+        set('hub-stat-known', known);
+        set('hub-stat-mastered', mastered);
+        set('hub-stat-stickers', stickers);
+    }
 
     function updateStats() {
         if (gameConfig.mode === 'Memoria') {
@@ -1155,28 +1208,39 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
-    buttons.showRanking.addEventListener('click', () => {
+    function openRanking() {
         document.getElementById('ranking-filter').value = 'Todos';
         renderRanking('Todos');
         modals.ranking.classList.remove('hidden');
-    });
+    }
+    if (buttons.showRanking) buttons.showRanking.addEventListener('click', openRanking);
 
     document.getElementById('ranking-filter').addEventListener('change', (e) => {
         renderRanking(e.target.value);
     });
-    buttons.showPassport.addEventListener('click', async () => {
+
+    async function openPassport() {
         if (!_cache.progress && currentUser) {
-                _cache.progress = await API.getProgress(currentUser);
-            }
-            const p = loadPlayerProgress(); const g = elements.passportGrid; g.innerHTML = ''; let u = 0, go = 0;
+            _cache.progress = await API.getProgress(currentUser);
+        }
+        const p = loadPlayerProgress();
+        const g = elements.passportGrid;
+        g.innerHTML = '';
+        let u = 0, go = 0;
         countries.forEach(c => {
-            const s = p[c.codigo] || { acertos: 0 }; if (s.acertos > 0) { u++; if (s.acertos >= 5 && s.erros < 2) go++; }
-            const i = document.createElement('div'); i.className = 'passport-item';
+            const s = p[c.codigo] || { acertos: 0 };
+            if (s.acertos > 0) { u++; if (s.acertos >= 5 && s.erros < 2) go++; }
+            const i = document.createElement('div');
+            i.className = 'passport-item';
             if (s.acertos > 0) { i.classList.add('unlocked'); if (s.acertos >= 5 && s.erros < 2) i.classList.add('gold'); }
-            i.innerHTML = `<img src="assets/flags/${c.codigo}.png">`; g.appendChild(i);
+            i.innerHTML = `<img src="assets/flags/${c.codigo}.png" alt="${c.nome}" loading="lazy">`;
+            g.appendChild(i);
         });
-        elements.passportCount.textContent = u; elements.passportGold.textContent = go; showScreen('passport');
-    });
+        elements.passportCount.textContent = u;
+        elements.passportGold.textContent = go;
+        showScreen('passport');
+    }
+    if (buttons.showPassport) buttons.showPassport.addEventListener('click', openPassport);
 
     // --- ÁLBUM DE FIGURINHAS ---
 
@@ -1361,7 +1425,10 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
-    if (buttons.showAlbum) buttons.showAlbum.addEventListener('click', () => {
+    async function openAlbum() {
+        if (!_cache.stickers && currentUser) {
+            try { _cache.stickers = await API.getStickers(currentUser); } catch (e) { _cache.stickers = []; }
+        }
         migrateStickers();
         const stickers = loadStickers();
         currentAlbumPage = 0;
@@ -1373,7 +1440,8 @@ document.addEventListener('DOMContentLoaded', () => {
         elements.albumProgress.textContent = `${progress}%`;
         elements.packsCount.textContent = getPacksCount();
         showScreen('album');
-    });
+    }
+    if (buttons.showAlbum) buttons.showAlbum.addEventListener('click', openAlbum);
 
     if (buttons.openPack) buttons.openPack.addEventListener('click', () => {
         if (getPacksCount() <= 0) {
@@ -1452,7 +1520,7 @@ document.addEventListener('DOMContentLoaded', () => {
     if (buttons.closePack) buttons.closePack.addEventListener('click', () => {
         modals.pack.classList.add('hidden');
         currentAlbumPage = 0;
-        if (buttons.showAlbum) buttons.showAlbum.click(); 
+        openAlbum();
     });
 
     // Eventos Multiplayer
