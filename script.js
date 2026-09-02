@@ -466,11 +466,12 @@ document.addEventListener('DOMContentLoaded', () => {
             if (packsData.last_daily_at !== todayStr) {
                 count++;
                 await API.savePacks(name, count, todayStr);
-                setTimeout(() => showToast("Você ganhou 1 pacotinho diário! 🎁 Vá ao Álbum para abrir.", "success"), 800);
+                setTimeout(() => showToast('Você ganhou 1 pacote diário! 🎁 Abra no Álbum.', 'success'), 800);
             }
-            if (elements.packsCount) elements.packsCount.textContent = count;
+            _cache.packsCount = count;
         } catch(e) {
             console.warn('Erro ao carregar packs:', e);
+            _cache.packsCount = 0;
         }
         
         showScreen('main');
@@ -1289,39 +1290,45 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // --- ÁLBUM DE FIGURINHAS ---
 
-    // loadStickers: auto-migra saves antigos (strings → objetos) de forma transparente
     function loadStickers() {
-        // Returns cached stickers (loaded async when album opens)
-        return _cache.stickers || [];
+        return Array.isArray(_cache.stickers) ? _cache.stickers : [];
     }
 
-    function migrateStickers() { /* Agora é feito dentro de loadStickers() */ }
-    
+    // Garante o campo `count` (formato antigo era só {codigo, rarity})
+    function migrateStickers() {
+        const s = loadStickers();
+        let changed = false;
+        s.forEach(x => {
+            if (typeof x.count !== 'number' || x.count < 1) { x.count = 1; changed = true; }
+        });
+        if (changed) saveStickers(s);
+    }
+
     function saveStickers(s) {
         _cache.stickers = s;
         if (currentUser) API.saveStickers(currentUser, s);
     }
 
     function getPacksCount() {
-        return _cache.packsCount || 0;
+        if (typeof _cache.packsCount !== 'number') {
+            _cache.packsCount = Number(localStorage.getItem(`detetive_packs_${currentUser}`) || 0);
+        }
+        return _cache.packsCount;
     }
 
     function savePacks(n) {
+        n = Math.max(0, Number(n) || 0);
+        _cache.packsCount = n;
         localStorage.setItem(`detetive_packs_${currentUser}`, n);
-        if (elements.packsCount) elements.packsCount.textContent = n;
+        document.querySelectorAll('#packs-count').forEach(el => el.textContent = n);
+        const btn = document.getElementById('open-pack-btn');
+        if (btn) btn.classList.toggle('has-packs', n > 0);
     }
 
-    function addPacks(n) {
-        let current = getPacksCount();
-        savePacks(current + n);
-    }
+    function addPacks(n) { savePacks(getPacksCount() + n); }
 
     function removePack() {
-        let current = getPacksCount();
-        if (current > 0) {
-            savePacks(current - 1);
-            return true;
-        }
+        if (getPacksCount() > 0) { savePacks(getPacksCount() - 1); return true; }
         return false;
     }
 
@@ -1361,210 +1368,200 @@ document.addEventListener('DOMContentLoaded', () => {
         'América do Sul', 'América do Norte', 'América Central',
         'Europa', 'Ásia', 'África', 'Oceania'
     ];
+    const CONTINENT_META = {
+        'América do Sul':   { emoji: '🌎', accent: '#34d399' },
+        'América do Norte': { emoji: '🗽', accent: '#60a5fa' },
+        'América Central':  { emoji: '🏝️', accent: '#c084fc' },
+        'Europa':           { emoji: '🏰', accent: '#818cf8' },
+        'Ásia':             { emoji: '⛩️', accent: '#f87171' },
+        'África':           { emoji: '🦁', accent: '#fbbf24' },
+        'Oceania':          { emoji: '🐨', accent: '#22d3ee' },
+    };
+    const RARITY_ORDER = ['base', 'roxa', 'bronze', 'prata', 'ouro'];
     let currentContinent = null;
-    let currentAlbumPage = 0;
-    const ALBUM_PAGE_SIZE = 6;
+
+    function stickerFor(code) { return loadStickers().find(s => s.codigo === code); }
+
+    function continentStats(cont) {
+        const list = countries.filter(c => c.continente === cont);
+        const have = list.filter(c => stickerFor(c.codigo)).length;
+        return { have, total: list.length };
+    }
 
     function buildContinentNav() {
         const nav = document.getElementById('continent-nav');
         if (!nav) return;
         nav.innerHTML = '';
         CONTINENTS_ORDER.forEach(cont => {
+            const meta = CONTINENT_META[cont] || { emoji: '🌐', accent: '#94a3b8' };
+            const st = continentStats(cont);
             const btn = document.createElement('button');
             btn.className = 'continent-tab' + (cont === currentContinent ? ' active' : '');
-            btn.textContent = cont;
+            btn.style.setProperty('--tab-accent', meta.accent);
+            btn.innerHTML = `<span class="ct-emoji">${meta.emoji}</span><span class="ct-name">${cont}</span><span class="ct-count">${st.have}/${st.total}</span>`;
             btn.addEventListener('click', () => {
+                if (currentContinent === cont) return;
                 currentContinent = cont;
-                currentAlbumPage = 0;
-                renderAlbumPage();
-                buildContinentNav();
+                renderAlbum();
             });
             nav.appendChild(btn);
         });
     }
 
-    // Continent background colors
-    const CONTINENT_COLORS = {
-        'América do Sul': { bg: 'linear-gradient(135deg, #1a472a, #2d6a4f)', bar: '#1a472a', accent: '#52b788' },
-        'América do Norte': { bg: 'linear-gradient(135deg, #1d3557, #457b9d)', bar: '#1d3557', accent: '#a8dadc' },
-        'América Central': { bg: 'linear-gradient(135deg, #6a0572, #ab83a1)', bar: '#6a0572', accent: '#e0c3fc' },
-        'Europa': { bg: 'linear-gradient(135deg, #002366, #1560bd)', bar: '#002366', accent: '#89cff0' },
-        'Ásia': { bg: 'linear-gradient(135deg, #8b0000, #c0392b)', bar: '#8b0000', accent: '#f48c84' },
-        'África': { bg: 'linear-gradient(135deg, #7d3c00, #e07b00)', bar: '#7d3c00', accent: '#f9c74f' },
-        'Oceania': { bg: 'linear-gradient(135deg, #00609c, #0096c7)', bar: '#00609c', accent: '#90e0ef' }
-    };
-
-    function renderAlbumPage() {
-        const stickers = loadStickers();
+    function renderAlbum() {
         const grid = elements.albumGrid;
+        if (!grid) return;
+        const meta = CONTINENT_META[currentContinent] || { emoji: '🌐', accent: '#94a3b8' };
+        const screen = document.getElementById('album-menu');
+        if (screen) screen.style.setProperty('--cont-accent', meta.accent);
+
         grid.innerHTML = '';
+        const list = countries.filter(c => c.continente === currentContinent);
 
-        const filtered = currentContinent
-            ? countries.filter(c => c.continente === currentContinent)
-            : countries;
+        list.forEach(c => {
+            const sd = stickerFor(c.codigo);
+            const globalIndex = countries.findIndex(x => x.codigo === c.codigo) + 1;
+            const item = document.createElement('div');
 
-        const totalPages = Math.ceil(filtered.length / ALBUM_PAGE_SIZE);
-        if (currentAlbumPage >= totalPages) currentAlbumPage = 0;
-        const start = currentAlbumPage * ALBUM_PAGE_SIZE;
-        const end = start + ALBUM_PAGE_SIZE;
-        const pageCountries = filtered.slice(start, end);
-
-        const colors = CONTINENT_COLORS[currentContinent] || { bg: 'linear-gradient(135deg, #333, #555)', bar: '#333', accent: '#aaa' };
-
-        pageCountries.forEach(c => {
-            const stickerData = stickers.find(s => s.codigo === c.codigo);
-            const hasSticker = !!stickerData;
-            const rarity = hasSticker ? (stickerData.rarity || 'base') : null;
-            const isFixedShiny = !!c.fixedShiny;
-
-                          const item = document.createElement('div');
-              
-              // Panini style index (global index for country)
-              const globalIndex = countries.findIndex(x => x.codigo === c.codigo) + 1;
-              item.setAttribute('data-number', globalIndex);
-
-              let classes = 'album-item';
-              if (!hasSticker) {
-                  classes += ' missing';
-              } else {
-                  classes += ' collected';
-                  if ((rarity !== 'base' || isFixedShiny)) classes += ` legend-${isFixedShiny && rarity === 'base' ? 'ouro' : rarity}`;
-                  if (isFixedShiny) classes += ' shiny';
-              }
-              item.className = classes;
-  
-              if (!hasSticker) {
-                  // Handled entirely by CSS .missing::after using data-number
-                  item.innerHTML = '';
-              } else {
-                  // Unlocked: Panini-style card
-                  item.innerHTML = `
-                      <img src="assets/flags/${c.codigo}.png" title="${c.nome}" alt="Bandeira ${c.nome}">
-                      <div class="country-name">${c.nome}</div>
-                  `;
-                  // We removed inline background to let CSS handle it.
-              }
-              grid.appendChild(item);
+            if (!sd) {
+                item.className = 'album-card missing';
+                item.innerHTML = `
+                    <div class="ac-frame">
+                        <img class="ac-silhouette" src="assets/shapes/${c.codigo}.svg" alt="" loading="lazy"
+                             onerror="this.style.display='none'">
+                        <span class="ac-num">${globalIndex}</span>
+                    </div>
+                    <div class="ac-name">${c.nome}</div>`;
+            } else {
+                const rarity = sd.rarity || 'base';
+                const holo = !!c.fixedShiny || rarity === 'ouro' || rarity === 'prata';
+                item.className = `album-card collected rarity-${rarity}` + (holo ? ' holo' : '');
+                const badge = (sd.count > 1) ? `<span class="ac-count" title="Repetidas">×${sd.count}</span>` : '';
+                item.innerHTML = `
+                    <div class="ac-frame">
+                        <img src="assets/flags/${c.codigo}.png" alt="${c.nome}" loading="lazy">
+                        <span class="ac-shine"></span>
+                        ${badge}
+                    </div>
+                    <div class="ac-name">${c.nome}</div>`;
+            }
+            item.title = c.nome;
+            grid.appendChild(item);
         });
 
-        // Pagination info
-        if (elements.albumPageInfo) elements.albumPageInfo.textContent = `Pág ${currentAlbumPage + 1}/${totalPages || 1}`;
-        if (elements.albumPrevPage) {
-            elements.albumPrevPage.disabled = currentAlbumPage === 0;
-            elements.albumPrevPage.style.opacity = currentAlbumPage === 0 ? '0.4' : '1';
-        }
-        if (elements.albumNextPage) {
-            elements.albumNextPage.disabled = currentAlbumPage >= totalPages - 1;
-            elements.albumNextPage.style.opacity = currentAlbumPage >= totalPages - 1 ? '0.4' : '1';
-        }
-    }
+        // cabeçalhos
+        const st = continentStats(currentContinent);
+        const nameEl = document.getElementById('album-continent-name');
+        if (nameEl) nameEl.textContent = `${meta.emoji} ${currentContinent}`;
+        const ccEl = document.getElementById('album-continent-count');
+        if (ccEl) ccEl.textContent = `${st.have}/${st.total}`;
 
-    if (elements.albumPrevPage) {
-        elements.albumPrevPage.addEventListener('click', () => {
-            if (currentAlbumPage > 0) { currentAlbumPage--; renderAlbumPage(); }
-        });
-        elements.albumNextPage.addEventListener('click', () => {
-            const filtered = currentContinent ? countries.filter(c => c.continente === currentContinent) : countries;
-            const totalPages = Math.ceil(filtered.length / ALBUM_PAGE_SIZE);
-            if (currentAlbumPage < totalPages - 1) { currentAlbumPage++; renderAlbumPage(); }
-        });
+        const totalHave = loadStickers().length;
+        const pct = Math.round((totalHave / countries.length) * 100);
+        const pEl = document.getElementById('album-progress');
+        if (pEl) pEl.textContent = `${pct}%`;
+        const cEl = document.getElementById('album-count');
+        if (cEl) cEl.textContent = `${totalHave}/${countries.length}`;
+        const fill = document.getElementById('album-overall-fill');
+        if (fill) fill.style.width = `${pct}%`;
+
+        buildContinentNav();
     }
 
     async function openAlbum() {
-        if (!_cache.stickers && currentUser) {
+        if (!Array.isArray(_cache.stickers) && currentUser) {
             try { _cache.stickers = await API.getStickers(currentUser); } catch (e) { _cache.stickers = []; }
         }
         migrateStickers();
-        const stickers = loadStickers();
-        currentAlbumPage = 0;
         if (!currentContinent) currentContinent = CONTINENTS_ORDER[0];
-        buildContinentNav();
-        renderAlbumPage();
-
-        const progress = Math.round((stickers.length / countries.length) * 100);
-        elements.albumProgress.textContent = `${progress}%`;
-        elements.packsCount.textContent = getPacksCount();
+        savePacks(getPacksCount());
+        renderAlbum();
         showScreen('album');
     }
     if (buttons.showAlbum) buttons.showAlbum.addEventListener('click', openAlbum);
 
-    if (buttons.openPack) buttons.openPack.addEventListener('click', () => {
+    const PACK_SIZE = 4;
+
+    function openPackModal() {
         if (getPacksCount() <= 0) {
-            showToast("Você não tem pacotinhos! Jogue partidas ou volte amanhã para ganhar mais.", "error");
+            showToast('Você não tem pacotes! Jogue partidas ou volte amanhã.', 'error');
             return;
         }
         elements.openedStickers.innerHTML = '';
         elements.openedStickers.classList.add('hidden');
         elements.packAnimationContainer.classList.remove('hidden');
+        elements.packAnimationContainer.classList.remove('opening');
+        if (buttons.closePack) buttons.closePack.classList.add('hidden');
         modals.pack.classList.remove('hidden');
-    });
+    }
+    if (buttons.openPack) buttons.openPack.addEventListener('click', openPackModal);
 
-    // Clique para abrir o pacotinho
-    if (elements.packAnimationContainer) elements.packAnimationContainer.addEventListener('click', () => {
-        if (!removePack()) {
-            showToast("Você não tem pacotinhos! Jogue partidas ou volte amanhã para ganhar mais.", "error");
-            return;
+    function drawPack() {
+        const stickers = loadStickers();
+        const results = [];
+        for (let i = 0; i < PACK_SIZE; i++) {
+            const drawn = shuffle([...countries])[0];
+            let rarity = rollRarity();
+            if (drawn.fixedShiny && rarity === 'base') rarity = 'ouro';
+
+            let entry = stickers.find(s => s.codigo === drawn.codigo);
+            const isNew = !entry;
+            if (isNew) {
+                entry = { codigo: drawn.codigo, rarity, count: 1 };
+                stickers.push(entry);
+            } else {
+                entry.count = (entry.count || 1) + 1;
+                if (RARITY_ORDER.indexOf(rarity) > RARITY_ORDER.indexOf(entry.rarity || 'base')) {
+                    entry.rarity = rarity;
+                }
+            }
+            results.push({ country: drawn, rarity: entry.rarity, isNew, count: entry.count });
         }
+        saveStickers(stickers);
+        return results;
+    }
 
-        const tearAudio = new Audio('assets/audio/effects/win.mp3');
-        tearAudio.play().catch(() => playSound('match'));
+    if (elements.packAnimationContainer) elements.packAnimationContainer.addEventListener('click', () => {
+        if (elements.packAnimationContainer.classList.contains('opening')) return;
+        if (!removePack()) { showToast('Você não tem pacotes!', 'error'); return; }
 
-        const packWrapper = elements.packAnimationContainer.querySelector('.pack-wrapper');
-        if (packWrapper) packWrapper.classList.add('ripping');
+        elements.packAnimationContainer.classList.add('opening');
+        new Audio('assets/audio/effects/win.mp3').play().catch(() => playSound('match'));
 
         setTimeout(() => {
-             if (!calmMode && typeof confetti !== 'undefined') confetti({ particleCount: 60, spread: 70, origin: { y: 0.5 } });
-
+            const results = drawPack();
             elements.packAnimationContainer.classList.add('hidden');
             elements.openedStickers.innerHTML = '';
-
-            const stickers = loadStickers();
-
-            for (let i = 0; i < 3; i++) {
-                const drawn = shuffle([...countries])[0];
-                const existingEntry = stickers.find(s => s.codigo === drawn.codigo);
-                const isNew = !existingEntry;
-                const rarity = rollRarity();
-
-                if (isNew) {
-                    stickers.push({ codigo: drawn.codigo, rarity });
-                } else if (rarity !== 'base' && (!existingEntry || existingEntry.rarity === 'base')) {
-                    // Upgrade rarity if we got a better version
-                    const rarityOrder = ['base', 'roxa', 'bronze', 'prata', 'ouro'];
-                    const existingIdx = rarityOrder.indexOf(existingEntry.rarity || 'base');
-                    const newIdx = rarityOrder.indexOf(rarity);
-                    if (newIdx > existingIdx) existingEntry.rarity = rarity;
-                }
-
-                const div = document.createElement('div');
-                div.style.cssText = 'text-align:center; width:90px; padding:5px;';
-
-                const isFixedShiny = !!drawn.fixedShiny;
-                const displayRarity = isFixedShiny && rarity === 'base' ? 'ouro' : rarity;
-                const label = isNew
-                    ? (RARITY_LABELS[displayRarity] || RARITY_LABELS.base)
-                    : { text: 'Repetida', color: '#aaa', border: '#ddd' };
-
-                div.innerHTML = `
-                    <div style="position:relative; border:3px solid ${label.border}; border-radius:8px; overflow:hidden; box-shadow:0 4px 12px rgba(0,0,0,0.2);">
-                        <img src="assets/flags/${drawn.codigo}.png" style="width:100%; display:block;">
-                    </div>
-                    <p style="font-size:0.75em; margin-top:5px; color:${label.color}; font-weight:bold;">${label.text}</p>
-                    <p style="font-size:0.7em; color:#555;">${drawn.nome}</p>
-                `;
-                elements.openedStickers.appendChild(div);
-            }
-
-            saveStickers(stickers);
             elements.openedStickers.classList.remove('hidden');
+
+            const best = results.reduce((b, r) => Math.max(b, RARITY_ORDER.indexOf(r.rarity)), 0);
+
+            results.forEach((r, i) => {
+                const card = document.createElement('div');
+                card.className = `pack-card rarity-${r.rarity}` + (r.isNew ? ' is-new' : '');
+                card.style.animationDelay = `${i * 0.14}s`;
+                card.innerHTML = `
+                    <div class="pc-frame">
+                        <img src="assets/flags/${r.country.codigo}.png" alt="${r.country.nome}">
+                        <span class="ac-shine"></span>
+                    </div>
+                    <div class="pc-name">${r.country.nome}</div>
+                    <div class="pc-tag">${r.isNew ? 'NOVA!' : `repetida ×${r.count}`}</div>`;
+                elements.openedStickers.appendChild(card);
+            });
+
+            if (!calmMode && typeof confetti !== 'undefined') {
+                const n = best >= 3 ? 140 : best >= 1 ? 80 : 45;
+                confetti({ particleCount: n, spread: 75, origin: { y: 0.5 } });
+            }
+            if (best >= 3) playSound('levelUp');
+
             if (buttons.closePack) buttons.closePack.classList.remove('hidden');
-            if (packWrapper) packWrapper.classList.remove('ripping');
-        }, 800);
+        }, 650);
     });
 
     if (buttons.closePack) buttons.closePack.addEventListener('click', () => {
         modals.pack.classList.add('hidden');
-        currentAlbumPage = 0;
         openAlbum();
     });
 

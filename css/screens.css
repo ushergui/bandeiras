@@ -502,3 +502,151 @@
   .memory-grid { max-width: 100%; }
   .memory-card-inner { transition-duration: 0.35s; }
 }
+
+/* =====================================================
+   FASE 6 — ÁLBUM DE FIGURINHAS
+   ===================================================== */
+#album-menu.album { display: flex; flex-direction: column; gap: 12px; --cont-accent: #60a5fa; }
+
+.album-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+.album-title { display: flex; align-items: center; gap: 10px; min-width: 0; }
+.at-icon { font-size: 1.8rem; flex-shrink: 0; }
+.album-title h2 { text-align: left; font-size: 1.1rem; line-height: 1.15; }
+@media (max-width: 420px) {
+  .album-title h2 { font-size: 0.98rem; }
+  .album-pack-btn .apb-txt { display: none; }
+  .album-pack-btn { padding: 10px; }
+}
+.album-overall { font-size: 0.78rem; color: var(--text-muted); }
+.album-overall b { color: var(--text-white); }
+
+.album-pack-btn {
+  display: flex; align-items: center; gap: 7px; padding: 9px 13px; border-radius: 14px;
+  background: linear-gradient(135deg, #78350f, #d97706); border: 1px solid #f59e0b;
+  color: #fff; font-weight: 900; font-size: 0.82rem; flex-shrink: 0;
+}
+.album-pack-btn.has-packs { animation: packPulse 2s ease-in-out infinite; box-shadow: 0 0 18px rgba(245,158,11,.5); }
+@keyframes packPulse { 50% { box-shadow: 0 0 28px rgba(245,158,11,.9); } }
+.apb-count {
+  background: #fff; color: #b45309; border-radius: 999px; min-width: 20px; height: 20px;
+  display: grid; place-items: center; font-size: 0.74rem; padding: 0 4px;
+}
+
+.album-overall-bar { height: 6px; border-radius: 999px; background: rgba(255,255,255,.08); overflow: hidden; }
+#album-overall-fill { display: block; height: 100%; border-radius: 999px; background: linear-gradient(90deg, #3b82f6, #8b5cf6, #ec4899); transition: width .5s ease; }
+
+.continent-nav {
+  display: flex; gap: 6px; overflow-x: auto; padding-bottom: 4px;
+  scrollbar-width: none;
+}
+.continent-nav::-webkit-scrollbar { display: none; }
+.continent-tab {
+  flex: 0 0 auto; display: flex; flex-direction: column; align-items: center; gap: 1px;
+  padding: 8px 12px; border-radius: 14px; background: rgba(255,255,255,.05);
+  border: 1.5px solid rgba(255,255,255,.1); color: var(--text-muted);
+  --tab-accent: #60a5fa; min-width: 76px; white-space: nowrap;
+}
+.continent-tab .ct-emoji { font-size: 1.3rem; }
+.continent-tab .ct-name { font-size: 0.62rem; font-weight: 800; }
+.continent-tab .ct-count { font-size: 0.62rem; font-weight: 900; opacity: 0.85; }
+.continent-tab.active {
+  color: #fff;
+  background: color-mix(in srgb, var(--tab-accent) 22%, transparent);
+  border-color: var(--tab-accent);
+  box-shadow: 0 4px 14px color-mix(in srgb, var(--tab-accent) 40%, transparent);
+}
+
+.album-page-head { display: flex; justify-content: space-between; align-items: center; }
+#album-continent-name { font-weight: 900; font-size: 1rem; }
+.acc-count {
+  font-size: 0.8rem; font-weight: 900; padding: 3px 10px; border-radius: 999px;
+  background: color-mix(in srgb, var(--cont-accent) 18%, transparent);
+  color: var(--cont-accent);
+}
+
+.album-grid {
+  display: grid; grid-template-columns: repeat(auto-fill, minmax(92px, 1fr)); gap: 10px;
+  padding: 14px; border-radius: 16px;
+  background: linear-gradient(160deg, rgba(255,255,255,.03), rgba(0,0,0,.18));
+  border: 1px solid rgba(255,255,255,.06);
+  max-height: none; overflow: visible;
+}
+
+.album-card { display: flex; flex-direction: column; gap: 4px; }
+.ac-frame { position: relative; aspect-ratio: 3/2; border-radius: 10px; overflow: hidden; display: grid; place-items: center; }
+.ac-frame > img { width: 100%; height: 100%; object-fit: cover; }
+.ac-name {
+  font-size: 0.66rem; font-weight: 800; text-align: center; color: var(--text-white);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+
+.album-card.missing .ac-frame {
+  background: repeating-linear-gradient(135deg, rgba(255,255,255,.03) 0 8px, rgba(255,255,255,.06) 8px 16px);
+  border: 2px dashed rgba(255,255,255,.15);
+}
+.album-card.missing .ac-silhouette { width: 56%; height: 56%; object-fit: contain; opacity: 0.16; filter: brightness(0) invert(1); }
+.album-card.missing .ac-num { position: absolute; font-size: 1.3rem; font-weight: 900; color: rgba(255,255,255,.15); }
+.album-card.missing .ac-name { color: var(--text-muted); }
+
+.album-card.collected .ac-frame { border: 2px solid rgba(255,255,255,.2); box-shadow: 0 3px 12px rgba(0,0,0,.4); }
+.album-card.collected { transition: transform .2s ease; }
+.album-card.collected:hover { transform: translateY(-3px) scale(1.03); z-index: 2; }
+
+.rarity-roxa   .ac-frame { border-color: #a855f7; box-shadow: 0 0 14px rgba(168,85,247,.45); }
+.rarity-bronze .ac-frame { border-color: #cd7f32; box-shadow: 0 0 14px rgba(205,127,50,.45); }
+.rarity-prata  .ac-frame { border-color: #cbd5e1; box-shadow: 0 0 16px rgba(203,213,225,.5); }
+.rarity-ouro   .ac-frame { border-color: #fbbf24; box-shadow: 0 0 20px rgba(251,191,36,.6); }
+
+.ac-shine { position: absolute; inset: 0; pointer-events: none; }
+.album-card.holo .ac-shine, .pack-card.rarity-ouro .ac-shine, .pack-card.rarity-prata .ac-shine {
+  background: linear-gradient(115deg, transparent 32%, rgba(255,255,255,.55) 48%, transparent 64%);
+  background-size: 250% 250%;
+  animation: holoSweep 3.5s linear infinite;
+  mix-blend-mode: overlay;
+}
+@keyframes holoSweep { 0% { background-position: 120% 0; } 100% { background-position: -40% 0; } }
+
+.ac-count {
+  position: absolute; top: 3px; right: 3px; font-size: 0.62rem; font-weight: 900;
+  background: rgba(0,0,0,.72); color: #fff; border-radius: 8px; padding: 1px 5px;
+  border: 1px solid rgba(255,255,255,.25);
+}
+
+/* ---- modal de abrir pacote ---- */
+.pack-content { max-width: 520px; text-align: center; }
+#pack-title { margin-bottom: 4px; }
+.pack-stage { margin: 16px 0; display: grid; place-items: center; min-height: 150px; }
+#pack-animation-container.hidden { display: none; }
+.pack-wrapper {
+  position: relative; width: 168px; padding: 32px 18px; border-radius: 18px; cursor: pointer;
+  background: linear-gradient(140deg, #f59e0b, #b45309); border: 3px dashed rgba(255,255,255,.75);
+  display: flex; flex-direction: column; align-items: center; gap: 6px;
+  transition: transform .2s ease;
+}
+.pack-wrapper:hover { transform: scale(1.04) rotate(-1deg); }
+.pack-emoji { font-size: 2.6rem; }
+.pack-brand { color: #fff; font-weight: 900; font-size: 0.92rem; text-shadow: 0 1px 2px rgba(0,0,0,.4); }
+.pack-hint { color: rgba(255,255,255,.92); font-size: 0.78rem; font-weight: 700; }
+.pack-glow { position: absolute; inset: -18px; border-radius: 30px; background: radial-gradient(circle, rgba(251,191,36,.5), transparent 70%); animation: packPulse 2s infinite; z-index: -1; }
+.pack-stage.opening .pack-wrapper { animation: packBurst .6s ease forwards; }
+@keyframes packBurst { 0% { transform: scale(1); } 40% { transform: scale(1.15) rotate(3deg); } 100% { transform: scale(0) rotate(15deg); opacity: 0; } }
+
+.opened-stickers-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin: 14px 0; }
+.opened-stickers-grid.hidden { display: none; }
+.pack-card {
+  display: flex; flex-direction: column; align-items: center; gap: 3px;
+  opacity: 0; transform: translateY(14px) scale(.9);
+  animation: packCardIn .4s ease forwards;
+}
+@keyframes packCardIn { to { opacity: 1; transform: none; } }
+.pack-card .pc-frame { position: relative; width: 100%; aspect-ratio: 3/2; border-radius: 8px; overflow: hidden; border: 2px solid rgba(255,255,255,.25); }
+.pack-card .pc-frame img { width: 100%; height: 100%; object-fit: cover; }
+.pack-card.rarity-roxa .pc-frame { border-color: #a855f7; box-shadow: 0 0 12px rgba(168,85,247,.5); }
+.pack-card.rarity-bronze .pc-frame { border-color: #cd7f32; }
+.pack-card.rarity-prata .pc-frame { border-color: #cbd5e1; box-shadow: 0 0 12px rgba(203,213,225,.5); }
+.pack-card.rarity-ouro .pc-frame { border-color: #fbbf24; box-shadow: 0 0 16px rgba(251,191,36,.65); }
+.pc-name { font-size: 0.7rem; font-weight: 800; }
+.pc-tag { font-size: 0.58rem; font-weight: 900; text-transform: uppercase; letter-spacing: .03em; color: var(--text-muted); }
+.pack-card.is-new .pc-tag { color: #4ade80; }
+
+@media (max-width: 480px) { .opened-stickers-grid { grid-template-columns: repeat(2, 1fr); } }
