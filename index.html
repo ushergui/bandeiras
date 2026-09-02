@@ -17,15 +17,15 @@
     <link rel="icon" href="assets/icons/favicon-32.png" sizes="32x32" type="image/png">
     <link rel="apple-touch-icon" href="assets/icons/apple-touch-icon.png">
 
-    <link rel="stylesheet" href="style.css?v=20260902u">
-    <link rel="stylesheet" href="css/app-shell.css?v=20260902u">
-    <link rel="stylesheet" href="css/screens.css?v=20260902u">
+    <link rel="stylesheet" href="style.css?v=20260902v">
+    <link rel="stylesheet" href="css/app-shell.css?v=20260902v">
+    <link rel="stylesheet" href="css/screens.css?v=20260902v">
     <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800;900&display=swap" rel="stylesheet">
     <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
     <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
-    <script src="countries.js?v=20260902u"></script>
-    <script src="curiosities.js?v=20260902u"></script>
-    <script src="js/sfx.js?v=20260902u"></script>
+    <script src="countries.js?v=20260902v"></script>
+    <script src="curiosities.js?v=20260902v"></script>
+    <script src="js/sfx.js?v=20260902v"></script>
 </head>
 
 <body>
@@ -226,11 +226,31 @@
 
             <section class="trade-machine">
                 <h3>🎰 Máquina de troca</h3>
-                <p>Deposite <b>7 figurinhas repetidas</b> e receba <b>1 que você não tem</b>.</p>
-                <div class="tm-bar"><span id="tm-progress" class="tm-fill"></span></div>
+                <p>Deposite <b>7 figurinhas repetidas</b> e puxe a alavanca pra ganhar <b>1 que você não tem</b>.</p>
+
+                <div class="slot" id="tm-slot">
+                    <div class="slot-cabinet">
+                        <div class="slot-marquee"><span>DETETIVE&nbsp;GLOBAL</span></div>
+                        <div class="slot-window">
+                            <div class="slot-reel"><div class="reel-strip" id="tm-reel-0"></div></div>
+                            <div class="slot-reel"><div class="reel-strip" id="tm-reel-1"></div></div>
+                            <div class="slot-reel"><div class="reel-strip" id="tm-reel-2"></div></div>
+                            <div class="slot-line"></div>
+                            <div class="slot-flash" id="tm-flash"></div>
+                        </div>
+                        <div class="slot-tray"><div class="tray-card" id="tm-prize"></div></div>
+                        <div class="slot-lights"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div>
+                    </div>
+                    <div class="slot-lever" id="tm-lever" title="Puxe a alavanca">
+                        <span class="lever-track"></span>
+                        <span class="lever-arm"><span class="lever-knob"></span></span>
+                    </div>
+                </div>
+
                 <div class="tm-row">
                     <span id="tm-count" class="tm-count">0 / 7</span>
-                    <button id="tm-add" class="tm-btn">+ Depositar repetidas</button>
+                    <div class="tm-bar"><span id="tm-progress" class="tm-fill"></span></div>
+                    <button id="tm-add" class="tm-btn">+ Depositar repetida</button>
                     <button id="tm-pull" class="btn-primary" disabled>Puxar a alavanca</button>
                 </div>
             </section>
@@ -517,7 +537,7 @@
         </div>
     </div>
 
-    <script src="script.js?v=20260902u"></script>
+    <script src="script.js?v=20260902v"></script>
 </body>
 
 </html>

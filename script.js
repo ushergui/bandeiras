@@ -1854,7 +1854,32 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // ─── MÁQUINA DE TROCA (7 repetidas -> 1 nova) ─────────
     let machineDeposit = []; // [{codigo, rar}]
+    let machineBusy = false;
     const MACHINE_COST = 7;
+    const REEL_TILE = 44;      // altura de cada bandeira no rolo (px)
+    const REEL_WON_IDX = 16;   // posicao fixa da bandeira sorteada na tira
+
+    function reelsBuilt() { return document.getElementById('tm-reel-0') && document.getElementById('tm-reel-0').childElementCount > 0; }
+
+    function buildReels(wonCode) {
+        for (let r = 0; r < 3; r++) {
+            const strip = document.getElementById('tm-reel-' + r);
+            if (!strip) continue;
+            strip.style.transition = 'none';
+            strip.style.transform = 'translateY(0)';
+            strip.innerHTML = '';
+            const pool = shuffle([...countries]);
+            for (let i = 0; i < 24; i++) {
+                const c = (i === REEL_WON_IDX && wonCode)
+                    ? countries.find(x => x.codigo === wonCode)
+                    : pool[i % pool.length];
+                const t = document.createElement('div');
+                t.className = 'reel-tile';
+                t.innerHTML = `<img src="assets/flags/${c.codigo}.png" alt="">`;
+                strip.appendChild(t);
+            }
+        }
+    }
 
     function renderMachine() {
         const n = machineDeposit.length;
@@ -1863,13 +1888,16 @@ document.addEventListener('DOMContentLoaded', () => {
         const fill = document.getElementById('tm-progress');
         if (fill) fill.style.width = `${(n / MACHINE_COST) * 100}%`;
         const pull = document.getElementById('tm-pull');
-        if (pull) pull.disabled = n < MACHINE_COST;
+        if (pull) pull.disabled = n < MACHINE_COST || machineBusy;
         const add = document.getElementById('tm-add');
-        if (add) add.disabled = totalPilha() <= 0 && n < MACHINE_COST;
+        if (add) add.disabled = machineBusy || (totalPilha() <= 0 && n < MACHINE_COST);
+        const slot = document.getElementById('tm-slot');
+        if (slot) slot.classList.toggle('ready', n >= MACHINE_COST && !machineBusy);
+        if (!reelsBuilt()) buildReels(null);
     }
 
     function machineAddOne() {
-        if (machineDeposit.length >= MACHINE_COST) return;
+        if (machineBusy || machineDeposit.length >= MACHINE_COST) return;
         const s = loadStickers().find(x => (x.pilha || []).length > 0);
         if (!s) { showToast('Você não tem repetidas na pilha.', 'error'); return; }
         s.pilha.sort((a, b) => RARITY_ORDER.indexOf(a) - RARITY_ORDER.indexOf(b));
@@ -1880,24 +1908,103 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     function machinePull() {
-        if (machineDeposit.length < MACHINE_COST) return;
+        if (machineBusy || machineDeposit.length < MACHINE_COST) return;
+        machineBusy = true;
+        renderMachine();
+
         // prioriza país que falta no continente atual, senão qualquer que falte colar
         const missCur = countries.filter(c => c.continente === currentContinent && !isColada(c.codigo));
         const missAny = countries.filter(c => !isColada(c.codigo));
         const pool = missCur.length ? missCur : (missAny.length ? missAny : countries);
         const won = shuffle([...pool])[0];
+
+        buildReels(won.codigo);
+        const slot = document.getElementById('tm-slot');
+        const prize = document.getElementById('tm-prize');
+        if (prize) { prize.className = 'tray-card'; prize.innerHTML = ''; }
+        if (slot) slot.classList.remove('ready');
+        if (window.SFX) window.SFX.play('whoosh');
+
+        // gira os 3 rolos e para um a um na bandeira sorteada
+        const centerOffset = (REEL_TILE * 2.5) - (REEL_TILE / 2); // janela mostra ~5 tiles, linha no meio
+        [0, 1, 2].forEach(r => {
+            const strip = document.getElementById('tm-reel-' + r);
+            if (!strip) return;
+            strip.classList.add('spinning');
+            const stopAt = 750 + r * 480;
+            setTimeout(() => {
+                strip.classList.remove('spinning');
+                strip.style.transition = 'transform .6s cubic-bezier(.18,.9,.28,1.1)';
+                strip.style.transform = `translateY(-${REEL_WON_IDX * REEL_TILE - centerOffset}px)`;
+                if (window.SFX) window.SFX.play('tick');
+            }, stopAt);
+        });
+
+        setTimeout(() => finishPull(won), 750 + 2 * 480 + 750);
+    }
+
+    function finishPull(won) {
         const e = stickerEntry(won.codigo, true);
         e.pilha.push('base');
         saveStickers(loadStickers());
         machineDeposit = [];
-        renderMachine();
-        if (window.SFX) { window.SFX.play('coin'); setTimeout(() => window.SFX.play('reveal_common'), 250); }
-        if (!calmMode && typeof confetti !== 'undefined') confetti({ particleCount: 70, spread: 70, origin: { y: 0.6 } });
+        machineBusy = false;
+
+        const flash = document.getElementById('tm-flash');
+        if (flash) { flash.classList.remove('go'); void flash.offsetWidth; flash.classList.add('go'); }
+        const prize = document.getElementById('tm-prize');
+        if (prize) {
+            prize.innerHTML = `<img src="assets/flags/${won.codigo}.png" alt=""><span>${won.nome}</span>`;
+            prize.className = 'tray-card show';
+        }
+        if (window.SFX) { window.SFX.play('coin'); setTimeout(() => window.SFX.play('reveal_common'), 260); }
+        if (!calmMode && typeof confetti !== 'undefined') {
+            const slot = document.getElementById('tm-slot');
+            const rect = slot ? slot.getBoundingClientRect() : null;
+            confetti({
+                particleCount: 80, spread: 75, startVelocity: 32,
+                origin: rect ? { x: (rect.left + rect.width / 2) / innerWidth, y: (rect.bottom - 10) / innerHeight } : { y: 0.6 },
+            });
+        }
         showToast(`A máquina soltou: ${won.nome}! 🎰 (foi pra sua pilha)`, 'success');
+        renderMachine();
     }
 
     document.getElementById('tm-add').addEventListener('click', machineAddOne);
     document.getElementById('tm-pull').addEventListener('click', machinePull);
+
+    // alavanca: arrastar pra baixo puxa
+    (function wireLever() {
+        const lever = document.getElementById('tm-lever');
+        if (!lever) return;
+        let dragging = false, startY = 0;
+        const setPull = f => { f = Math.max(0, Math.min(1, f)); lever.style.setProperty('--pull', f.toFixed(2)); return f; };
+        lever.addEventListener('pointerdown', e => {
+            if (machineBusy || machineDeposit.length < MACHINE_COST) return;
+            dragging = true; startY = e.clientY;
+            lever.classList.add('grabbing');
+            try { lever.setPointerCapture(e.pointerId); } catch (_) {}
+        });
+        lever.addEventListener('pointermove', e => {
+            if (!dragging) return;
+            setPull((e.clientY - startY) / 90);
+        });
+        const release = () => {
+            if (!dragging) return;
+            dragging = false;
+            lever.classList.remove('grabbing');
+            const f = parseFloat(lever.style.getPropertyValue('--pull')) || 0;
+            lever.style.transition = 'none';
+            lever.style.setProperty('--pull', '1');
+            requestAnimationFrame(() => {
+                lever.style.transition = '';
+                lever.style.setProperty('--pull', '0');
+            });
+            if (f >= 0.55) machinePull();
+        };
+        lever.addEventListener('pointerup', release);
+        lever.addEventListener('pointercancel', release);
+    })();
 
     // ─── ABRIR PACOTE ────────────────────────────────────
     const PACK_SIZE = PACK_STICKERS;
