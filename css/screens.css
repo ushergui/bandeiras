@@ -354,3 +354,62 @@
   .nav-item.active { background: rgba(59, 130, 246, 0.14); }
   body.has-nav .main-container { margin-bottom: 88px; }
 }
+
+/* =====================================================
+   FASE 3 — CONFIGURAÇÃO DA PARTIDA (tela única)
+   ===================================================== */
+#game-setup.setup { display: flex; flex-direction: column; gap: 18px; }
+
+.setup-head { display: flex; align-items: center; gap: 10px; }
+.setup-back {
+  width: 42px; height: 42px; border-radius: 12px; flex-shrink: 0;
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  color: var(--text-white); font-size: 1.6rem; line-height: 1;
+  display: grid; place-items: center;
+}
+.setup-back:hover { background: rgba(255, 255, 255, 0.12); }
+.setup-mode { display: flex; align-items: center; gap: 10px; font-size: 1.15rem; font-weight: 900; }
+.setup-mode .mb-icon { font-size: 1.5rem; }
+
+.setup-sec { display: flex; flex-direction: column; gap: 10px; }
+.setup-sec.hidden { display: none !important; }
+
+.setup-opts { display: grid; gap: 8px; }
+.setup-cols-2 { grid-template-columns: 1fr 1fr; }
+.setup-cols-3 { grid-template-columns: repeat(3, 1fr); }
+.setup-levels { grid-template-columns: repeat(5, 1fr); }
+
+.setup-opt {
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  gap: 3px; min-height: 64px; padding: 10px 8px; border-radius: 14px;
+  background: var(--bg-card-2); border: 2px solid rgba(255, 255, 255, 0.1);
+  color: var(--text-white); font-weight: 800; text-align: center; line-height: 1.2;
+}
+.setup-opt .so-title { font-size: 0.98rem; }
+.setup-opt .so-sub { font-size: 0.72rem; font-weight: 600; color: var(--text-muted); }
+.setup-levels .setup-opt { min-height: 72px; gap: 1px; }
+.setup-levels .setup-opt b { font-size: 1.4rem; }
+.setup-levels .setup-opt span { font-size: 0.62rem; font-weight: 700; color: var(--text-muted); }
+.setup-cols-3 .setup-opt span { font-size: 0.72rem; font-weight: 700; color: var(--text-muted); }
+.setup-opt:hover { border-color: rgba(99, 179, 237, 0.5); transform: translateY(-2px); }
+.setup-opt.selected {
+  border-color: var(--accent-blue);
+  background: rgba(59, 130, 246, 0.16);
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.15);
+}
+.setup-levels .setup-opt:nth-child(1).selected { border-color: #22c55e; box-shadow: 0 0 0 3px rgba(34,197,94,.15); background: rgba(34,197,94,.14); }
+.setup-levels .setup-opt:nth-child(4).selected { border-color: #f97316; box-shadow: 0 0 0 3px rgba(249,115,22,.15); background: rgba(249,115,22,.14); }
+.setup-levels .setup-opt:nth-child(5).selected { border-color: #ef4444; box-shadow: 0 0 0 3px rgba(239,68,68,.15); background: rgba(239,68,68,.14); }
+
+.setup-start { margin-top: 4px; }
+.setup-start:disabled { opacity: 0.45; }
+
+@media (max-width: 380px) {
+  .setup-levels .setup-opt span { display: none; }
+  .setup-levels .setup-opt { min-height: 58px; }
+}
+@media (min-width: 768px) {
+  .setup-cols-2, .setup-cols-3 { max-width: 520px; }
+  .setup-levels { max-width: 520px; }
+}

@@ -284,9 +284,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const screens = {
         profile: document.getElementById('profile-menu'),
         main: document.getElementById('main-menu'),
-        gameType: document.getElementById('game-type-menu'),
-        levelSelect: document.getElementById('level-select-menu'),
-        livesSelect: document.getElementById('lives-select-menu'),
+        setup: document.getElementById('game-setup'),
         game: document.getElementById('game-screen'),
         passport: document.getElementById('passport-menu'),
         album: document.getElementById('album-menu'),
@@ -1565,34 +1563,74 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 
     document.querySelectorAll('.back-button').forEach(b => b.addEventListener('click', () => {
-        const t = b.dataset.target;
-        if (t === 'main-menu') { elements.mainContainer.classList.remove('memory-mode'); partyCleanup(); showScreen('main'); }
-        else if (t === 'game-type-menu') showScreen('gameType'); else showScreen('levelSelect');
+        elements.mainContainer.classList.remove('memory-mode');
+        partyCleanup();
+        showScreen('main');
     }));
+
+    // ─── FASE 3: CONFIGURAÇÃO DA PARTIDA (tela única) ─────
+    const MODE_META = {
+        BandeiraPorPais:   { icon: '🏳️', label: 'Qual a Bandeira?' },
+        PaisPorCapital:    { icon: '🏛️', label: 'Qual o País?' },
+        ContinentePorPais: { icon: '🌎', label: 'Qual o Continente?' },
+        Memoria:           { icon: '🃏', label: 'Jogo da Memória' },
+    };
+    const setupEl = document.getElementById('game-setup');
+
+    function openSetup(mode) {
+        gameConfig = { mode, type: null, level: null, lives: 'infinite' };
+        const meta = MODE_META[mode] || { icon: '🎮', label: mode };
+        document.getElementById('setup-mode-icon').textContent = meta.icon;
+        document.getElementById('setup-mode-name').textContent = meta.label;
+        setupEl.querySelectorAll('.setup-opt.selected').forEach(o => o.classList.remove('selected'));
+        if (mode === 'Memoria') gameConfig.type = 'Memoria'; // pula o passo "como jogar"
+        updateSetupUI();
+        showScreen('setup');
+    }
+
+    function updateSetupUI() {
+        const isMemory = gameConfig.mode === 'Memoria';
+        const isJornada = gameConfig.type === 'Jornada';
+        const isRapido = gameConfig.type === 'Rápido';
+        document.getElementById('setup-sec-type').classList.toggle('hidden', isMemory);
+        document.getElementById('setup-sec-level').classList.toggle('hidden', !(isMemory || isRapido));
+        document.getElementById('setup-sec-lives').classList.toggle('hidden', !isRapido);
+
+        const ready =
+            (isMemory && gameConfig.level != null) ||
+            isJornada ||
+            (isRapido && gameConfig.level != null);
+        document.getElementById('setup-start').disabled = !ready;
+    }
+
+    setupEl.querySelectorAll('.setup-opt').forEach(opt => opt.addEventListener('click', () => {
+        const kind = opt.dataset.setup;
+        const raw = opt.dataset.value;
+        setupEl.querySelectorAll(`.setup-opt[data-setup="${kind}"]`).forEach(o => o.classList.remove('selected'));
+        opt.classList.add('selected');
+
+        if (kind === 'type') {
+            gameConfig.type = raw;
+            if (raw === 'Jornada') { gameConfig.level = null; gameConfig.lives = 'infinite'; }
+        } else if (kind === 'level') {
+            gameConfig.level = parseInt(raw, 10);
+        } else if (kind === 'lives') {
+            gameConfig.lives = raw === 'infinite' ? 'infinite' : parseInt(raw, 10);
+        }
+        updateSetupUI();
+    }));
+
+    document.getElementById('setup-start').addEventListener('click', () => {
+        if (document.getElementById('setup-start').disabled) return;
+        if (gameConfig.mode === 'Memoria') gameConfig.lives = 'infinite';
+        if (gameConfig.type === 'Jornada') gameConfig.lives = 'infinite';
+        startGame(gameConfig);
+    });
+
+    document.getElementById('setup-back').addEventListener('click', () => showScreen('main'));
 
     document.querySelectorAll('#main-menu .mode-button:not(.party-mode)').forEach(b => b.addEventListener('click', () => {
-        gameConfig.mode = b.dataset.gamemode;
-        if (gameConfig.mode === 'Memoria') {
-            for (let i = 1; i <= 5; i++) document.getElementById(`btn-level-${i}`).classList.remove('hidden');
-            showScreen('levelSelect');
-        } else {
-            for (let i = 1; i <= 5; i++) document.getElementById(`btn-level-${i}`).classList.remove('hidden');
-            showScreen('gameType');
-        }
-    }));
-
-    document.querySelectorAll('#game-type-menu .mode-button').forEach(b => b.addEventListener('click', () => {
-        gameConfig.type = b.dataset.gametype;
-        if (gameConfig.type === 'Jornada') { gameConfig.lives = 'infinite'; startGame(gameConfig); } else showScreen('levelSelect');
-    }));
-
-    document.querySelectorAll('#level-select-menu .mode-button').forEach(b => b.addEventListener('click', () => {
-        gameConfig.level = parseInt(b.dataset.level);
-        if (gameConfig.mode === 'Memoria') { gameConfig.lives = 'infinite'; startGame(gameConfig); } else showScreen('livesSelect');
-    }));
-
-    document.querySelectorAll('#lives-select-menu .mode-button').forEach(b => b.addEventListener('click', () => {
-        gameConfig.lives = b.dataset.lives === 'infinite' ? 'infinite' : parseInt(b.dataset.lives); startGame(gameConfig);
+        openSetup(b.dataset.gamemode);
     }));
 
     // --- MULTIPLAYER PARTY MODE LOGIC ---

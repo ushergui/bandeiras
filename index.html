@@ -125,41 +125,50 @@
             </section>
         </div>
 
-        <div id="game-type-menu" class="screen hidden">
-            <h1>Como você quer jogar?</h1>
-            <div class="menu-grid">
-                <button class="mode-button special-mode" data-gametype="Jornada">
-                    🚀 Jornada <br><span style="font-size:0.8em; font-weight:normal">(Níveis progressivos)</span>
-                </button>
-                <button class="mode-button" data-gametype="Rápido">
-                    ⚡ Rápido <br><span style="font-size:0.8em; font-weight:normal">(Treino livre)</span>
-                </button>
-            </div>
-            <button class="back-button" data-target="main-menu">Voltar</button>
-        </div>
+        <div id="game-setup" class="screen setup hidden">
+            <header class="setup-head">
+                <button class="setup-back" id="setup-back" aria-label="Voltar">‹</button>
+                <span class="setup-mode">
+                    <span id="setup-mode-icon" class="mb-icon">🏳️</span>
+                    <span id="setup-mode-name">Qual a Bandeira?</span>
+                </span>
+            </header>
 
-        <div id="level-select-menu" class="screen hidden">
-            <h1>Dificuldade</h1>
-            <div class="menu-grid" id="level-buttons-container">
-                <button class="mode-button" id="btn-level-1" data-level="1">Nível 1 <br><small>(Muito
-                        Fácil)</small></button>
-                <button class="mode-button" id="btn-level-2" data-level="2">Nível 2 <br><small>(Fácil)</small></button>
-                <button class="mode-button" id="btn-level-3" data-level="3">Nível 3 <br><small>(Médio)</small></button>
-                <button class="mode-button" id="btn-level-4" data-level="4">Nível 4
-                    <br><small>(Difícil)</small></button>
-                <button class="mode-button" id="btn-level-5" data-level="5">Nível 5 <br><small>(Expert)</small></button>
-            </div>
-            <button class="back-button" id="level-back-btn" data-target="game-type-menu">Voltar</button>
-        </div>
+            <section class="setup-sec" id="setup-sec-type">
+                <h2 class="hub-title">Como jogar</h2>
+                <div class="setup-opts setup-cols-2">
+                    <button class="setup-opt" data-setup="type" data-value="Jornada">
+                        <span class="so-title">🚀 Jornada</span>
+                        <span class="so-sub">Níveis que vão ficando difíceis</span>
+                    </button>
+                    <button class="setup-opt" data-setup="type" data-value="Rápido">
+                        <span class="so-title">⚡ Rápido</span>
+                        <span class="so-sub">Treino livre, você escolhe tudo</span>
+                    </button>
+                </div>
+            </section>
 
-        <div id="lives-select-menu" class="screen hidden">
-            <h1>Chances</h1>
-            <div class="menu-grid">
-                <button class="mode-button" data-lives="infinite">♾️ Infinitas</button>
-                <button class="mode-button" data-lives="5">❤️ 5 Chances</button>
-                <button class="mode-button" data-lives="10">❤️❤️ 10 Chances</button>
-            </div>
-            <button class="back-button" data-target="level-select">Voltar</button>
+            <section class="setup-sec" id="setup-sec-level">
+                <h2 class="hub-title">Dificuldade</h2>
+                <div class="setup-opts setup-levels" id="level-buttons-container">
+                    <button class="setup-opt" data-setup="level" data-value="1"><b>1</b><span>Muito fácil</span></button>
+                    <button class="setup-opt" data-setup="level" data-value="2"><b>2</b><span>Fácil</span></button>
+                    <button class="setup-opt" data-setup="level" data-value="3"><b>3</b><span>Médio</span></button>
+                    <button class="setup-opt" data-setup="level" data-value="4"><b>4</b><span>Difícil</span></button>
+                    <button class="setup-opt" data-setup="level" data-value="5"><b>5</b><span>Expert</span></button>
+                </div>
+            </section>
+
+            <section class="setup-sec" id="setup-sec-lives">
+                <h2 class="hub-title">Chances</h2>
+                <div class="setup-opts setup-cols-3">
+                    <button class="setup-opt" data-setup="lives" data-value="infinite">♾️<span>Infinitas</span></button>
+                    <button class="setup-opt" data-setup="lives" data-value="5">❤️<span>5 erros</span></button>
+                    <button class="setup-opt" data-setup="lives" data-value="10">❤️❤️<span>10 erros</span></button>
+                </div>
+            </section>
+
+            <button class="btn-primary setup-start" id="setup-start" disabled>Começar</button>
         </div>
 
         <div id="passport-menu" class="screen hidden">
