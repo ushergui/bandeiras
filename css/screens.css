@@ -1565,3 +1565,46 @@
 @media (min-width: 720px) {
   .tmp-grid { grid-template-columns: repeat(auto-fill, minmax(104px, 1fr)); max-height: 60vh; }
 }
+
+/* =====================================================
+   FASE 17 — premio da maquina = figurinha de verdade,
+   e a alavanca fica presa no gabinete
+   ===================================================== */
+
+/* ---- a figurinha que cai na bandeja ---- */
+.slot-tray { height: 90px; }
+.tray-card {
+  display: block; padding: 0; background: none; gap: 0;
+  transform: translateY(100px);
+}
+.tray-card.show { transform: translateY(0); }
+.tray-card .fig-card { width: 62px; margin: 0 auto; }
+.tray-card .fig-card.nano .fig { min-height: 0; }
+.tray-card .fig-card .fig-flag {
+  width: 100%; height: auto; flex: none;
+  border: 1.5px solid rgba(255,255,255,.9); border-radius: 3px;
+}
+.tray-card .fig-card .fig-name { font-size: .42rem; }
+.tray-card .fig-card .fig-code { font-size: .38rem; }
+
+/* ---- a alavanca tem um "braço" preso no gabinete ---- */
+.slot-lever::before {
+  content: ""; position: absolute; z-index: 0;
+  left: -20px; bottom: 2px;
+  width: 38px; height: 20px; border-radius: 5px;
+  background: linear-gradient(180deg, #26344e, #0d1524);
+  border: 2px solid #f5b942;
+  box-shadow: 0 2px 8px rgba(0,0,0,.5), inset 0 1px 0 rgba(255,255,255,.1);
+}
+/* parafuso no meio do bracket */
+.slot-lever::after {
+  content: ""; position: absolute; z-index: 1;
+  left: -3px; bottom: 8px; width: 5px; height: 5px; border-radius: 50%;
+  background: radial-gradient(circle at 35% 35%, #ffe9a8, #b9862a);
+}
+.lever-track, .lever-arm { z-index: 2; }
+.lever-knob { z-index: 3; }
+
+@media (max-width: 360px) {
+  .slot-lever::before { left: -13px; width: 24px; }
+}

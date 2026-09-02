@@ -2100,7 +2100,7 @@ document.addEventListener('DOMContentLoaded', () => {
         if (flash) { flash.classList.remove('go'); void flash.offsetWidth; flash.classList.add('go'); }
         const prize = document.getElementById('tm-prize');
         if (prize) {
-            prize.innerHTML = `<img src="assets/flags/${won.codigo}.png" alt=""><span>${won.nome}</span>`;
+            prize.innerHTML = figCardHTML(won, 'base', 'nano');
             prize.className = 'tray-card show';
         }
         if (window.SFX) { window.SFX.play('coin'); setTimeout(() => window.SFX.play('reveal_common'), 260); }
