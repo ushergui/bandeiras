@@ -1608,3 +1608,42 @@
 @media (max-width: 360px) {
   .slot-lever::before { left: -13px; width: 24px; }
 }
+
+/* =====================================================
+   FASE 18 — seções de coleção no álbum (Estados, Capitais)
+   ===================================================== */
+
+/* sub-linha (cidade · UF) na figurinha */
+.fig-sub {
+  font: 700 .42rem/1.1 "Nunito", system-ui, sans-serif;
+  color: rgba(255,255,255,.62); letter-spacing: .02em;
+  max-width: 100%; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.fig-card.legend .fig-sub { color: rgba(255,255,255,.8); }
+
+/* nome longo de paisagem quebra em 2 linhas em vez de cortar */
+.fig-card.is-collection .fig-name {
+  white-space: normal; line-height: 1.05;
+  display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2;
+  font-size: .55rem;
+}
+
+/* itens de coleção não têm contorno de país -> a imagem fica maior */
+.fig-card.is-collection .fig-flagwrap { width: 84%; margin: 3px auto 5px; }
+.fig-card.is-collection .fig-flag { border-radius: 5px; }
+
+/* slot vazio de coleção: cadeado no lugar do contorno */
+.fig-card.is-collection.missing .fig-flagwrap,
+.fig-card.is-collection.missing .fig-foil { display: none; }
+.fig-card.is-collection.missing .fig::before {
+  content: "🔒"; position: absolute; top: 42%; left: 50%;
+  transform: translate(-50%, -50%); font-size: 1.5rem; opacity: .3; z-index: 1;
+}
+.fig-card.is-collection.has-pilha .fig::before { content: none; }
+
+/* nas seções BRA/CAP a numeração da aba fica com a sigla certa (só visual) */
+.continent-tab .ct-name { text-align: center; }
+
+@media (max-width: 460px) {
+  .fig-card.nano .fig-sub, .tm-mini .fig-sub { display: none; }
+}

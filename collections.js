@@ -49,7 +49,7 @@ const BR_PAISAGENS = {
     MS: 'Morada dos Baís',
     MG: 'Praça da Liberdade',
     PA: 'Teatro da Paz',
-    PB: 'Farol do Cabo Branco',   // imagem pendente
+    PB: 'Estação Cabo Branco',
     PR: 'Jardim Botânico',
     PE: 'Marco Zero',
     PI: 'Ponte Estaiada',
@@ -57,7 +57,7 @@ const BR_PAISAGENS = {
     RN: 'Forte dos Reis Magos',
     RS: 'Usina do Gasômetro',
     RO: 'Locomotiva Madeira-Mamoré',
-    RR: 'Monumento aos Garimpeiros', // imagem pendente
+    RR: 'Monumento ao Garimpeiro',
     SC: 'Ponte Hercílio Luz',
     SP: 'MASP',
     SE: 'Passarela do Caranguejo',
@@ -67,8 +67,8 @@ const BR_PAISAGENS = {
 // estados com brilho fixo (os "grandões" — como os países principais)
 const BR_SHINY = ['SP', 'RJ', 'MG', 'RS', 'BA', 'PR', 'DF'];
 
-// capitais cuja paisagem ainda não foi gerada
-const CAPITAIS_PENDENTES = ['PB', 'RR'];
+// capitais cuja paisagem ainda não foi gerada (todas prontas)
+const CAPITAIS_PENDENTES = [];
 
 const COLLECTIONS = {
     estados: {

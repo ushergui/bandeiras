@@ -1586,10 +1586,35 @@ document.addEventListener('DOMContentLoaded', () => {
         return 'base';
     }
 
+    // --- COLEÇÕES (estados, capitais) como "países sintéticos" ---
+    const COLLECTION_ITEMS = [];
+    if (window.COLLECTIONS) {
+        [['estados', 'Estados do Brasil'], ['capitais', 'Capitais do Brasil']].forEach(([key, secName]) => {
+            const sec = window.COLLECTIONS[key];
+            if (!sec) return;
+            (sec.itens || []).forEach(it => {
+                COLLECTION_ITEMS.push({
+                    codigo: it.codigo, nome: it.nome, continente: secName,
+                    fixedShiny: !!it.fixedShiny, artigo: it.artigo || 'de',
+                    capital: it.capital || '', _img: it.src, _kind: sec.tipo, _sub: it.sub || '',
+                });
+            });
+        });
+    }
+    // tudo que aparece no álbum (países + coleções)
+    const ALBUM_ITEMS = [...countries, ...COLLECTION_ITEMS];
+    function albumItem(code) { return ALBUM_ITEMS.find(x => x.codigo === code); }
+    function itemImg(c) { return (c && c._img) || `assets/flags/${c.codigo}.png`; }
+    function itemShape(c, cls) {
+        return (c && c._img) ? '' :
+            `<img class="fig-shape ${cls || ''}" src="assets/shapes/${c.codigo}.svg" alt="" loading="lazy" onerror="this.remove()">`;
+    }
+
     // --- CONTINENTES / CÓDIGO DE FIGURINHA ---
     const CONTINENTS_ORDER = [
         'América do Sul', 'América do Norte', 'América Central',
-        'Europa', 'Ásia', 'África', 'Oceania'
+        'Europa', 'Ásia', 'África', 'Oceania',
+        'Estados do Brasil', 'Capitais do Brasil'
     ];
     const CONTINENT_META = {
         'América do Sul':   { emoji: '🌎', accent: '#34d399', sigla: 'AMS' },
@@ -1599,6 +1624,8 @@ document.addEventListener('DOMContentLoaded', () => {
         'Ásia':             { emoji: '⛩️', accent: '#f87171', sigla: 'ASI' },
         'África':           { emoji: '🦁', accent: '#fbbf24', sigla: 'AFR' },
         'Oceania':          { emoji: '🐨', accent: '#22d3ee', sigla: 'OCE' },
+        'Estados do Brasil':  { emoji: '🇧🇷', accent: '#22c55e', sigla: 'BRA' },
+        'Capitais do Brasil': { emoji: '🏙️', accent: '#f59e0b', sigla: 'CAP' },
     };
     let currentContinent = null;
 
@@ -1606,7 +1633,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const map = {};
         CONTINENTS_ORDER.forEach(cont => {
             const sig = (CONTINENT_META[cont] || {}).sigla || 'XXX';
-            countries.filter(c => c.continente === cont)
+            ALBUM_ITEMS.filter(c => c.continente === cont)
                 .forEach((c, i) => { map[c.codigo] = `${sig}-${String(i + 1).padStart(2, '0')}`; });
         });
         return map;
@@ -1614,7 +1641,7 @@ document.addEventListener('DOMContentLoaded', () => {
     function stickerCode(codigo) { return STICKER_CODE[codigo] || '—'; }
 
     function continentStats(cont) {
-        const list = countries.filter(c => c.continente === cont);
+        const list = ALBUM_ITEMS.filter(c => c.continente === cont);
         const have = list.filter(c => isColada(c.codigo)).length;
         return { have, total: list.length };
     }
@@ -1622,7 +1649,7 @@ document.addEventListener('DOMContentLoaded', () => {
     // quantas figurinhas dá pra colar (nova ou upgrade de Legend) num continente
     function gluableInfo(cont) {
         let count = 0, firstCode = null;
-        countries.forEach(c => {
+        ALBUM_ITEMS.forEach(c => {
             if (cont && c.continente !== cont) return;
             if (!pilhaOf(c.codigo).length) return;
             const col = coladaRarity(c.codigo);
@@ -1644,7 +1671,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     async function goColarNoAlbum(code) {
-        const c = countries.find(x => x.codigo === code);
+        const c = albumItem(code);
         await openAlbum();
         if (c && c.continente !== currentContinent) { currentContinent = c.continente; renderAlbum(); }
         setTimeout(() => scrollToCard(code, true), 160);
@@ -1691,11 +1718,12 @@ document.addEventListener('DOMContentLoaded', () => {
         const screen = document.getElementById('album-menu');
         if (screen) {
             screen.style.setProperty('--cont-accent', meta.accent);
-            screen.style.setProperty('--cont-bg', `url("/assets/img/bg/${(meta.sigla || 'ams').toLowerCase()}.jpg")`);
+            const hasBg = ['AMS', 'AMN', 'AMC', 'EUR', 'ASI', 'AFR', 'OCE'].includes(meta.sigla);
+            screen.style.setProperty('--cont-bg', hasBg ? `url("/assets/img/bg/${meta.sigla.toLowerCase()}.jpg")` : 'none');
         }
 
         grid.innerHTML = '';
-        countries.filter(c => c.continente === currentContinent).forEach(c => {
+        ALBUM_ITEMS.filter(c => c.continente === currentContinent).forEach(c => {
             const code = stickerCode(c.codigo);
             const colada = coladaRarity(c.codigo);
             const pilha = pilhaOf(c.codigo);
@@ -1703,16 +1731,16 @@ document.addEventListener('DOMContentLoaded', () => {
 
             item.style.setProperty('--acc', meta.accent);
 
-            const foot = `<div class="fig-foot"><span class="fig-name">${c.nome}</span><span class="fig-code">${code}</span></div>`;
-            const shape = `<img class="fig-shape" src="assets/shapes/${c.codigo}.svg" alt="" loading="lazy" onerror="this.remove()">`;
+            const subline = c._sub ? `<span class="fig-sub">${c._sub}</span>` : '';
+            const foot = `<div class="fig-foot"><span class="fig-name">${c.nome}</span>${subline}<span class="fig-code">${code}</span></div>`;
 
             if (!colada) {
                 const canGlue = pilha.length > 0;
-                item.className = 'album-card fig-card missing' + (canGlue ? ' has-pilha' : '');
+                item.className = 'album-card fig-card missing' + (canGlue ? ' has-pilha' : '') + (c._img ? ' is-collection' : '');
                 item.innerHTML = `
                     <div class="fig">
                         <span class="fig-bg dim"></span>
-                        <img class="fig-shape big" src="assets/shapes/${c.codigo}.svg" alt="" loading="lazy" onerror="this.remove()">
+                        ${itemShape(c, 'big')}
                         ${canGlue ? `<button class="ac-plus" data-glue="${c.codigo}" aria-label="Colar">+</button>` : ''}
                         ${foot}
                     </div>`;
@@ -1722,15 +1750,15 @@ document.addEventListener('DOMContentLoaded', () => {
                 const better = bestPilha(c.codigo);
                 const canUp = better && RARITY_ORDER.indexOf(better) > RARITY_ORDER.indexOf(colada);
                 item.className = `album-card fig-card collected rarity-${colada}`
-                    + (shiny ? ' shiny' : '') + (legend ? ' legend' : '');
+                    + (shiny ? ' shiny' : '') + (legend ? ' legend' : '') + (c._img ? ' is-collection' : '');
                 const badge = pilha.length ? `<span class="fig-count" title="Na pilha">×${pilha.length}</span>` : '';
                 const up = canUp ? `<button class="fig-up" data-glue="${c.codigo}" data-rar="${better}" title="Colar a versão ${better}">⬆</button>` : '';
                 item.innerHTML = `
                     <div class="fig">
                         <span class="fig-bg"></span>
-                        ${shape}
+                        ${itemShape(c)}
                         <span class="fig-foil"></span>
-                        <div class="fig-flagwrap"><img class="fig-flag" src="assets/flags/${c.codigo}.png" alt="${c.nome}" loading="lazy"></div>
+                        <div class="fig-flagwrap"><img class="fig-flag" src="${itemImg(c)}" alt="${c.nome}" loading="lazy"></div>
                         ${foot}
                         ${badge}${up}
                     </div>`;
@@ -1752,9 +1780,9 @@ document.addEventListener('DOMContentLoaded', () => {
         set('album-continent-count', `${st.have}/${st.total}`);
 
         const totalHave = loadStickers().filter(s => s.colada).length;
-        const pct = Math.round((totalHave / countries.length) * 100);
+        const pct = Math.round((totalHave / ALBUM_ITEMS.length) * 100);
         set('album-progress', `${pct}%`);
-        set('album-count', `${totalHave}/${countries.length}`);
+        set('album-count', `${totalHave}/${ALBUM_ITEMS.length}`);
         const fill = document.getElementById('album-overall-fill');
         if (fill) fill.style.width = `${pct}%`;
 
@@ -1962,9 +1990,9 @@ document.addEventListener('DOMContentLoaded', () => {
         return `<div class="${cls}" style="--acc:${acc}">
             <div class="fig">
                 <span class="fig-bg"></span>
-                <img class="fig-shape" src="assets/shapes/${c.codigo}.svg" alt="" onerror="this.remove()">
+                ${itemShape(c)}
                 <span class="fig-foil"></span>
-                <div class="fig-flagwrap"><img class="fig-flag" src="assets/flags/${c.codigo}.png" alt="${c.nome}"></div>
+                <div class="fig-flagwrap"><img class="fig-flag" src="${itemImg(c)}" alt="${c.nome}"></div>
                 <div class="fig-foot"><span class="fig-name">${c.nome}</span><span class="fig-code">${stickerCode(c.codigo)}</span></div>
             </div>
         </div>`;
@@ -2185,7 +2213,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const stickers = loadStickers();
         const results = [];
         for (let i = 0; i < PACK_SIZE; i++) {
-            const drawn = shuffle([...countries])[0];
+            const drawn = shuffle([...ALBUM_ITEMS])[0];
             let rarity = rollRarity();
             if (drawn.fixedShiny && rarity === 'base') rarity = 'ouro';
             let e = stickers.find(s => s.codigo === drawn.codigo);
@@ -2228,10 +2256,10 @@ document.addEventListener('DOMContentLoaded', () => {
                 card.innerHTML = `
                     <div class="fig">
                         <span class="fig-bg"></span>
-                        <img class="fig-shape" src="assets/shapes/${r.country.codigo}.svg" alt="" onerror="this.remove()">
+                        ${itemShape(r.country)}
                         <span class="fig-foil"></span>
                         ${r.isNew ? '<span class="pc-star">★</span>' : ''}
-                        <div class="fig-flagwrap"><img class="fig-flag" src="assets/flags/${r.country.codigo}.png" alt="${r.country.nome}"></div>
+                        <div class="fig-flagwrap"><img class="fig-flag" src="${itemImg(r.country)}" alt="${r.country.nome}"></div>
                         <div class="fig-foot"><span class="fig-name">${r.country.nome}</span></div>
                         <div class="pc-tag">${r.isNew ? (RARITY_LABELS[r.rarity] || RARITY_LABELS.base).text : 'repetida'}</div>
                     </div>`;
@@ -2314,7 +2342,7 @@ document.addEventListener('DOMContentLoaded', () => {
             row.className = 'decide-row';
             row.dataset.codigo = r.country.codigo;
             row.innerHTML = `
-                <img src="assets/flags/${r.country.codigo}.png" alt="">
+                <img src="${itemImg(r.country)}" alt="">
                 <span class="decide-name">${r.country.nome}</span>
                 <button class="decide-glue">Colar no álbum →</button>
                 <button class="decide-keep">Guardar na pilha</button>`;
