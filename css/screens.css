@@ -1340,3 +1340,86 @@
   .reel-strip.spinning { animation-duration: .6s; }
   .slot-lights i, .slot .lever-knob { animation: none !important; }
 }
+
+/* =====================================================
+   FASE 14 — ajustes: toast some, maquina (espaco + giro
+   longo + escolher repetidas), aviso "pra colar" nos
+   continentes, foco no card ao navegar
+   ===================================================== */
+
+/* ---- toast agora some de verdade ---- */
+@keyframes toastSlideOut {
+  to { opacity: 0; transform: translateY(-14px) scale(.95); }
+}
+.toast.toast-leave { animation: toastSlideOut .35s ease forwards; }
+
+/* ---- maquina: mais espaco entre as bandeiras ---- */
+.slot-window { height: 200px; gap: 9px; }
+@keyframes reelRoll { to { transform: translateY(-416px); } }  /* 8 tiles de 52 */
+.reel-tile { height: 52px; flex: 0 0 52px; padding: 8px 7px; }
+.reel-tile img { border-radius: 4px; }
+.slot-reel { background: linear-gradient(180deg, #0a1220, #0f1728); }
+
+/* ---- escolher repetidas ---- */
+.tm-picker {
+  margin-top: 4px; padding: 12px; border-radius: 14px;
+  background: rgba(0,0,0,.28); border: 1px solid rgba(255,255,255,.08);
+}
+.tm-picker.hidden { display: none; }
+.tmp-hint { text-align: left; font-size: .82rem; font-weight: 700; color: var(--text-white); margin-bottom: 8px; }
+.tmp-slots {
+  display: grid; grid-template-columns: repeat(7, 1fr); gap: 5px; margin-bottom: 12px;
+}
+.tmp-slot {
+  position: relative; aspect-ratio: 3/2; border-radius: 6px;
+  background: rgba(255,255,255,.05); border: 1px dashed rgba(255,255,255,.2);
+  display: grid; place-items: center; overflow: hidden; padding: 0;
+}
+.tmp-slot.filled { border-style: solid; border-color: #ec4899; cursor: pointer; }
+.tmp-slot.filled img { width: 100%; height: 100%; object-fit: cover; }
+.tmp-slot.filled::after {
+  content: "✕"; position: absolute; font-size: .7rem; color: #fff;
+  background: rgba(0,0,0,.55); width: 100%; height: 100%; display: grid; place-items: center;
+  opacity: 0; transition: opacity .15s;
+}
+.tmp-slot.filled:hover::after { opacity: 1; }
+
+.tmp-chips { display: flex; flex-wrap: wrap; gap: 6px; max-height: 33vh; overflow-y: auto; }
+.tmp-chip {
+  display: flex; align-items: center; gap: 6px; padding: 5px 9px 5px 5px;
+  border-radius: 999px; background: rgba(255,255,255,.07);
+  border: 1px solid rgba(255,255,255,.14); color: var(--text-white);
+  font-size: .78rem; font-weight: 700;
+}
+.tmp-chip img { width: 26px; height: 17px; object-fit: cover; border-radius: 3px; }
+.tmp-chip b { color: #fbbf24; font-size: .72rem; }
+.tmp-chip:disabled { opacity: .38; }
+.tmp-chip:not(:disabled):hover { border-color: #ec4899; }
+.tmp-empty { font-size: .82rem; color: var(--text-muted); text-align: center; padding: 10px; }
+
+/* ---- aviso "pra colar" nos continentes ---- */
+.continent-tab { position: relative; overflow: visible; }
+.ct-todo {
+  position: absolute; top: -6px; right: -6px; z-index: 3;
+  min-width: 18px; height: 18px; padding: 0 4px; border-radius: 999px;
+  background: #ec4899; color: #fff; font-size: .68rem; font-weight: 900;
+  display: grid; place-items: center; line-height: 1;
+  box-shadow: 0 2px 8px rgba(236,72,153,.55); border: 1.5px solid #0b1524;
+  animation: todoPulse 1.6s ease-in-out infinite;
+}
+@keyframes todoPulse { 50% { transform: scale(1.14); } }
+
+/* ---- foco no card ao navegar pra colar ---- */
+.album-card.point-here { position: relative; z-index: 6; }
+.album-card.point-here::after {
+  content: ""; position: absolute; inset: -6px; border-radius: 16px; pointer-events: none;
+  border: 3px solid #ec4899; box-shadow: 0 0 20px 4px rgba(236,72,153,.6);
+  animation: pointHere 1s ease-in-out 3;
+}
+@keyframes pointHere { 50% { opacity: .3; } }
+
+.decide-glue, .decide-keep { white-space: nowrap; }
+
+@media (prefers-reduced-motion: reduce) {
+  .ct-todo, .album-card.point-here::after { animation: none; }
+}

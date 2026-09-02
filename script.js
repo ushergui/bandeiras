@@ -471,8 +471,8 @@ document.addEventListener('DOMContentLoaded', () => {
         if (!container) return;
         
         const toast = document.createElement('div');
-        toast.className = `toast toast-${type}`;
-        
+        toast.className = `toast toast-${type} ${type}`;
+
         let icon = 'ℹ️';
         if (type === 'success') icon = '✅';
         if (type === 'error') icon = '❌';
@@ -480,11 +480,11 @@ document.addEventListener('DOMContentLoaded', () => {
 
         toast.innerHTML = `<span>${icon}</span> <span>${message}</span>`;
         container.appendChild(toast);
-        
+
         setTimeout(() => {
             toast.classList.add('toast-leave');
-            toast.addEventListener('animationend', () => toast.remove());
-        }, 3000);
+            setTimeout(() => toast.remove(), 400);
+        }, 3200);
     }
 
     let gameState = {};
@@ -1618,6 +1618,37 @@ document.addEventListener('DOMContentLoaded', () => {
         return { have, total: list.length };
     }
 
+    // quantas figurinhas dá pra colar (nova ou upgrade de Legend) num continente
+    function gluableInfo(cont) {
+        let count = 0, firstCode = null;
+        countries.forEach(c => {
+            if (cont && c.continente !== cont) return;
+            if (!pilhaOf(c.codigo).length) return;
+            const col = coladaRarity(c.codigo);
+            let can = !col;
+            if (col) {
+                const best = bestPilha(c.codigo);
+                can = best && RARITY_ORDER.indexOf(best) > RARITY_ORDER.indexOf(col);
+            }
+            if (can) { count++; if (!firstCode) firstCode = c.codigo; }
+        });
+        return { count, firstCode };
+    }
+
+    function scrollToCard(code, glow) {
+        const card = elements.albumGrid && elements.albumGrid.querySelector(`[title^="${stickerCode(code)} "]`);
+        if (!card) return;
+        try { card.scrollIntoView({ behavior: 'smooth', block: 'center' }); } catch (e) {}
+        if (glow) { card.classList.add('point-here'); setTimeout(() => card.classList.remove('point-here'), 2800); }
+    }
+
+    async function goColarNoAlbum(code) {
+        const c = countries.find(x => x.codigo === code);
+        await openAlbum();
+        if (c && c.continente !== currentContinent) { currentContinent = c.continente; renderAlbum(); }
+        setTimeout(() => scrollToCard(code, true), 160);
+    }
+
     function buildContinentNav() {
         const nav = document.getElementById('continent-nav');
         if (!nav) return;
@@ -1625,15 +1656,17 @@ document.addEventListener('DOMContentLoaded', () => {
         CONTINENTS_ORDER.forEach(cont => {
             const meta = CONTINENT_META[cont] || { emoji: '🌐', accent: '#94a3b8' };
             const st = continentStats(cont);
+            const g = gluableInfo(cont);
             const btn = document.createElement('button');
             btn.className = 'continent-tab' + (cont === currentContinent ? ' active' : '');
             btn.style.setProperty('--tab-accent', meta.accent);
-            btn.innerHTML = `<span class="ct-emoji">${meta.emoji}</span><span class="ct-name">${cont}</span><span class="ct-count">${st.have}/${st.total}</span>`;
+            btn.innerHTML = `<span class="ct-emoji">${meta.emoji}</span><span class="ct-name">${cont}</span><span class="ct-count">${st.have}/${st.total}</span>`
+                + (g.count ? `<span class="ct-todo" title="${g.count} pra colar">${g.count}</span>` : '');
             btn.addEventListener('click', () => {
-                if (currentContinent === cont) return;
-                currentContinent = cont;
-                animatePageTurn();
-                renderAlbum();
+                const already = currentContinent === cont;
+                if (!already) { currentContinent = cont; animatePageTurn(); renderAlbum(); }
+                const info = gluableInfo(cont);
+                if (info.firstCode) setTimeout(() => scrollToCard(info.firstCode, true), already ? 0 : 130);
             });
             nav.appendChild(btn);
         });
@@ -1770,6 +1803,14 @@ document.addEventListener('DOMContentLoaded', () => {
     function openTrades() {
         tradeOther = tradeGive = tradeGet = null;
         document.getElementById('trades-panel').classList.add('hidden');
+        if (!machineBusy) {
+            machineDeposit = [];
+            buildReels(null);
+            const prize = document.getElementById('tm-prize');
+            if (prize) { prize.className = 'tray-card'; prize.innerHTML = ''; }
+        }
+        const pk = document.getElementById('tm-picker');
+        if (pk) pk.classList.add('hidden');
         renderMachine();
         const wrap = document.getElementById('trades-accounts');
         wrap.innerHTML = '';
@@ -1852,14 +1893,17 @@ document.addEventListener('DOMContentLoaded', () => {
         selectTradePartner(tradeOther);
     });
 
-    // ─── MÁQUINA DE TROCA (7 repetidas -> 1 nova) ─────────
-    let machineDeposit = []; // [{codigo, rar}]
+    // ─── MÁQUINA DE TROCA (7 repetidas escolhidas -> 1 nova) ──
+    let machineDeposit = []; // [codigo, codigo, ...] (só reserva; a pilha só é consumida ao puxar)
     let machineBusy = false;
     const MACHINE_COST = 7;
-    const REEL_TILE = 44;      // altura de cada bandeira no rolo (px)
-    const REEL_WON_IDX = 16;   // posicao fixa da bandeira sorteada na tira
+    const REEL_TILE = 52;      // altura de cada bandeira no rolo (px)
+    const REEL_WIN = 200;      // altura da janela
+    const REEL_WON_IDX = 40;   // posicao da bandeira sorteada (bem no fundo, pra rodar bastante)
+    const REEL_LEN = 48;
 
-    function reelsBuilt() { return document.getElementById('tm-reel-0') && document.getElementById('tm-reel-0').childElementCount > 0; }
+    function reservedCount(code) { return machineDeposit.filter(c => c === code).length; }
+    function reelsBuilt() { const r = document.getElementById('tm-reel-0'); return r && r.childElementCount > 0; }
 
     function buildReels(wonCode) {
         for (let r = 0; r < 3; r++) {
@@ -1869,7 +1913,7 @@ document.addEventListener('DOMContentLoaded', () => {
             strip.style.transform = 'translateY(0)';
             strip.innerHTML = '';
             const pool = shuffle([...countries]);
-            for (let i = 0; i < 24; i++) {
+            for (let i = 0; i < REEL_LEN; i++) {
                 const c = (i === REEL_WON_IDX && wonCode)
                     ? countries.find(x => x.codigo === wonCode)
                     : pool[i % pool.length];
@@ -1890,26 +1934,72 @@ document.addEventListener('DOMContentLoaded', () => {
         const pull = document.getElementById('tm-pull');
         if (pull) pull.disabled = n < MACHINE_COST || machineBusy;
         const add = document.getElementById('tm-add');
-        if (add) add.disabled = machineBusy || (totalPilha() <= 0 && n < MACHINE_COST);
+        if (add) add.disabled = machineBusy;
         const slot = document.getElementById('tm-slot');
         if (slot) slot.classList.toggle('ready', n >= MACHINE_COST && !machineBusy);
         if (!reelsBuilt()) buildReels(null);
     }
 
-    function machineAddOne() {
+    // quantas cópias dá pra jogar na máquina: as que sobram além da que você guarda pra colar
+    function depositable(s) {
+        const col = coladaRarity(s.codigo);
+        return (s.pilha || []).length - reservedCount(s.codigo) - (col ? 0 : 1);
+    }
+
+    function renderPicker() {
+        const box = document.getElementById('tm-picker');
+        if (!box || box.classList.contains('hidden')) return;
+        const stk = loadStickers().filter(s => depositable(s) + reservedCount(s.codigo) > 0);
+        const slots = Array.from({ length: MACHINE_COST }, (_, i) => {
+            const code = machineDeposit[i];
+            return code
+                ? `<button class="tmp-slot filled" data-rm="${i}" title="Tirar"><img src="assets/flags/${code}.png" alt=""></button>`
+                : `<span class="tmp-slot"></span>`;
+        }).join('');
+        const full = machineDeposit.length >= MACHINE_COST;
+        const chips = stk.map(s => {
+            const avail = depositable(s);
+            const c = countries.find(x => x.codigo === s.codigo) || { nome: s.codigo };
+            return `<button class="tmp-chip" data-add="${s.codigo}" ${(avail <= 0 || full) ? 'disabled' : ''}>
+                <img src="assets/flags/${s.codigo}.png" alt=""><span>${c.nome}</span><b>×${avail}</b></button>`;
+        }).join('') || '<p class="tmp-empty">Você não tem figurinhas repetidas de sobra.</p>';
+        box.innerHTML = `<div class="tmp-hint">Escolha 7 repetidas pra alimentar a máquina:</div>
+            <div class="tmp-slots">${slots}</div><div class="tmp-chips">${chips}</div>`;
+        box.querySelectorAll('[data-add]').forEach(b => b.onclick = () => machineAddOne(b.dataset.add));
+        box.querySelectorAll('[data-rm]').forEach(b => b.onclick = () => machineRemoveOne(+b.dataset.rm));
+    }
+
+    function machineAddOne(code) {
         if (machineBusy || machineDeposit.length >= MACHINE_COST) return;
-        const s = loadStickers().find(x => (x.pilha || []).length > 0);
-        if (!s) { showToast('Você não tem repetidas na pilha.', 'error'); return; }
-        s.pilha.sort((a, b) => RARITY_ORDER.indexOf(a) - RARITY_ORDER.indexOf(b));
-        machineDeposit.push({ codigo: s.codigo, rar: s.pilha.shift() });
-        saveStickers(loadStickers());
+        const s = loadStickers().find(x => x.codigo === code);
+        if (!s || depositable(s) <= 0) { showToast('Sem cópias de sobra dessa figurinha.', 'error'); return; }
+        machineDeposit.push(code);
         if (window.SFX) window.SFX.play('tick');
-        renderMachine();
+        renderMachine(); renderPicker();
+    }
+    function machineRemoveOne(idx) {
+        machineDeposit.splice(idx, 1);
+        if (window.SFX) window.SFX.play('tap');
+        renderMachine(); renderPicker();
     }
 
     function machinePull() {
         if (machineBusy || machineDeposit.length < MACHINE_COST) return;
         machineBusy = true;
+
+        // consome as 7 repetidas escolhidas (a mais fraca de cada figurinha)
+        const stickers = loadStickers();
+        machineDeposit.forEach(code => {
+            const s = stickers.find(x => x.codigo === code);
+            if (s && s.pilha.length) {
+                s.pilha.sort((a, b) => RARITY_ORDER.indexOf(a) - RARITY_ORDER.indexOf(b));
+                s.pilha.shift();
+            }
+        });
+        saveStickers(stickers);
+
+        const box = document.getElementById('tm-picker');
+        if (box) box.classList.add('hidden');
         renderMachine();
 
         // prioriza país que falta no continente atual, senão qualquer que falte colar
@@ -1925,22 +2015,28 @@ document.addEventListener('DOMContentLoaded', () => {
         if (slot) slot.classList.remove('ready');
         if (window.SFX) window.SFX.play('whoosh');
 
-        // gira os 3 rolos e para um a um na bandeira sorteada
-        const centerOffset = (REEL_TILE * 2.5) - (REEL_TILE / 2); // janela mostra ~5 tiles, linha no meio
+        // roda rapidinho, depois cada rolo DESACELERA por mais tempo ate parar na sorteada
+        const centerOffset = (REEL_WIN - REEL_TILE) / 2;
+        const target = REEL_WON_IDX * REEL_TILE - centerOffset;
         [0, 1, 2].forEach(r => {
             const strip = document.getElementById('tm-reel-' + r);
             if (!strip) return;
             strip.classList.add('spinning');
-            const stopAt = 750 + r * 480;
+            const decelAt = 700;
+            const decelDur = 1700 + r * 650;   // 1.7s / 2.35s / 3.0s de desaceleracao
             setTimeout(() => {
+                const cur = getComputedStyle(strip).transform;
                 strip.classList.remove('spinning');
-                strip.style.transition = 'transform .6s cubic-bezier(.18,.9,.28,1.1)';
-                strip.style.transform = `translateY(-${REEL_WON_IDX * REEL_TILE - centerOffset}px)`;
-                if (window.SFX) window.SFX.play('tick');
-            }, stopAt);
+                strip.style.transition = 'none';
+                strip.style.transform = cur;
+                void strip.offsetWidth;
+                strip.style.transition = `transform ${decelDur}ms cubic-bezier(.11,.62,.14,1)`;
+                strip.style.transform = `translateY(-${target}px)`;
+                setTimeout(() => { if (window.SFX) window.SFX.play('tick'); }, decelDur - 60);
+            }, decelAt);
         });
 
-        setTimeout(() => finishPull(won), 750 + 2 * 480 + 750);
+        setTimeout(() => finishPull(won), 700 + 1700 + 2 * 650 + 350);
     }
 
     function finishPull(won) {
@@ -1970,7 +2066,12 @@ document.addEventListener('DOMContentLoaded', () => {
         renderMachine();
     }
 
-    document.getElementById('tm-add').addEventListener('click', machineAddOne);
+    document.getElementById('tm-add').addEventListener('click', () => {
+        if (machineBusy) return;
+        const box = document.getElementById('tm-picker');
+        box.classList.toggle('hidden');
+        renderPicker();
+    });
     document.getElementById('tm-pull').addEventListener('click', machinePull);
 
     // alavanca: arrastar pra baixo puxa
@@ -2161,14 +2262,12 @@ document.addEventListener('DOMContentLoaded', () => {
             row.innerHTML = `
                 <img src="assets/flags/${r.country.codigo}.png" alt="">
                 <span class="decide-name">${r.country.nome}</span>
-                <button class="decide-glue">Colar</button>
-                <button class="decide-keep">Guardar</button>`;
+                <button class="decide-glue">Colar no álbum →</button>
+                <button class="decide-keep">Guardar na pilha</button>`;
+            // "Colar" NÃO cola aqui: leva você até o país no álbum pra colar lá (com o "+")
             row.querySelector('.decide-glue').addEventListener('click', () => {
-                if (glueSticker(r.country.codigo)) {
-                    if (window.SFX) window.SFX.play('sticker_paste');
-                    row.classList.add('done'); row.querySelector('.decide-name').textContent = r.country.nome + ' — colada ✓';
-                    row.querySelectorAll('button').forEach(b => b.remove());
-                }
+                if (modals.pack) modals.pack.classList.add('hidden');
+                goColarNoAlbum(r.country.codigo);
             });
             row.querySelector('.decide-keep').addEventListener('click', () => {
                 row.classList.add('done'); row.querySelector('.decide-name').textContent = r.country.nome + ' — na pilha';
