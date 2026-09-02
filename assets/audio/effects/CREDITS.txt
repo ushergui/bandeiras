@@ -1,0 +1,9 @@
+EFEITOS SONOROS
+===============
+
+ui/*.mp3   — Kenney "Interface Sounds" (kenney.nl) — Licença CC0 (domínio público).
+             Uso livre, comercial inclusive. Crédito ao Kenney é apreciado (não obrigatório).
+
+sfx/*.mp3  — Sintetizados para este projeto (tools/make_sfx.py). Livres.
+
+win/wrong/level/completed.mp3 — efeitos originais do projeto (mantidos por compatibilidade).

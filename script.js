@@ -431,12 +431,10 @@ document.addEventListener('DOMContentLoaded', () => {
         partyHostLevelSelect: document.getElementById('party-host-level-select')
     };
 
-    const sounds = {
-        win: new Audio('assets/audio/effects/win.mp3'),
-        wrong: new Audio('assets/audio/effects/wrong.mp3'),
-        levelUp: new Audio('assets/audio/effects/level.mp3'),
-        completed: new Audio('assets/audio/effects/completed.mp3'),
-        match: new Audio('assets/audio/effects/win.mp3')
+    // chaves antigas -> novas (SFX). playSound() abaixo faz a ponte.
+    const SOUND_ALIAS = {
+        win: 'correct', wrong: 'wrong', levelUp: 'levelup',
+        completed: 'victory', match: 'card_match',
     };
 
     // --- ESTADO ---
@@ -474,6 +472,7 @@ document.addEventListener('DOMContentLoaded', () => {
     let gameLocked = false;
     let selectedVoice = null;
      let calmMode = localStorage.getItem('detetive_calm_mode') === 'true';
+     if (window.SFX) { window.SFX.calm = calmMode; window.SFX.preload(); }
 
     // Variáveis da Memória
     let memoryCards = [];
@@ -528,25 +527,10 @@ document.addEventListener('DOMContentLoaded', () => {
         showScreen('main');
     }
 
-    // Configuração automática de voz (sem interface)
-    function loadVoices() {
-        const allVoices = window.speechSynthesis.getVoices();
-        // Tenta encontrar uma voz em PT-BR
-        const ptVoice = allVoices.find(v => v.lang.includes('pt-BR') || v.lang.includes('pt_BR'));
-        // Se não achar, pega qualquer PT, se não, a primeira disponível
-        selectedVoice = ptVoice || allVoices.find(v => v.lang.includes('pt')) || allVoices[0];
-    }
-
-    function speakText(text) {
-        if (!text) return; window.speechSynthesis.cancel();
-        const u = new SpeechSynthesisUtterance(text);
-        if (selectedVoice) u.voice = selectedVoice;
-        u.rate = 1.4;
-        window.speechSynthesis.speak(u);
-    }
-
-    if (window.speechSynthesis.onvoiceschanged !== undefined) window.speechSynthesis.onvoiceschanged = loadVoices;
-    setTimeout(loadVoices, 500);
+    // Narração por voz sintética (TTS) removida a pedido — usamos só os
+    // áudios gravados e os efeitos sonoros.
+    function loadVoices() {}
+    function speakText() {}
 
     // --- PROGRESSO ---
     function loadPlayerProgress() { 
@@ -814,6 +798,7 @@ document.addEventListener('DOMContentLoaded', () => {
     function flipCard() {
         if (lockBoard || this === firstCard) return;
         this.classList.add('flipped');
+        if (window.SFX) window.SFX.play('card_flip');
 
         // ÁUDIO AO ABRIR NOME
         const cardIndex = this.dataset.index;
@@ -897,6 +882,8 @@ document.addEventListener('DOMContentLoaded', () => {
         updateAppNav(key);
         if (key === 'main') refreshHub();
         if (key === 'album' && typeof renderAlbum === 'function') renderAlbum();
+        if (showScreen._ready && window.SFX) window.SFX.play('whoosh');
+        showScreen._ready = true;
         try { elements.mainContainer.scrollTop = 0; window.scrollTo(0, 0); } catch (e) {}
     }
 
@@ -1015,9 +1002,8 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     })();
 
-    function playSound(k) { 
-         if (calmMode && (k === 'wrong' || k === 'win' || k === 'match')) return; // Silenciar sons bruscos
-        if (sounds[k]) { sounds[k].currentTime = 0; sounds[k].play().catch(e => { }); } 
+    function playSound(k) {
+        if (window.SFX) window.SFX.play(SOUND_ALIAS[k] || k);
     }
 
     function shuffle(a) { for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1));[a[i], a[j]] = [a[j], a[i]]; } return a; }
@@ -1041,9 +1027,10 @@ document.addEventListener('DOMContentLoaded', () => {
 
         achs.forEach(a => {
             if (!u.includes(a.id) && a.c(p)) {
-                elements.achievementText.innerHTML = `<strong>${a.t}</strong><br><span style="font-size:0.8em; color:#555;">${a.desc}</span>`; 
+                elements.achievementText.innerHTML = `<strong>${a.t}</strong><br><span style="font-size:0.8em; color:#555;">${a.desc}</span>`;
                 modals.achievement.classList.remove('hidden');
-                playSound('win'); dispararConfetes(); 
+                if (window.SFX) window.SFX.play('achievement');
+                dispararConfetes();
                 u.push(a.id);
                 localStorage.setItem(`detetive_achievements_${currentUser}`, JSON.stringify(u));
                 if (a.packs > 0 && typeof addPacks === 'function') addPacks(a.packs);
@@ -1377,7 +1364,10 @@ document.addEventListener('DOMContentLoaded', () => {
         if (btn) btn.classList.toggle('has-packs', n > 0);
     }
 
-    function addPacks(n) { savePacks(getPacksCount() + n); }
+    function addPacks(n) {
+        savePacks(getPacksCount() + n);
+        if (n > 0 && window.SFX) window.SFX.play('coin');
+    }
 
     function removePack() {
         if (getPacksCount() > 0) { savePacks(getPacksCount() - 1); return true; }
@@ -1627,6 +1617,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const res = Trades.execute(currentUser, tradeOther, tradeGive, tradeGet);
         if (res.error) { showToast(res.error, 'error'); return; }
         _cache.stickers = Trades._read(currentUser);
+        if (window.SFX) window.SFX.play('trade');
         showToast(`Troca feita! Você deu ${gname} e recebeu ${rname}.`, 'success');
         if (!calmMode && typeof confetti !== 'undefined') confetti({ particleCount: 50, spread: 60, origin: { y: 0.6 } });
         tradeGive = tradeGet = null;
@@ -1679,7 +1670,7 @@ document.addEventListener('DOMContentLoaded', () => {
         if (!removePack()) { showToast('Você não tem pacotes!', 'error'); return; }
 
         elements.packAnimationContainer.classList.add('opening');
-        new Audio('assets/audio/effects/win.mp3').play().catch(() => playSound('match'));
+        if (window.SFX) window.SFX.play('pack_tear');
 
         setTimeout(() => {
             const results = drawPack();
@@ -1688,6 +1679,10 @@ document.addEventListener('DOMContentLoaded', () => {
             elements.openedStickers.classList.remove('hidden');
 
             const best = results.reduce((b, r) => Math.max(b, RARITY_ORDER.indexOf(r.rarity)), 0);
+            if (window.SFX) {
+                const rev = best >= 3 ? 'reveal_legend' : best >= 1 ? 'reveal_rare' : 'reveal_common';
+                setTimeout(() => window.SFX.play(rev), 200);
+            }
 
             results.forEach((r, i) => {
                 const card = document.createElement('div');
@@ -1707,7 +1702,6 @@ document.addEventListener('DOMContentLoaded', () => {
                 const n = best >= 3 ? 140 : best >= 1 ? 80 : 45;
                 confetti({ particleCount: n, spread: 75, origin: { y: 0.5 } });
             }
-            if (best >= 3) playSound('levelUp');
 
             if (buttons.closePack) buttons.closePack.classList.remove('hidden');
         }, 650);
