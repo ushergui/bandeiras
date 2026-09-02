@@ -413,3 +413,73 @@
   .setup-cols-2, .setup-cols-3 { max-width: 520px; }
   .setup-levels { max-width: 520px; }
 }
+
+/* =====================================================
+   FASE 4 — TELA DE JOGO (QUIZ)
+   ===================================================== */
+#game-screen.game { display: flex; flex-direction: column; gap: 14px; }
+
+.game-topbar { display: flex; align-items: center; gap: 10px; }
+.game-exit {
+  padding: 9px 15px; border-radius: 10px; font-size: 0.82rem; font-weight: 800; flex-shrink: 0;
+  color: #fca5a5; background: rgba(239, 68, 68, 0.12); border: 1px solid rgba(239, 68, 68, 0.32);
+}
+.game-exit:hover { background: rgba(239, 68, 68, 0.2); }
+
+.game .stats-bar { flex: 1; gap: 6px; padding: 7px 8px; }
+.game .stats-bar span {
+  flex: 1; text-align: center; font-size: 0.95rem; font-weight: 900;
+  background: rgba(255, 255, 255, 0.05); border-radius: 8px; padding: 6px 4px;
+}
+
+.game-question {
+  display: flex; align-items: center; gap: 10px; justify-content: center;
+  min-height: 52px; text-align: center;
+}
+.game-question h2 { font-size: clamp(1.1rem, 4.2vw, 1.4rem); line-height: 1.25; }
+.replay-audio {
+  width: 42px; height: 42px; border-radius: 50%; flex-shrink: 0;
+  background: rgba(59, 130, 246, 0.16); border: 1px solid rgba(59, 130, 246, 0.4);
+  font-size: 1.2rem; line-height: 1; display: grid; place-items: center; color: #fff;
+}
+.replay-audio[hidden] { display: none; }
+.replay-audio:hover { background: rgba(59, 130, 246, 0.28); }
+.replay-audio.playing { animation: replayPulse 0.6s ease; }
+@keyframes replayPulse { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.18); } }
+
+#game-screen.game:not(.hidden) { flex: 1 1 auto; min-height: 0; }
+#game-content-area { display: flex; justify-content: center; align-items: flex-start; flex: 1; min-height: 0; }
+@media (max-width: 767.98px) {
+  #game-content-area { align-items: center; }
+}
+
+.game .options-container {
+  grid-template-columns: 1fr 1fr;
+  gap: 12px; max-width: 440px; width: 100%; margin: 0 auto;
+}
+.option-wrapper { display: flex; flex-direction: column; align-items: center; gap: 6px; }
+.option-wrapper .flag-option { max-width: none; width: 100%; }
+.country-name-label {
+  font-size: 0.72rem; font-weight: 800; color: var(--text-muted);
+  text-transform: uppercase; letter-spacing: 0.03em; text-align: center;
+}
+
+.flag-option.disabled, .text-option.disabled { pointer-events: none; }
+.flag-option.disabled:not(.correct):not(.wrong),
+.text-option.disabled:not(.correct):not(.wrong) { opacity: 0.4; }
+
+.game .game-controls { justify-content: center; gap: 10px; flex-wrap: wrap; }
+.game .game-controls button { flex: 1 1 auto; max-width: 240px; min-height: 48px; border-radius: 12px; }
+#next-button {
+  background: linear-gradient(135deg, #1d4ed8, #7c3aed) !important;
+  border: none !important; font-weight: 900;
+}
+#facts-button {
+  background: linear-gradient(135deg, #0e7490, #0891b2) !important;
+  border: none !important;
+}
+
+@media (min-width: 768px) {
+  .game .options-container { max-width: 540px; gap: 16px; }
+  .game-question h2 { font-size: 1.5rem; }
+}

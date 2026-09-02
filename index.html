@@ -199,18 +199,24 @@
             <button class="back-button" data-target="main-menu">Voltar</button>
         </div>
 
-        <div id="game-screen" class="screen hidden">
-            <div class="stats-bar">
-                <span id="stat-1">Pts: 0</span>
-                <span id="stat-2">🔥 0</span>
-                <span id="stat-3">❤️ 5</span>
+        <div id="game-screen" class="screen game hidden">
+            <div class="game-topbar">
+                <button id="back-to-menu-button" class="game-exit">Sair</button>
+                <div class="stats-bar">
+                    <span id="stat-1">⭐ 0</span>
+                    <span id="stat-2">🔥 0</span>
+                    <span id="stat-3">❤️ 5</span>
+                </div>
             </div>
 
             <div class="progress-bar-container">
                 <div id="progress-bar-fill" class="progress-bar-fill" style="width: 0%"></div>
             </div>
 
-            <h2 id="instruction">...</h2>
+            <div class="game-question">
+                <h2 id="instruction">...</h2>
+                <button id="replay-audio-btn" class="replay-audio" aria-label="Ouvir de novo" hidden>🔊</button>
+            </div>
 
             <div id="game-content-area">
                 <div id="options-container" class="options-container hidden"></div>
@@ -223,10 +229,9 @@
             <div id="feedback" class="feedback"></div>
 
             <div class="game-controls">
-                <button id="back-to-menu-button">Sair</button>
-                <button id="play-again-button" class="hidden">Jogar Novamente</button>
-                <button id="facts-button" class="hidden" style="background-color: #4682B4;">Saber Mais ✨</button>
-                <button id="next-button" class="hidden">Próxima</button>
+                <button id="play-again-button" class="hidden">Jogar de novo</button>
+                <button id="facts-button" class="hidden">Saber mais ✨</button>
+                <button id="next-button" class="hidden">Próxima →</button>
             </div>
         </div>
         <!-- Multiplayer Screens -->

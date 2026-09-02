@@ -393,6 +393,8 @@ document.addEventListener('DOMContentLoaded', () => {
     let gameConfig = {};
     let currentRound = 0;
     let lastCorrectFlag = null;
+    let roundStartAt = 0;
+    let lastAudioPath = null;
 
     // --- TOAST NOTIFICATIONS ---
     function showToast(message, type = 'info') {
@@ -505,11 +507,27 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
-    function updateCountryStats(code, isCorrect) {
+    function updateCountryStats(code, isCorrect, responseMs) {
         const p = loadPlayerProgress();
         if (!p[code]) p[code] = { acertos: 0, erros: 0, streak: 0 };
-        if (isCorrect) { p[code].acertos++; p[code].streak++; } else { p[code].erros++; p[code].streak = 0; }
-        savePlayerProgress(p); checkAchievements();
+        const s = p[code];
+        if (isCorrect) { s.acertos++; s.streak = (s.streak || 0) + 1; }
+        else { s.erros++; s.streak = 0; }
+        s.lastSeen = Date.now();
+
+        if (responseMs && responseMs > 0 && responseMs < 60000) {
+            s.hist = (s.hist || []).concat([{ t: Date.now(), ok: !!isCorrect, ms: Math.round(responseMs) }]).slice(-20);
+            const oks = s.hist.filter(h => h.ok).map(h => h.ms);
+            if (oks.length) s.avgMs = Math.round(oks.reduce((a, b) => a + b, 0) / oks.length);
+        }
+
+        // mastery 0-100: mistura precisão histórica com sequência atual
+        const total = s.acertos + s.erros;
+        const acc = total ? s.acertos / total : 0;
+        s.mastery = Math.round(Math.max(0, Math.min(100, acc * 55 + Math.min(s.streak || 0, 6) / 6 * 45)));
+
+        savePlayerProgress(p);
+        checkAchievements();
     }
 
     function getWeightedCountry(pool) {
@@ -580,8 +598,10 @@ document.addEventListener('DOMContentLoaded', () => {
         gameConfig = conf;
         showScreen('game');
         elements.options.classList.remove('hidden');
-        buttons.backToMenu.textContent = 'Menu Principal';
+        buttons.backToMenu.textContent = 'Sair';
         buttons.playAgain.classList.add('hidden');
+        elements.feedback.textContent = '';
+        elements.feedback.className = 'feedback';
 
         // MODO MEMÓRIA
         if (gameConfig.mode === 'Memoria') {
@@ -630,7 +650,12 @@ document.addEventListener('DOMContentLoaded', () => {
 
         buttons.facts.classList.add('hidden'); buttons.next.classList.add('hidden');
         elements.feedback.textContent = '';
+        elements.feedback.className = 'feedback';
         gameLocked = false; gameState.attemptsThisRound = 0;
+        roundStartAt = Date.now();
+
+        const replay = document.getElementById('replay-audio-btn');
+        if (replay) replay.hidden = (gameConfig.mode === 'Memoria');
 
         gameModes[gameConfig.mode].setup();
     }
@@ -644,8 +669,10 @@ document.addEventListener('DOMContentLoaded', () => {
         const type = el.dataset.type;
         const val = type === 'flag' ? el.dataset.codigo : el.dataset.continente;
         const isCor = type === 'flag' ? (val === correctAnswer.codigo) : (val === correctAnswer.continente);
+        const responseMs = roundStartAt ? Date.now() - roundStartAt : null;
 
-        if (type === 'flag' && gameConfig.mode !== 'ContinentePorPais') updateCountryStats(correctAnswer.codigo, isCor);
+        // registra a resposta para o país da rodada (algoritmo de aprendizado)
+        if (correctAnswer && correctAnswer.codigo) updateCountryStats(correctAnswer.codigo, isCor, responseMs);
 
         if (isCor) {
             playSound('win');
@@ -663,7 +690,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
             if (gameState.availableCountries.length === 0) setTimeout(handleLevelComplete, 1000);
         } else {
-            playSound('wrong'); el.classList.add('incorrect', 'disabled'); gameState.streak = 0;
+            playSound('wrong'); el.classList.add('wrong', 'disabled'); gameState.streak = 0;
             if (gameConfig.lives !== 'infinite') gameState.chances--;
             gameState.attemptsThisRound++;
 
@@ -792,10 +819,12 @@ document.addEventListener('DOMContentLoaded', () => {
 
     function gameOver(win) {
         gameLocked = true; buttons.next.classList.add('hidden'); buttons.facts.classList.add('hidden');
-        buttons.backToMenu.textContent = 'Menu Principal';
+        buttons.backToMenu.textContent = 'Sair';
         buttons.playAgain.classList.remove('hidden');
         elements.options.classList.add('hidden');
         elements.memoryGame.classList.add('hidden');
+        const replay = document.getElementById('replay-audio-btn');
+        if (replay) replay.hidden = true;
 
         elements.instruction.textContent = win ? 'Missão Cumprida!' : 'Fim de Jogo';
         elements.feedback.textContent = win ? `Pontuação Final: ${gameState.score}` : `Tente de novo! Pontos: ${gameState.score}`;
@@ -858,14 +887,14 @@ document.addEventListener('DOMContentLoaded', () => {
     function updateStats() {
         if (gameConfig.mode === 'Memoria') {
             const pairsLeft = gameState.totalQuestionsInLevel - (gameState.pairsFound || 0);
-            elements.stat1.textContent = `Pares: ${pairsLeft}`;
-            elements.stat2.textContent = `Moves: ${memoryMoves}`;
-            elements.stat3.textContent = `Pts: ${gameState.score}`;
+            elements.stat1.textContent = `🃏 ${pairsLeft}`;
+            elements.stat2.textContent = `🔀 ${memoryMoves}`;
+            elements.stat3.textContent = `⭐ ${gameState.score}`;
             updateProgressBar((gameState.pairsFound / gameState.totalQuestionsInLevel) * 100);
         } else {
-            elements.stat1.textContent = `Pts: ${gameState.score}`;
+            elements.stat1.textContent = `⭐ ${gameState.score}`;
             elements.stat2.textContent = `🔥 ${gameState.streak}`;
-            elements.stat3.textContent = `❤️ ${gameState.chances}`;
+            elements.stat3.textContent = gameConfig.lives === 'infinite' ? `❤️ ∞` : `❤️ ${gameState.chances}`;
             let cur = gameState.totalQuestionsInLevel - gameState.availableCountries.length;
             let tot = gameState.totalQuestionsInLevel || 1;
             updateProgressBar((cur / tot) * 100);
@@ -910,10 +939,23 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     function playAudio(p) {
+        lastAudioPath = p;
         const c = p.toLowerCase().replace(/ /g, '_').replace(/\./g, '');
         const a = new Audio(`assets/audio/${c}.mp3`);
         a.play().catch(e => { });
     }
+
+    (function wireReplayAudio() {
+        const btn = document.getElementById('replay-audio-btn');
+        if (!btn) return;
+        btn.addEventListener('click', () => {
+            if (lastAudioPath) {
+                playAudio(lastAudioPath);
+                btn.classList.add('playing');
+                setTimeout(() => btn.classList.remove('playing'), 600);
+            }
+        });
+    })();
 
     function playSound(k) { 
          if (calmMode && (k === 'wrong' || k === 'win' || k === 'match')) return; // Silenciar sons bruscos
