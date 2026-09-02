@@ -508,23 +508,76 @@ document.addEventListener('DOMContentLoaded', () => {
             _cache.journeyLevel = journeyData.level;
         } catch(e) { _cache.journeyLevel = 1; }
 
-        // Load packs from API
+        // Load packs — 3 pacotes grátis por "dia" (dia vira às 06:00)
         try {
             const packsData = await API.getPacks(name);
-            const todayStr = new Date().toDateString();
+            const today = packDayKey();
             let count = packsData.count;
-            if (packsData.last_daily_at !== todayStr) {
-                count++;
-                await API.savePacks(name, count, todayStr);
-                setTimeout(() => showToast('Você ganhou 1 pacote diário! 🎁 Abra no Álbum.', 'success'), 800);
+            if (packsData.last_daily_at !== today) {
+                count += DAILY_FREE_PACKS;
+                await API.savePacks(name, count, today);
+                registerLoginStreak(name);
+                setTimeout(() => showToast(`Você ganhou ${DAILY_FREE_PACKS} pacotes de hoje! 🎁 Abra no Álbum.`, 'success'), 800);
             }
             _cache.packsCount = count;
         } catch(e) {
             console.warn('Erro ao carregar packs:', e);
             _cache.packsCount = 0;
         }
-        
+
+        _cache.dailyProgress = loadDailyProgress(name);
         showScreen('main');
+    }
+
+    // --- ECONOMIA DE PACOTES ---
+    const DAILY_FREE_PACKS = 3;
+    const PACK_STICKERS = 3;
+
+    // "dia do pacote": vira às 06:00. Antes das 6h ainda conta como o dia anterior.
+    function packDayKey(d) {
+        d = d ? new Date(d) : new Date();
+        if (d.getHours() < 6) d.setDate(d.getDate() - 1);
+        return d.toISOString().slice(0, 10);
+    }
+
+    function loadDailyProgress(name) {
+        const raw = Store._get(`dg_daily_${name}`, null);
+        if (!raw || raw.day !== packDayKey()) {
+            return { day: packDayKey(), acertos: 0, bonus: {}, masteredToday: 0 };
+        }
+        return raw;
+    }
+    function saveDailyProgress() {
+        if (currentUser && _cache.dailyProgress) {
+            Store._set(`dg_daily_${currentUser}`, _cache.dailyProgress);
+        }
+    }
+
+    // concede um pacote-bônus uma única vez por dia (id) — devolve true se concedeu
+    function grantBonusPack(id, qty, msg) {
+        const dp = _cache.dailyProgress || (_cache.dailyProgress = loadDailyProgress(currentUser));
+        if (dp.day !== packDayKey()) { _cache.dailyProgress = loadDailyProgress(currentUser); }
+        if (_cache.dailyProgress.bonus[id]) return false;
+        _cache.dailyProgress.bonus[id] = 1;
+        saveDailyProgress();
+        addPacks(qty || 1);
+        if (msg) showToast(`${msg} +${qty || 1} pacote${(qty || 1) > 1 ? 's' : ''} 🎁`, 'success');
+        return true;
+    }
+
+    // streak de login: 7º dia +3, 8º em diante +1/dia, zera se faltar
+    function registerLoginStreak(name) {
+        const key = `dg_streak_${name}`;
+        const s = Store._get(key, { last: null, count: 0 });
+        const today = packDayKey();
+        if (s.last === today) return;
+        const yesterday = packDayKey(Date.now() - 24 * 3600 * 1000);
+        s.count = (s.last === yesterday) ? s.count + 1 : 1;
+        s.last = today;
+        Store._set(key, s);
+        _cache.loginStreak = s.count;
+        if (s.count === 7) setTimeout(() => grantBonusPack('streak7', 3, `7 dias seguidos! 🔥`), 1400);
+        else if (s.count > 7) setTimeout(() => grantBonusPack('streak' + s.count, 1, `${s.count} dias seguidos! 🔥`), 1400);
     }
 
     // Narração por voz sintética (TTS) removida a pedido — usamos só os
@@ -547,6 +600,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const p = loadPlayerProgress();
         if (!p[code]) p[code] = { acertos: 0, erros: 0, streak: 0 };
         const s = p[code];
+        const masteryBefore = s.mastery || 0;
         if (isCorrect) { s.acertos++; s.streak = (s.streak || 0) + 1; }
         else { s.erros++; s.streak = 0; }
         s.lastSeen = Date.now();
@@ -563,7 +617,25 @@ document.addEventListener('DOMContentLoaded', () => {
         s.mastery = Math.round(Math.max(0, Math.min(100, acc * 55 + Math.min(s.streak || 0, 6) / 6 * 45)));
 
         savePlayerProgress(p);
+        if (isCorrect) trackDailyCorrect(masteryBefore < 85 && s.mastery >= 85);
         checkAchievements();
+    }
+
+    // metas diárias -> pacotes bônus
+    function trackDailyCorrect(newlyMastered) {
+        if (!currentUser) return;
+        const dp = _cache.dailyProgress || (_cache.dailyProgress = loadDailyProgress(currentUser));
+        if (dp.day !== packDayKey()) { _cache.dailyProgress = loadDailyProgress(currentUser); }
+        const d = _cache.dailyProgress;
+        d.acertos = (d.acertos || 0) + 1;
+        if (newlyMastered) d.masteredToday = (d.masteredToday || 0) + 1;
+        saveDailyProgress();
+
+        if (d.acertos === 10) grantBonusPack('acertos10', 1, '10 acertos hoje!');
+        if (d.acertos === 25) grantBonusPack('acertos25', 1, '25 acertos hoje!');
+        if (newlyMastered && d.masteredToday <= 3) {
+            grantBonusPack('mastered' + d.masteredToday, 1, 'Dominou uma bandeira nova!');
+        }
     }
 
     function getWeightedCountry(pool) {
@@ -606,6 +678,27 @@ document.addEventListener('DOMContentLoaded', () => {
 
                 let opts = [correctAnswer.continente, ...shuffle(all.filter(c => c !== correctAnswer.continente)).slice(0, 3)];
                 displayTextOptions(shuffle(opts));
+            }
+        },
+        'NomePorBandeira': {
+            title: "De que País é?",
+            setup: () => {
+                elements.memoryGame.classList.add('hidden');
+                const pool = gameState.availableCountries;
+                if (pool.length === 0) { handleLevelComplete(); return; }
+                correctAnswer = (gameConfig.type === 'Jornada') ? getWeightedCountry(pool) : shuffle([...pool])[0];
+
+                elements.instruction.textContent = 'De qual país é esta bandeira?';
+                const media = document.getElementById('question-media');
+                if (media) {
+                    media.innerHTML = `<img src="assets/flags/${correctAnswer.codigo}.png" alt="bandeira">`;
+                    media.classList.remove('hidden');
+                }
+
+                let wrong = countries.filter(c => c.codigo !== correctAnswer.codigo);
+                let hard = wrong.filter(c => c.continente === correctAnswer.continente);
+                let opts = [correctAnswer, ...shuffle(hard.length >= 3 ? hard : wrong).slice(0, 3)];
+                displayNameOptions(shuffle(opts));
             }
         },
         'Memoria': {
@@ -692,7 +785,9 @@ document.addEventListener('DOMContentLoaded', () => {
         roundStartAt = Date.now();
 
         const replay = document.getElementById('replay-audio-btn');
-        if (replay) replay.hidden = (gameConfig.mode === 'Memoria');
+        if (replay) replay.hidden = (gameConfig.mode === 'Memoria' || gameConfig.mode === 'NomePorBandeira');
+        const media = document.getElementById('question-media');
+        if (media && gameConfig.mode !== 'NomePorBandeira') { media.classList.add('hidden'); media.innerHTML = ''; }
 
         gameModes[gameConfig.mode].setup();
     }
@@ -704,8 +799,11 @@ document.addEventListener('DOMContentLoaded', () => {
         if (!el) return;
 
         const type = el.dataset.type;
-        const val = type === 'flag' ? el.dataset.codigo : el.dataset.continente;
-        const isCor = type === 'flag' ? (val === correctAnswer.codigo) : (val === correctAnswer.continente);
+        let isCor;
+        if (type === 'flag') isCor = el.dataset.codigo === correctAnswer.codigo;
+        else if (gameConfig.mode === 'ContinentePorPais') isCor = el.dataset.continente === correctAnswer.continente;
+        else isCor = el.dataset.codigo === correctAnswer.codigo; // NomePorBandeira
+        const val = el.dataset.codigo || el.dataset.continente;
         const responseMs = roundStartAt ? Date.now() - roundStartAt : null;
 
         // registra a resposta para o país da rodada (algoritmo de aprendizado)
@@ -714,6 +812,10 @@ document.addEventListener('DOMContentLoaded', () => {
         if (isCor) {
             playSound('win');
             gameLocked = true; gameState.streak++;
+            if (gameState.streak === 5 || gameState.streak === 10 || gameState.streak === 20) {
+                if (window.SFX) window.SFX.play('streak');
+            }
+            if (gameState.streak === 15) grantBonusPack('streak15', 1, 'Sequência de 15!');
             let pts = Math.max(1, 10 - (gameState.attemptsThisRound * 2)) + (gameState.streak > 1 ? gameState.streak : 0);
             gameState.score += pts;
 
@@ -741,8 +843,16 @@ document.addEventListener('DOMContentLoaded', () => {
                 
                 document.getElementById('constructive-feedback-modal').classList.remove('hidden');
                 elements.feedback.textContent = `Atenção à diferença!`;
+            } else if (gameConfig.mode === 'ContinentePorPais') {
+                elements.feedback.textContent = `Ops! Era ${correctAnswer.continente}.`;
             } else {
-                elements.feedback.textContent = `Ops! Era ${correctAnswer.continente}.`; 
+                elements.feedback.textContent = `Ops! Era ${correctAnswer.artigo} ${correctAnswer.nome}.`;
+                document.querySelectorAll('.text-option').forEach(o => {
+                    o.classList.add('disabled');
+                    if (o.dataset.codigo === correctAnswer.codigo) o.classList.add('correct');
+                });
+                buttons.next.classList.remove('hidden');
+                gameLocked = true;
             }
             elements.feedback.style.color = '#FF6347';
 
@@ -847,13 +957,14 @@ document.addEventListener('DOMContentLoaded', () => {
     // --- UTILS ---
     function handleLevelComplete() {
         updateProgressBar(100); playSound('completed'); dispararConfetes();
+        if (gameConfig.mode === 'Memoria') grantBonusPack('memoria', 1, 'Tabuleiro da Memória completo!');
+        else if (gameConfig.type === 'Jornada') grantBonusPack('jornada', 1, 'Nível da Jornada completo!');
         if (gameConfig.type === 'Jornada') {
             gameState.currentLevel++; (_cache.journeyLevel = gameState.currentLevel, API.saveJourney(currentUser, gameState.currentLevel));
             if (gameState.currentLevel > 5) gameOver(true);
             else {
                 modals.levelUp.querySelector('p').textContent = `Nível ${gameState.currentLevel - 1} Completo!`;
                 modals.levelUp.classList.remove('hidden');
-                speakText(`Parabéns ${currentUser}! Nível completo.`);
             }
         } else gameOver(true);
     }
@@ -976,8 +1087,23 @@ document.addEventListener('DOMContentLoaded', () => {
                 b.textContent = t;
             }
             
-            b.dataset.continente = t; 
-            b.dataset.type = 'text'; 
+            b.dataset.continente = t;
+            b.dataset.type = 'text';
+            b.addEventListener('click', handleOptionClick);
+            elements.options.appendChild(b);
+        });
+    }
+
+    // opções de NOME de país (modo "De que país é?")
+    function displayNameOptions(opts) {
+        elements.options.classList.remove('hidden');
+        elements.options.innerHTML = '';
+        opts.forEach(c => {
+            const b = document.createElement('button');
+            b.className = 'text-option';
+            b.textContent = c.nome;
+            b.dataset.codigo = c.codigo;
+            b.dataset.type = 'text';
             b.addEventListener('click', handleOptionClick);
             elements.options.appendChild(b);
         });
@@ -1125,6 +1251,20 @@ document.addEventListener('DOMContentLoaded', () => {
         _cache.packsCount = null;
         await selectProfile(res.name, res.avatar);
     });
+
+    // Botão de som (liga/desliga, acesso fácil no hub)
+    (function wireSoundToggle() {
+        const btn = document.getElementById('sound-toggle');
+        if (!btn) return;
+        const paint = () => { btn.textContent = (window.SFX && window.SFX.enabled) ? '🔊' : '🔇'; btn.classList.toggle('muted', !(window.SFX && window.SFX.enabled)); };
+        paint();
+        btn.addEventListener('click', () => {
+            if (!window.SFX) return;
+            window.SFX.enabled = !window.SFX.enabled;
+            paint();
+            if (window.SFX.enabled) window.SFX.play('toggle');
+        });
+    })();
 
     // Botão "Sair" (no menu principal) → volta para o login
     buttons.changeProfile.addEventListener('click', () => {
@@ -1374,36 +1514,25 @@ document.addEventListener('DOMContentLoaded', () => {
         return false;
     }
 
-    // --- SISTEMA DE RARIDADE (GACHA) ---
+    // --- SISTEMA DE RARIDADE (LEGENDS) ---
+    // Qualquer figurinha pode sair Legend. Ordem: dourada -> prata -> bronze -> roxa.
+    // Dourada 0,20% · Prata 0,33% · Bronze 0,66% · Roxa 1,00% · Comum o resto.
     function rollRarity() {
-        const roll = Math.random();
-        if (roll < 1 / 150) return 'ouro';
-        if (roll < 1 / 125) return 'prata';
-        if (roll < 1 / 100) return 'bronze';
-        if (roll < 1 / 70) return 'roxa';
+        const r = Math.random();
+        if (r < 0.0020) return 'ouro';
+        if (r < 0.0053) return 'prata';
+        if (r < 0.0119) return 'bronze';
+        if (r < 0.0219) return 'roxa';
         return 'base';
     }
 
     const RARITY_LABELS = {
-        ouro:   { text: 'LENDA DOURADA ✨', color: '#FFD700', border: '#FFD700' },
-        prata:  { text: 'LENDA PRATA 🥈',   color: '#C0C0C0', border: '#C0C0C0' },
-        bronze: { text: 'LENDA BRONZE 🥉',  color: '#CD7F32', border: '#CD7F32' },
-        roxa:   { text: 'LENDA RARA 💜',    color: '#9b59b6', border: '#9b59b6' },
-        base:   { text: 'NOVA! 🌍',          color: '#32CD32', border: '#32CD32' }
+        ouro:   { text: 'LENDA DOURADA ✨' },
+        prata:  { text: 'LENDA PRATA 🥈' },
+        bronze: { text: 'LENDA BRONZE 🥉' },
+        roxa:   { text: 'LENDA ROXA 💜' },
+        base:   { text: 'NOVA! 🌍' }
     };
-
-    function checkDailyPack() {
-        const lastDailyPackDate = localStorage.getItem(`detetive_daily_pack_date_${currentUser}`);
-        const todayStr = new Date().toDateString();
-        if (lastDailyPackDate !== todayStr) {
-            let packs = getPacksCount();
-            savePacks(packs + 1);
-            localStorage.setItem(`detetive_daily_pack_date_${currentUser}`, todayStr);
-            setTimeout(() => {
-                showToast("Você ganhou 1 pacotinho diário! 🎁 Vá ao Álbum para abrir.", "success");
-            }, 500);
-        }
-    }
 
     // --- NAVEGAÇÃO E RENDERIZAÇÃO DO ÁLBUM POR CONTINENTE ---
     const CONTINENTS_ORDER = [
@@ -1411,16 +1540,28 @@ document.addEventListener('DOMContentLoaded', () => {
         'Europa', 'Ásia', 'África', 'Oceania'
     ];
     const CONTINENT_META = {
-        'América do Sul':   { emoji: '🌎', accent: '#34d399' },
-        'América do Norte': { emoji: '🗽', accent: '#60a5fa' },
-        'América Central':  { emoji: '🏝️', accent: '#c084fc' },
-        'Europa':           { emoji: '🏰', accent: '#818cf8' },
-        'Ásia':             { emoji: '⛩️', accent: '#f87171' },
-        'África':           { emoji: '🦁', accent: '#fbbf24' },
-        'Oceania':          { emoji: '🐨', accent: '#22d3ee' },
+        'América do Sul':   { emoji: '🌎', accent: '#34d399', sigla: 'AMS' },
+        'América do Norte': { emoji: '🗽', accent: '#60a5fa', sigla: 'AMN' },
+        'América Central':  { emoji: '🏝️', accent: '#c084fc', sigla: 'AMC' },
+        'Europa':           { emoji: '🏰', accent: '#818cf8', sigla: 'EUR' },
+        'Ásia':             { emoji: '⛩️', accent: '#f87171', sigla: 'ASI' },
+        'África':           { emoji: '🦁', accent: '#fbbf24', sigla: 'AFR' },
+        'Oceania':          { emoji: '🐨', accent: '#22d3ee', sigla: 'OCE' },
     };
     const RARITY_ORDER = ['base', 'roxa', 'bronze', 'prata', 'ouro'];
     let currentContinent = null;
+
+    // código de figurinha por sigla de continente: AMS-01, EUR-12, ...
+    const STICKER_CODE = (() => {
+        const map = {};
+        CONTINENTS_ORDER.forEach(cont => {
+            const sig = (CONTINENT_META[cont] || {}).sigla || 'XXX';
+            countries.filter(c => c.continente === cont)
+                .forEach((c, i) => { map[c.codigo] = `${sig}-${String(i + 1).padStart(2, '0')}`; });
+        });
+        return map;
+    })();
+    function stickerCode(codigo) { return STICKER_CODE[codigo] || '—'; }
 
     function stickerFor(code) { return loadStickers().find(s => s.codigo === code); }
 
@@ -1454,16 +1595,19 @@ document.addEventListener('DOMContentLoaded', () => {
         const grid = elements.albumGrid;
         if (!grid) return;
         if (!currentContinent) currentContinent = CONTINENTS_ORDER[0];
-        const meta = CONTINENT_META[currentContinent] || { emoji: '🌐', accent: '#94a3b8' };
+        const meta = CONTINENT_META[currentContinent] || { emoji: '🌐', accent: '#94a3b8', sigla: 'xxx' };
         const screen = document.getElementById('album-menu');
-        if (screen) screen.style.setProperty('--cont-accent', meta.accent);
+        if (screen) {
+            screen.style.setProperty('--cont-accent', meta.accent);
+            screen.style.setProperty('--cont-bg', `url("/assets/img/bg/${(meta.sigla || 'ams').toLowerCase()}.jpg")`);
+        }
 
         grid.innerHTML = '';
         const list = countries.filter(c => c.continente === currentContinent);
 
         list.forEach(c => {
             const sd = stickerFor(c.codigo);
-            const globalIndex = countries.findIndex(x => x.codigo === c.codigo) + 1;
+            const code = stickerCode(c.codigo);
             const item = document.createElement('div');
 
             if (!sd) {
@@ -1472,7 +1616,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     <div class="ac-frame">
                         <img class="ac-silhouette" src="assets/shapes/${c.codigo}.svg" alt="" loading="lazy"
                              onerror="this.style.display='none'">
-                        <span class="ac-num">${globalIndex}</span>
+                        <span class="ac-num">${code}</span>
                     </div>
                     <div class="ac-name">${c.nome}</div>`;
             } else {
@@ -1484,11 +1628,12 @@ document.addEventListener('DOMContentLoaded', () => {
                     <div class="ac-frame">
                         <img src="assets/flags/${c.codigo}.png" alt="${c.nome}" loading="lazy">
                         <span class="ac-shine"></span>
+                        <span class="ac-code">${code}</span>
                         ${badge}
                     </div>
                     <div class="ac-name">${c.nome}</div>`;
             }
-            item.title = c.nome;
+            item.title = `${code} · ${c.nome}`;
             grid.appendChild(item);
         });
 
@@ -1618,13 +1763,14 @@ document.addEventListener('DOMContentLoaded', () => {
         if (res.error) { showToast(res.error, 'error'); return; }
         _cache.stickers = Trades._read(currentUser);
         if (window.SFX) window.SFX.play('trade');
+        grantBonusPack('troca', 1, 'Primeira troca do dia!');
         showToast(`Troca feita! Você deu ${gname} e recebeu ${rname}.`, 'success');
         if (!calmMode && typeof confetti !== 'undefined') confetti({ particleCount: 50, spread: 60, origin: { y: 0.6 } });
         tradeGive = tradeGet = null;
         selectTradePartner(tradeOther);
     });
 
-    const PACK_SIZE = 4;
+    const PACK_SIZE = PACK_STICKERS;
 
     function openPackModal() {
         if (getPacksCount() <= 0) {
@@ -1762,6 +1908,7 @@ document.addEventListener('DOMContentLoaded', () => {
     // ─── FASE 3: CONFIGURAÇÃO DA PARTIDA (tela única) ─────
     const MODE_META = {
         BandeiraPorPais:   { icon: '🏳️', label: 'Qual a Bandeira?' },
+        NomePorBandeira:   { icon: '🔎', label: 'De que País é?' },
         PaisPorCapital:    { icon: '🏛️', label: 'Qual o País?' },
         ContinentePorPais: { icon: '🌎', label: 'Qual o Continente?' },
         Memoria:           { icon: '🃏', label: 'Jogo da Memória' },

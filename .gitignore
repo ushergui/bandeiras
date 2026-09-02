@@ -35,3 +35,6 @@ dist/
 
 # packs de audio baixados (ja extraidos para assets/audio/effects/)
 kenney-*/
+
+# imagens fonte geradas por IA (versoes de trabalho ja em assets/img)
+imagens-geradas/

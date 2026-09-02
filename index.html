@@ -17,15 +17,15 @@
     <link rel="icon" href="assets/icons/favicon-32.png" sizes="32x32" type="image/png">
     <link rel="apple-touch-icon" href="assets/icons/apple-touch-icon.png">
 
-    <link rel="stylesheet" href="style.css?v=20260902j">
-    <link rel="stylesheet" href="css/app-shell.css?v=20260902j">
-    <link rel="stylesheet" href="css/screens.css?v=20260902j">
+    <link rel="stylesheet" href="style.css?v=20260902o">
+    <link rel="stylesheet" href="css/app-shell.css?v=20260902o">
+    <link rel="stylesheet" href="css/screens.css?v=20260902o">
     <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800;900&display=swap" rel="stylesheet">
     <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
     <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
-    <script src="countries.js?v=20260902j"></script>
-    <script src="curiosities.js?v=20260902j"></script>
-    <script src="js/sfx.js?v=20260902j"></script>
+    <script src="countries.js?v=20260902o"></script>
+    <script src="curiosities.js?v=20260902o"></script>
+    <script src="js/sfx.js?v=20260902o"></script>
 </head>
 
 <body>
@@ -34,8 +34,7 @@
 
                 <div id="profile-menu" class="screen auth-screen">
             <div class="auth-hero">
-                <div class="auth-logo"><img src="assets/icons/icon-192.png" alt="Detetive Global"></div>
-                <h1>Detetive Global</h1>
+                <img class="auth-logo-img" src="assets/img/logo.png" alt="Detetive Global" width="150" height="150">
                 <p class="profile-subtitle">Aprenda as bandeiras do mundo brincando</p>
             </div>
 
@@ -77,7 +76,10 @@
                     <span class="hub-avatar" id="hub-avatar">🌍</span>
                     <span class="hub-hello">Olá,<br><b id="welcome-message">explorador</b></span>
                 </div>
-                <button id="change-profile-btn" class="hub-logout" title="Sair da conta">Sair</button>
+                <div class="hub-actions">
+                    <button id="sound-toggle" class="icon-btn" title="Ligar/desligar som" aria-label="Som">🔊</button>
+                    <button id="change-profile-btn" class="hub-logout" title="Sair da conta">Sair</button>
+                </div>
             </header>
 
             <div class="hub-stats">
@@ -100,6 +102,9 @@
                 <div class="menu-grid hub-modes">
                     <button class="mode-button" data-gamemode="BandeiraPorPais">
                         <span class="mb-icon">🏳️</span><span>Qual a Bandeira?</span>
+                    </button>
+                    <button class="mode-button" data-gamemode="NomePorBandeira">
+                        <span class="mb-icon">🔎</span><span>De que País é?</span>
                     </button>
                     <button class="mode-button" data-gamemode="PaisPorCapital">
                         <span class="mb-icon">🏛️</span><span>Qual o País?</span>
@@ -255,6 +260,7 @@
                 <h2 id="instruction">...</h2>
                 <button id="replay-audio-btn" class="replay-audio" aria-label="Ouvir de novo" hidden>🔊</button>
             </div>
+            <div id="question-media" class="question-media hidden"></div>
 
             <div id="game-content-area">
                 <div id="options-container" class="options-container hidden"></div>
@@ -493,7 +499,7 @@
         </div>
     </div>
 
-    <script src="script.js?v=20260902j"></script>
+    <script src="script.js?v=20260902o"></script>
 </body>
 
 </html>
