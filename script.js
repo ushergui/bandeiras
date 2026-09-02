@@ -676,7 +676,7 @@ document.addEventListener('DOMContentLoaded', () => {
             title: "Qual a Bandeira?",
             setup: () => setupStandardRound((c) => {
                 elements.instruction.textContent = `Qual é a bandeira ${c.artigo} ${c.nome}?`;
-                playAudio(`bandeiras/${c.nome}`);
+                if (!c._kind) playAudio(`bandeiras/${c.nome}`);
             }, 'flag')
         },
         'PaisPorCapital': {
@@ -736,7 +736,8 @@ document.addEventListener('DOMContentLoaded', () => {
         if (pool.length === 0) { handleLevelComplete(); return; }
 
         correctAnswer = (gameConfig.type === 'Jornada' && !random) ? getWeightedCountry(pool) : shuffle([...pool])[0];
-        let wrong = countries.filter(c => c.codigo !== correctAnswer.codigo);
+        const base = gameState._base || countries;
+        let wrong = base.filter(c => c.codigo !== correctAnswer.codigo);
         let hard = wrong.filter(c => c.continente === correctAnswer.continente);
         let opts = [correctAnswer, ...shuffle(hard.length >= 3 ? hard : wrong).slice(0, 3)];
 
@@ -785,12 +786,23 @@ document.addEventListener('DOMContentLoaded', () => {
             if (gameConfig.type === 'Jornada') sl = (_cache.journeyLevel || 1);
             else sl = gameConfig.level || 1;
 
-            let pool = (gameConfig.type === 'Rápido' || gameConfig.type === 'Jornada') ? countries.filter(c => c.nivel === sl) : [...countries];
+            // "Qual a Bandeira?" pode usar países, estados do Brasil, ou os dois
+            const poolKind = (gameConfig.mode === 'BandeiraPorPais') ? (gameConfig.pool || 'paises') : 'paises';
+            let base;
+            if (poolKind === 'estados') base = [...ESTADO_ITEMS];
+            else if (poolKind === 'ambos') base = [...countries, ...ESTADO_ITEMS];
+            else base = [...countries];
+
+            const byLevel = (gameConfig.type === 'Rápido' || gameConfig.type === 'Jornada');
+            // estados não têm nível -> entram sempre
+            let pool = byLevel ? base.filter(c => c.nivel === sl || c._kind === 'flag') : base;
+            if (!pool.length) pool = base;
 
             gameState = {
                 score: 0, streak: 0,
                 chances: gameConfig.lives === 'infinite' ? '♾️' : gameConfig.lives,
-                currentLevel: sl, availableCountries: pool, totalQuestionsInLevel: pool.length, attemptsThisRound: 0
+                currentLevel: sl, availableCountries: pool, totalQuestionsInLevel: pool.length,
+                attemptsThisRound: 0, _base: base
             };
         }
         updateStats(); updateProgressBar(); nextRound();
@@ -1084,7 +1096,7 @@ document.addEventListener('DOMContentLoaded', () => {
         elements.options.innerHTML = '';
         opts.forEach(c => {
             const w = document.createElement('div'); w.className = 'option-wrapper';
-            const i = document.createElement('img'); i.src = `assets/flags/${c.codigo}.png`;
+            const i = document.createElement('img'); i.src = itemImg(c);
             i.className = 'flag-option'; i.dataset.codigo = c.codigo; i.dataset.type = 'flag';
             i.addEventListener('click', handleOptionClick);
             w.appendChild(i);
@@ -1601,6 +1613,8 @@ document.addEventListener('DOMContentLoaded', () => {
             });
         });
     }
+    // só os estados do Brasil (bandeiras) — usados também no modo "Qual a Bandeira?"
+    const ESTADO_ITEMS = COLLECTION_ITEMS.filter(x => x._kind === 'flag');
     // tudo que aparece no álbum (países + coleções)
     const ALBUM_ITEMS = [...countries, ...COLLECTION_ITEMS];
     function albumItem(code) { return ALBUM_ITEMS.find(x => x.codigo === code); }
@@ -2422,11 +2436,13 @@ document.addEventListener('DOMContentLoaded', () => {
     const setupEl = document.getElementById('game-setup');
 
     function openSetup(mode) {
-        gameConfig = { mode, type: null, level: null, lives: 'infinite' };
+        gameConfig = { mode, type: null, level: null, lives: 'infinite', pool: 'paises' };
         const meta = MODE_META[mode] || { icon: '🎮', label: mode };
         document.getElementById('setup-mode-icon').textContent = meta.icon;
         document.getElementById('setup-mode-name').textContent = meta.label;
         setupEl.querySelectorAll('.setup-opt.selected').forEach(o => o.classList.remove('selected'));
+        const poolDefault = setupEl.querySelector('.setup-opt[data-setup="pool"][data-value="paises"]');
+        if (poolDefault) poolDefault.classList.add('selected');
         if (mode === 'Memoria') gameConfig.type = 'Memoria'; // pula o passo "como jogar"
         updateSetupUI();
         showScreen('setup');
@@ -2439,6 +2455,8 @@ document.addEventListener('DOMContentLoaded', () => {
         document.getElementById('setup-sec-type').classList.toggle('hidden', isMemory);
         document.getElementById('setup-sec-level').classList.toggle('hidden', !(isMemory || isRapido));
         document.getElementById('setup-sec-lives').classList.toggle('hidden', !isRapido);
+        const secPool = document.getElementById('setup-sec-pool');
+        if (secPool) secPool.classList.toggle('hidden', gameConfig.mode !== 'BandeiraPorPais');
 
         const ready =
             (isMemory && gameConfig.level != null) ||
@@ -2460,6 +2478,8 @@ document.addEventListener('DOMContentLoaded', () => {
             gameConfig.level = parseInt(raw, 10);
         } else if (kind === 'lives') {
             gameConfig.lives = raw === 'infinite' ? 'infinite' : parseInt(raw, 10);
+        } else if (kind === 'pool') {
+            gameConfig.pool = raw;
         }
         updateSetupUI();
     }));
