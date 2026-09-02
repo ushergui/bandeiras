@@ -483,3 +483,22 @@
   .game .options-container { max-width: 540px; gap: 16px; }
   .game-question h2 { font-size: 1.5rem; }
 }
+
+/* =====================================================
+   FASE 5 — JOGO DA MEMÓRIA
+   ===================================================== */
+#memory-game-container { width: 100%; display: flex; justify-content: center; }
+#memory-game-container.hidden { display: none; }
+
+/* fim de partida: centraliza a mensagem enquanto a Fase 6 nao chega */
+#game-screen.game.game-over-view { justify-content: center; }
+#game-screen.game.game-over-view #game-content-area { display: none; }
+#game-screen.game.game-over-view .game-question { min-height: 0; }
+#game-screen.game.game-over-view .feedback { font-size: 1.15rem; }
+
+.main-container.memory-mode .memory-grid { max-width: 820px; }
+
+@media (max-width: 767.98px) {
+  .memory-grid { max-width: 100%; }
+  .memory-card-inner { transition-duration: 0.35s; }
+}

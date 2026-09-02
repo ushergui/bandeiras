@@ -597,6 +597,7 @@ document.addEventListener('DOMContentLoaded', () => {
     function startGame(conf) {
         gameConfig = conf;
         showScreen('game');
+        screens.game.classList.remove('game-over-view');
         elements.options.classList.remove('hidden');
         buttons.backToMenu.textContent = 'Sair';
         buttons.playAgain.classList.add('hidden');
@@ -715,20 +716,23 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     // --- MEMÓRIA (Setup) ---
+    function memoryColumns(totalCards) {
+        // [colunas no celular, colunas no desktop]
+        const map = { 12: [3, 4], 16: [4, 4], 18: [3, 6], 20: [4, 5], 24: [4, 6], 30: [5, 6], 32: [4, 8] };
+        const [mCols, dCols] = map[totalCards] || [4, Math.min(8, Math.ceil(totalCards / 4))];
+        return window.matchMedia('(min-width: 768px)').matches ? dCols : mCols;
+    }
+
     function setupMemoryGame() {
-        elements.options.classList.add('hidden'); elements.instruction.textContent = "Encontre os pares!";
-        elements.memoryGame.classList.remove('hidden'); elements.memoryGrid.innerHTML = ''; buttons.next.classList.add('hidden');
+        elements.options.classList.add('hidden');
+        elements.instruction.textContent = 'Encontre os pares: bandeira + nome do país';
+        elements.memoryGame.classList.remove('hidden');
+        elements.memoryGrid.innerHTML = '';
+        buttons.next.classList.add('hidden');
 
-        // Reset e definição de colunas
-        elements.memoryGrid.className = 'memory-grid';
         const totalCards = gameState.totalQuestionsInLevel * 2;
-
-        // Adiciona classes para desktop
-        if (totalCards <= 12) elements.memoryGrid.classList.add('grid-cols-4');
-        else if (totalCards === 16 || totalCards === 20) elements.memoryGrid.classList.add('grid-cols-5');
-        else if (totalCards === 24) elements.memoryGrid.classList.add('grid-cols-6');
-        else if (totalCards === 32) elements.memoryGrid.classList.add('grid-cols-8');
-        else if (totalCards >= 40) elements.memoryGrid.classList.add('grid-cols-10');
+        elements.memoryGrid.className = 'memory-grid';
+        elements.memoryGrid.style.setProperty('--mem-cols', memoryColumns(totalCards));
 
         let sel = gameState.availableCountries;
         if (sel.length === 0) { handleLevelComplete(); return; }
@@ -745,9 +749,9 @@ document.addEventListener('DOMContentLoaded', () => {
             el.dataset.index = i; el.dataset.id = c.id;
             el.innerHTML = `
                 <div class="memory-card-inner">
-                    <div class="memory-card-front">?</div>
-                    <div class="memory-card-back">
-                        ${c.type === 'flag' ? `<img src="${c.content}">` : `<div class="memory-text">${c.content}</div>`}
+                    <div class="memory-card-front">🌍</div>
+                    <div class="memory-card-back memory-card-back--${c.type}">
+                        ${c.type === 'flag' ? `<img src="${c.content}" alt="">` : `<div class="memory-text">${c.content}</div>`}
                     </div>
                 </div>
             `;
@@ -774,21 +778,21 @@ document.addEventListener('DOMContentLoaded', () => {
 
     function checkForMatch() {
         if (firstCard.dataset.id === secondCard.dataset.id) {
-
-            // Trava o board para não abrir mais cartas enquanto espera
+            const matchedId = firstCard.dataset.id; // guarda antes de resetBoard() zerar firstCard
             lockBoard = true;
 
-            // Delay de 800ms para você ver o par formado antes de sumir
+            // Delay para ver o par formado antes de esmaecer
             setTimeout(() => {
                 disableCards();
                 playSound('match');
 
-                 if (!calmMode) {
+                if (!calmMode) {
                     confetti({ particleCount: 30, spread: 50, origin: { y: 0.6 } });
                 }
 
                 gameState.score += 100; memoryMatches++; gameState.pairsFound = memoryMatches;
-                updateStats(); updateCountryStats(firstCard.dataset.id, true);
+                updateStats();
+                updateCountryStats(matchedId, true);
 
                 if (memoryMatches === memoryCards.length / 2) setTimeout(handleLevelComplete, 1000);
             }, 800);
@@ -823,6 +827,7 @@ document.addEventListener('DOMContentLoaded', () => {
         buttons.playAgain.classList.remove('hidden');
         elements.options.classList.add('hidden');
         elements.memoryGame.classList.add('hidden');
+        screens.game.classList.add('game-over-view');
         const replay = document.getElementById('replay-audio-btn');
         if (replay) replay.hidden = true;
 
