@@ -141,47 +141,67 @@ const Auth = {
 // TROCAS — entre contas do mesmo aparelho ("modo local")
 // Vira offer/accept via Supabase Realtime quando o backend existir.
 // ═══════════════════════════════════════════════════════
+// Modelo de figurinha: { codigo, colada: null|rarity, pilha: [rarity, ...] }
+//   colada  -> a que está no álbum (null = ainda não colada)
+//   pilha   -> cópias na mão (pra colar OU trocar)
 const Trades = {
     _key: n => `dg_stickers_${n}`,
-    _read(name) { try { return JSON.parse(localStorage.getItem(this._key(name)) || '[]'); } catch (e) { return []; } },
+    _read(name) {
+        try {
+            const list = JSON.parse(localStorage.getItem(this._key(name)) || '[]');
+            return list.map(Trades._normalize);
+        } catch (e) { return []; }
+    },
     _write(name, list) { localStorage.setItem(this._key(name), JSON.stringify(list)); },
+
+    // converte formato antigo {codigo,rarity,count} -> novo
+    _normalize(s) {
+        if (s && Array.isArray(s.pilha) && ('colada' in s)) return s;
+        const count = Math.max(1, s.count || 1);
+        return { codigo: s.codigo, colada: s.rarity || 'base', pilha: Array(count - 1).fill('base') };
+    },
 
     others(me) { return Auth.list().filter(a => a.name !== me); },
 
-    // figurinhas repetidas (count >= 2) de um usuário
-    repeats(name) { return this._read(name).filter(s => (s.count || 1) >= 2); },
-
-    // códigos que `name` ainda não tem
-    missingCodes(name, allCodes) {
-        const have = new Set(this._read(name).map(s => s.codigo));
-        return allCodes.filter(c => !have.has(c));
+    // figurinhas de `name` com cópias na pilha (disponíveis pra troca)
+    repeats(name) {
+        return this._read(name)
+            .filter(s => (s.pilha || []).length > 0)
+            .map(s => ({ codigo: s.codigo, count: s.pilha.length, rarities: s.pilha }));
     },
 
-    // move 1 figurinha de `from` para `to`
+    // códigos que `name` ainda não colou no álbum
+    missingCodes(name, allCodes) {
+        const colada = new Set(this._read(name).filter(s => s.colada).map(s => s.codigo));
+        return allCodes.filter(c => !colada.has(c));
+    },
+
+    // move 1 cópia (raridade mais baixa) da pilha de `from` para a de `to`
     _give(from, to, codigo) {
         const src = this._read(from);
         const it = src.find(s => s.codigo === codigo);
-        if (!it || (it.count || 1) < 2) return false; // só troca repetidas
-        it.count -= 1;
+        if (!it || !(it.pilha || []).length) return false;
+        // dá a cópia mais fraca
+        const order = ['base', 'roxa', 'bronze', 'prata', 'ouro'];
+        it.pilha.sort((a, b) => order.indexOf(a) - order.indexOf(b));
+        const rar = it.pilha.shift();
         this._write(from, src);
 
         const dst = this._read(to);
-        const d = dst.find(s => s.codigo === codigo);
-        if (d) d.count = (d.count || 1) + 1;
-        else dst.push({ codigo, rarity: it.rarity || 'base', count: 1 });
+        let d = dst.find(s => s.codigo === codigo);
+        if (!d) { d = { codigo, colada: null, pilha: [] }; dst.push(d); }
+        d.pilha.push(rar);
         this._write(to, dst);
         return true;
     },
 
-    // troca: `me` dá `iGive`, recebe `iGet` de `other`
     execute(me, other, iGive, iGet) {
         const okA = this._give(me, other, iGive);
-        if (!okA) return { error: 'Você não tem essa figurinha repetida.' };
+        if (!okA) return { error: 'Você não tem essa figurinha na pilha.' };
         const okB = this._give(other, me, iGet);
         if (!okB) {
-            // desfaz
-            this._give(other, me, iGive);
-            return { error: `${other} não tem essa figurinha repetida.` };
+            this._give(other, me, iGive); // desfaz
+            return { error: `${other} não tem essa figurinha na pilha.` };
         }
         return { ok: true };
     },
@@ -1033,7 +1053,7 @@ document.addEventListener('DOMContentLoaded', () => {
             if ((s.acertos || 0) > 0) known++;
             if ((s.acertos || 0) >= 5 && (s.erros || 0) < 2) mastered++;
         });
-        const stickers = Array.isArray(_cache.stickers) ? _cache.stickers.length : 0;
+        const stickers = Array.isArray(_cache.stickers) ? _cache.stickers.filter(s => s && s.colada).length : 0;
         const set = (id, v) => { const el = document.getElementById(id); if (el) el.textContent = v; };
         set('hub-stat-known', known);
         set('hub-stat-mastered', mastered);
@@ -1467,25 +1487,69 @@ document.addEventListener('DOMContentLoaded', () => {
     }
     if (buttons.showPassport) buttons.showPassport.addEventListener('click', openPassport);
 
-    // --- ÁLBUM DE FIGURINHAS ---
+    // ═══════════════════════════════════════════════════════
+    // ÁLBUM DE FIGURINHAS  (modelo: colada + pilha)
+    // ═══════════════════════════════════════════════════════
+    const RARITY_ORDER = ['base', 'roxa', 'bronze', 'prata', 'ouro'];
+    const RARITY_LABELS = {
+        ouro: { text: 'LENDA DOURADA ✨' }, prata: { text: 'LENDA PRATA 🥈' },
+        bronze: { text: 'LENDA BRONZE 🥉' }, roxa: { text: 'LENDA ROXA 💜' },
+        base: { text: 'NOVA! 🌍' },
+    };
 
     function loadStickers() {
         return Array.isArray(_cache.stickers) ? _cache.stickers : [];
     }
-
-    // Garante o campo `count` (formato antigo era só {codigo, rarity})
+    function saveStickers(s) {
+        _cache.stickers = s;
+        if (currentUser) API.saveStickers(currentUser, s);
+    }
+    // converte formato antigo {codigo,rarity,count} para {codigo,colada,pilha}
     function migrateStickers() {
         const s = loadStickers();
         let changed = false;
         s.forEach(x => {
-            if (typeof x.count !== 'number' || x.count < 1) { x.count = 1; changed = true; }
+            if (Array.isArray(x.pilha) && ('colada' in x)) return;
+            const count = Math.max(1, x.count || 1);
+            x.colada = x.rarity || 'base';
+            x.pilha = Array(count - 1).fill('base');
+            delete x.rarity; delete x.count;
+            changed = true;
         });
         if (changed) saveStickers(s);
     }
 
-    function saveStickers(s) {
-        _cache.stickers = s;
-        if (currentUser) API.saveStickers(currentUser, s);
+    function stickerEntry(code, create) {
+        const s = loadStickers();
+        let e = s.find(x => x.codigo === code);
+        if (!e && create) { e = { codigo: code, colada: null, pilha: [] }; s.push(e); saveStickers(s); }
+        return e;
+    }
+    function isColada(code) { const e = stickerEntry(code); return !!(e && e.colada); }
+    function coladaRarity(code) { const e = stickerEntry(code); return e ? e.colada : null; }
+    function pilhaOf(code) { const e = stickerEntry(code); return (e && e.pilha) || []; }
+    function bestPilha(code) {
+        return pilhaOf(code).reduce((b, r) =>
+            RARITY_ORDER.indexOf(r) > RARITY_ORDER.indexOf(b) ? r : b, null);
+    }
+    function totalPilha() { return loadStickers().reduce((n, s) => n + (s.pilha || []).length, 0); }
+
+    // cola uma cópia (raridade `rar`, ou a melhor da pilha) no álbum
+    function glueSticker(code, rar) {
+        const e = stickerEntry(code, true);
+        rar = rar || bestPilha(code);
+        if (!rar) return false;
+        const idx = e.pilha.indexOf(rar);
+        if (idx < 0) return false;
+        e.pilha.splice(idx, 1);
+        // se já havia uma colada, ela volta pra pilha (só troca se for melhor)
+        if (e.colada && RARITY_ORDER.indexOf(rar) <= RARITY_ORDER.indexOf(e.colada)) {
+            e.pilha.push(rar); return false;
+        }
+        if (e.colada) e.pilha.push(e.colada);
+        e.colada = rar;
+        saveStickers(loadStickers());
+        return true;
     }
 
     function getPacksCount() {
@@ -1494,7 +1558,6 @@ document.addEventListener('DOMContentLoaded', () => {
         }
         return _cache.packsCount;
     }
-
     function savePacks(n) {
         n = Math.max(0, Number(n) || 0);
         _cache.packsCount = n;
@@ -1503,20 +1566,16 @@ document.addEventListener('DOMContentLoaded', () => {
         const btn = document.getElementById('open-pack-btn');
         if (btn) btn.classList.toggle('has-packs', n > 0);
     }
-
     function addPacks(n) {
         savePacks(getPacksCount() + n);
         if (n > 0 && window.SFX) window.SFX.play('coin');
     }
-
     function removePack() {
         if (getPacksCount() > 0) { savePacks(getPacksCount() - 1); return true; }
         return false;
     }
 
-    // --- SISTEMA DE RARIDADE (LEGENDS) ---
-    // Qualquer figurinha pode sair Legend. Ordem: dourada -> prata -> bronze -> roxa.
-    // Dourada 0,20% · Prata 0,33% · Bronze 0,66% · Roxa 1,00% · Comum o resto.
+    // Legends: dourada 0,20% · prata 0,33% · bronze 0,66% · roxa 1,00%
     function rollRarity() {
         const r = Math.random();
         if (r < 0.0020) return 'ouro';
@@ -1526,15 +1585,7 @@ document.addEventListener('DOMContentLoaded', () => {
         return 'base';
     }
 
-    const RARITY_LABELS = {
-        ouro:   { text: 'LENDA DOURADA ✨' },
-        prata:  { text: 'LENDA PRATA 🥈' },
-        bronze: { text: 'LENDA BRONZE 🥉' },
-        roxa:   { text: 'LENDA ROXA 💜' },
-        base:   { text: 'NOVA! 🌍' }
-    };
-
-    // --- NAVEGAÇÃO E RENDERIZAÇÃO DO ÁLBUM POR CONTINENTE ---
+    // --- CONTINENTES / CÓDIGO DE FIGURINHA ---
     const CONTINENTS_ORDER = [
         'América do Sul', 'América do Norte', 'América Central',
         'Europa', 'Ásia', 'África', 'Oceania'
@@ -1548,10 +1599,8 @@ document.addEventListener('DOMContentLoaded', () => {
         'África':           { emoji: '🦁', accent: '#fbbf24', sigla: 'AFR' },
         'Oceania':          { emoji: '🐨', accent: '#22d3ee', sigla: 'OCE' },
     };
-    const RARITY_ORDER = ['base', 'roxa', 'bronze', 'prata', 'ouro'];
     let currentContinent = null;
 
-    // código de figurinha por sigla de continente: AMS-01, EUR-12, ...
     const STICKER_CODE = (() => {
         const map = {};
         CONTINENTS_ORDER.forEach(cont => {
@@ -1563,11 +1612,9 @@ document.addEventListener('DOMContentLoaded', () => {
     })();
     function stickerCode(codigo) { return STICKER_CODE[codigo] || '—'; }
 
-    function stickerFor(code) { return loadStickers().find(s => s.codigo === code); }
-
     function continentStats(cont) {
         const list = countries.filter(c => c.continente === cont);
-        const have = list.filter(c => stickerFor(c.codigo)).length;
+        const have = list.filter(c => isColada(c.codigo)).length;
         return { have, total: list.length };
     }
 
@@ -1595,7 +1642,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const grid = elements.albumGrid;
         if (!grid) return;
         if (!currentContinent) currentContinent = CONTINENTS_ORDER[0];
-        const meta = CONTINENT_META[currentContinent] || { emoji: '🌐', accent: '#94a3b8', sigla: 'xxx' };
+        const meta = CONTINENT_META[currentContinent] || { emoji: '🌐', accent: '#94a3b8', sigla: 'ams' };
         const screen = document.getElementById('album-menu');
         if (screen) {
             screen.style.setProperty('--cont-accent', meta.accent);
@@ -1603,33 +1650,37 @@ document.addEventListener('DOMContentLoaded', () => {
         }
 
         grid.innerHTML = '';
-        const list = countries.filter(c => c.continente === currentContinent);
-
-        list.forEach(c => {
-            const sd = stickerFor(c.codigo);
+        countries.filter(c => c.continente === currentContinent).forEach(c => {
             const code = stickerCode(c.codigo);
+            const colada = coladaRarity(c.codigo);
+            const pilha = pilhaOf(c.codigo);
             const item = document.createElement('div');
 
-            if (!sd) {
-                item.className = 'album-card missing';
+            if (!colada) {
+                const canGlue = pilha.length > 0;
+                item.className = 'album-card missing' + (canGlue ? ' has-pilha' : '');
                 item.innerHTML = `
                     <div class="ac-frame">
                         <img class="ac-silhouette" src="assets/shapes/${c.codigo}.svg" alt="" loading="lazy"
                              onerror="this.style.display='none'">
-                        <span class="ac-num">${code}</span>
+                        ${canGlue
+                        ? `<button class="ac-plus" data-glue="${c.codigo}" aria-label="Colar">+</button>`
+                        : `<span class="ac-num">${code}</span>`}
                     </div>
                     <div class="ac-name">${c.nome}</div>`;
             } else {
-                const rarity = sd.rarity || 'base';
-                const holo = !!c.fixedShiny || rarity === 'ouro' || rarity === 'prata';
-                item.className = `album-card collected rarity-${rarity}` + (holo ? ' holo' : '');
-                const badge = (sd.count > 1) ? `<span class="ac-count" title="Repetidas">×${sd.count}</span>` : '';
+                const holo = !!c.fixedShiny || colada === 'ouro' || colada === 'prata' || colada === 'bronze' || colada === 'roxa';
+                const better = bestPilha(c.codigo);
+                const canUp = better && RARITY_ORDER.indexOf(better) > RARITY_ORDER.indexOf(colada);
+                item.className = `album-card collected rarity-${colada}` + (holo ? ' holo' : '');
+                const badge = pilha.length ? `<span class="ac-count" title="Na pilha">×${pilha.length}</span>` : '';
+                const up = canUp ? `<button class="ac-up" data-glue="${c.codigo}" data-rar="${better}" title="Colar a versão ${better}">⬆</button>` : '';
                 item.innerHTML = `
                     <div class="ac-frame">
                         <img src="assets/flags/${c.codigo}.png" alt="${c.nome}" loading="lazy">
                         <span class="ac-shine"></span>
                         <span class="ac-code">${code}</span>
-                        ${badge}
+                        ${badge}${up}
                     </div>
                     <div class="ac-name">${c.nome}</div>`;
             }
@@ -1637,31 +1688,50 @@ document.addEventListener('DOMContentLoaded', () => {
             grid.appendChild(item);
         });
 
-        // cabeçalhos
-        const st = continentStats(currentContinent);
-        const nameEl = document.getElementById('album-continent-name');
-        if (nameEl) nameEl.textContent = `${meta.emoji} ${currentContinent}`;
-        const ccEl = document.getElementById('album-continent-count');
-        if (ccEl) ccEl.textContent = `${st.have}/${st.total}`;
+        grid.querySelectorAll('[data-glue]').forEach(b => {
+            b.addEventListener('click', e => {
+                e.stopPropagation();
+                doGlue(b.dataset.glue, b.dataset.rar, b);
+            });
+        });
 
-        const totalHave = loadStickers().length;
+        const st = continentStats(currentContinent);
+        const set = (id, v) => { const el = document.getElementById(id); if (el) el.textContent = v; };
+        set('album-continent-name', `${meta.emoji} ${currentContinent}`);
+        set('album-continent-count', `${st.have}/${st.total}`);
+
+        const totalHave = loadStickers().filter(s => s.colada).length;
         const pct = Math.round((totalHave / countries.length) * 100);
-        const pEl = document.getElementById('album-progress');
-        if (pEl) pEl.textContent = `${pct}%`;
-        const cEl = document.getElementById('album-count');
-        if (cEl) cEl.textContent = `${totalHave}/${countries.length}`;
+        set('album-progress', `${pct}%`);
+        set('album-count', `${totalHave}/${countries.length}`);
         const fill = document.getElementById('album-overall-fill');
         if (fill) fill.style.width = `${pct}%`;
 
-        const repEl = document.getElementById('repeats-count');
-        if (repEl) {
-            const reps = loadStickers().filter(s => (s.count || 1) >= 2).length;
-            repEl.textContent = reps;
-            const tb = document.getElementById('open-trades-btn');
-            if (tb) tb.classList.toggle('has-repeats', reps > 0);
-        }
+        const reps = totalPilha();
+        set('repeats-count', reps);
+        const tb = document.getElementById('open-trades-btn');
+        if (tb) tb.classList.toggle('has-repeats', reps > 0);
 
         buildContinentNav();
+    }
+
+    // cola com animação (a figurinha "desce" e gruda) + confete + som
+    function doGlue(code, rar, btn) {
+        const frame = btn.closest('.ac-frame');
+        if (glueSticker(code, rar)) {
+            if (window.SFX) window.SFX.play('sticker_paste');
+            if (!calmMode && typeof confetti !== 'undefined' && frame) {
+                const r = frame.getBoundingClientRect();
+                confetti({
+                    particleCount: 55, spread: 55, startVelocity: 28,
+                    origin: { x: (r.left + r.width / 2) / innerWidth, y: (r.top + r.height / 2) / innerHeight },
+                });
+            }
+            renderAlbum();
+            const card = elements.albumGrid.querySelector(`[title^="${stickerCode(code)} "]`);
+            if (card) { card.classList.add('just-glued'); setTimeout(() => card.classList.remove('just-glued'), 700); }
+            refreshHub();
+        }
     }
 
     async function openAlbum() {
@@ -1676,27 +1746,27 @@ document.addEventListener('DOMContentLoaded', () => {
     }
     if (buttons.showAlbum) buttons.showAlbum.addEventListener('click', openAlbum);
 
-    // ─── TROCAS ──────────────────────────────────────────
+    // ─── TROCA ENTRE CONTAS ──────────────────────────────
     const ALL_CODES = countries.map(c => c.codigo);
     let tradeOther = null, tradeGive = null, tradeGet = null;
 
     function openTrades() {
         tradeOther = tradeGive = tradeGet = null;
         document.getElementById('trades-panel').classList.add('hidden');
+        renderMachine();
         const wrap = document.getElementById('trades-accounts');
         wrap.innerHTML = '';
         const others = Trades.others(currentUser);
         if (!others.length) {
-            wrap.innerHTML = '<p class="trades-empty">Crie outra conta neste aparelho (tela de login) para poder trocar.</p>';
+            wrap.innerHTML = '<p class="trades-empty">Crie outra conta neste aparelho (tela de login) para trocar direto.</p>';
         } else {
             others.forEach(a => {
-                const myRepeats = Trades.repeats(currentUser);
                 const theirRepeats = Trades.repeats(a.name);
                 const btn = document.createElement('button');
                 btn.className = 'trade-account';
                 btn.innerHTML = `<span class="ta-avatar">${a.avatar}</span>
                     <span class="ta-name">${a.name}</span>
-                    <span class="ta-meta">${theirRepeats.length} repetidas</span>`;
+                    <span class="ta-meta">${theirRepeats.reduce((n, s) => n + s.count, 0)} na pilha</span>`;
                 btn.addEventListener('click', () => selectTradePartner(a.name));
                 wrap.appendChild(btn);
             });
@@ -1727,25 +1797,20 @@ document.addEventListener('DOMContentLoaded', () => {
         const theyMiss = new Set(Trades.missingCodes(tradeOther, ALL_CODES));
         const iMiss = new Set(Trades.missingCodes(currentUser, ALL_CODES));
 
-        const mineWrap = document.getElementById('trades-mine');
-        mineWrap.innerHTML = '';
-        const mine = Trades.repeats(currentUser).filter(s => theyMiss.has(s.codigo));
-        if (!mine.length) mineWrap.innerHTML = '<p class="trades-empty">Você não tem repetidas que faltem pra essa conta.</p>';
-        mine.forEach(s => {
-            const chip = stickerChip(s.codigo, s.count, tradeGive === s.codigo);
-            chip.addEventListener('click', () => { tradeGive = s.codigo; renderTradeStrips(); });
-            mineWrap.appendChild(chip);
-        });
-
-        const theirsWrap = document.getElementById('trades-theirs');
-        theirsWrap.innerHTML = '';
-        const theirs = Trades.repeats(tradeOther).filter(s => iMiss.has(s.codigo));
-        if (!theirs.length) theirsWrap.innerHTML = '<p class="trades-empty">Essa conta não tem repetidas que faltem pra você.</p>';
-        theirs.forEach(s => {
-            const chip = stickerChip(s.codigo, s.count, tradeGet === s.codigo);
-            chip.addEventListener('click', () => { tradeGet = s.codigo; renderTradeStrips(); });
-            theirsWrap.appendChild(chip);
-        });
+        const fill = (wrapId, list, sel, onPick, emptyMsg) => {
+            const w = document.getElementById(wrapId);
+            w.innerHTML = '';
+            if (!list.length) { w.innerHTML = `<p class="trades-empty">${emptyMsg}</p>`; return; }
+            list.forEach(s => {
+                const chip = stickerChip(s.codigo, s.count, sel === s.codigo);
+                chip.addEventListener('click', () => { onPick(s.codigo); renderTradeStrips(); });
+                w.appendChild(chip);
+            });
+        };
+        fill('trades-mine', Trades.repeats(currentUser).filter(s => theyMiss.has(s.codigo)),
+            tradeGive, c => tradeGive = c, 'Você não tem repetidas que faltem pra essa conta.');
+        fill('trades-theirs', Trades.repeats(tradeOther).filter(s => iMiss.has(s.codigo)),
+            tradeGet, c => tradeGet = c, 'Essa conta não tem repetidas que faltem pra você.');
 
         const btn = document.getElementById('trades-confirm');
         const ready = tradeGive && tradeGet;
@@ -1770,6 +1835,54 @@ document.addEventListener('DOMContentLoaded', () => {
         selectTradePartner(tradeOther);
     });
 
+    // ─── MÁQUINA DE TROCA (7 repetidas -> 1 nova) ─────────
+    let machineDeposit = []; // [{codigo, rar}]
+    const MACHINE_COST = 7;
+
+    function renderMachine() {
+        const n = machineDeposit.length;
+        const cnt = document.getElementById('tm-count');
+        if (cnt) cnt.textContent = `${n} / ${MACHINE_COST}`;
+        const fill = document.getElementById('tm-progress');
+        if (fill) fill.style.width = `${(n / MACHINE_COST) * 100}%`;
+        const pull = document.getElementById('tm-pull');
+        if (pull) pull.disabled = n < MACHINE_COST;
+        const add = document.getElementById('tm-add');
+        if (add) add.disabled = totalPilha() <= 0 && n < MACHINE_COST;
+    }
+
+    function machineAddOne() {
+        if (machineDeposit.length >= MACHINE_COST) return;
+        const s = loadStickers().find(x => (x.pilha || []).length > 0);
+        if (!s) { showToast('Você não tem repetidas na pilha.', 'error'); return; }
+        s.pilha.sort((a, b) => RARITY_ORDER.indexOf(a) - RARITY_ORDER.indexOf(b));
+        machineDeposit.push({ codigo: s.codigo, rar: s.pilha.shift() });
+        saveStickers(loadStickers());
+        if (window.SFX) window.SFX.play('tick');
+        renderMachine();
+    }
+
+    function machinePull() {
+        if (machineDeposit.length < MACHINE_COST) return;
+        // prioriza país que falta no continente atual, senão qualquer que falte colar
+        const missCur = countries.filter(c => c.continente === currentContinent && !isColada(c.codigo));
+        const missAny = countries.filter(c => !isColada(c.codigo));
+        const pool = missCur.length ? missCur : (missAny.length ? missAny : countries);
+        const won = shuffle([...pool])[0];
+        const e = stickerEntry(won.codigo, true);
+        e.pilha.push('base');
+        saveStickers(loadStickers());
+        machineDeposit = [];
+        renderMachine();
+        if (window.SFX) { window.SFX.play('coin'); setTimeout(() => window.SFX.play('reveal_common'), 250); }
+        if (!calmMode && typeof confetti !== 'undefined') confetti({ particleCount: 70, spread: 70, origin: { y: 0.6 } });
+        showToast(`A máquina soltou: ${won.nome}! 🎰 (foi pra sua pilha)`, 'success');
+    }
+
+    document.getElementById('tm-add').addEventListener('click', machineAddOne);
+    document.getElementById('tm-pull').addEventListener('click', machinePull);
+
+    // ─── ABRIR PACOTE ────────────────────────────────────
     const PACK_SIZE = PACK_STICKERS;
 
     function openPackModal() {
@@ -1779,13 +1892,14 @@ document.addEventListener('DOMContentLoaded', () => {
         }
         elements.openedStickers.innerHTML = '';
         elements.openedStickers.classList.add('hidden');
-        elements.packAnimationContainer.classList.remove('hidden');
-        elements.packAnimationContainer.classList.remove('opening');
+        document.getElementById('pack-decide').classList.add('hidden');
+        elements.packAnimationContainer.classList.remove('hidden', 'opening');
         if (buttons.closePack) buttons.closePack.classList.add('hidden');
         modals.pack.classList.remove('hidden');
     }
     if (buttons.openPack) buttons.openPack.addEventListener('click', openPackModal);
 
+    // sorteia o pacote e joga tudo na PILHA (o jogador decide o que colar depois)
     function drawPack() {
         const stickers = loadStickers();
         const results = [];
@@ -1793,19 +1907,11 @@ document.addEventListener('DOMContentLoaded', () => {
             const drawn = shuffle([...countries])[0];
             let rarity = rollRarity();
             if (drawn.fixedShiny && rarity === 'base') rarity = 'ouro';
-
-            let entry = stickers.find(s => s.codigo === drawn.codigo);
-            const isNew = !entry;
-            if (isNew) {
-                entry = { codigo: drawn.codigo, rarity, count: 1 };
-                stickers.push(entry);
-            } else {
-                entry.count = (entry.count || 1) + 1;
-                if (RARITY_ORDER.indexOf(rarity) > RARITY_ORDER.indexOf(entry.rarity || 'base')) {
-                    entry.rarity = rarity;
-                }
-            }
-            results.push({ country: drawn, rarity: entry.rarity, isNew, count: entry.count });
+            let e = stickers.find(s => s.codigo === drawn.codigo);
+            if (!e) { e = { codigo: drawn.codigo, colada: null, pilha: [] }; stickers.push(e); }
+            const isNew = !e.colada;
+            e.pilha.push(rarity);
+            results.push({ country: drawn, rarity, isNew });
         }
         saveStickers(stickers);
         return results;
@@ -1838,9 +1944,10 @@ document.addEventListener('DOMContentLoaded', () => {
                     <div class="pc-frame">
                         <img src="assets/flags/${r.country.codigo}.png" alt="${r.country.nome}">
                         <span class="ac-shine"></span>
+                        ${r.isNew ? '<span class="pc-star">★</span>' : ''}
                     </div>
                     <div class="pc-name">${r.country.nome}</div>
-                    <div class="pc-tag">${r.isNew ? 'NOVA!' : `repetida ×${r.count}`}</div>`;
+                    <div class="pc-tag">${r.isNew ? (RARITY_LABELS[r.rarity] || RARITY_LABELS.base).text : 'repetida'}</div>`;
                 elements.openedStickers.appendChild(card);
             });
 
@@ -1849,9 +1956,46 @@ document.addEventListener('DOMContentLoaded', () => {
                 confetti({ particleCount: n, spread: 75, origin: { y: 0.5 } });
             }
 
+            buildDecideList(results);
             if (buttons.closePack) buttons.closePack.classList.remove('hidden');
         }, 650);
     });
+
+    // lista "o que fazer com as novas" (só as que ainda não estão coladas)
+    function buildDecideList(results) {
+        const box = document.getElementById('pack-decide');
+        const list = document.getElementById('pack-decide-list');
+        const novas = results.filter(r => r.isNew);
+        list.innerHTML = '';
+        if (!novas.length) { box.classList.add('hidden'); return; }
+        box.classList.remove('hidden');
+        // dedup por país (se veio 2x a mesma nova)
+        const seen = new Set();
+        novas.forEach(r => {
+            if (seen.has(r.country.codigo)) return;
+            seen.add(r.country.codigo);
+            const row = document.createElement('div');
+            row.className = 'decide-row';
+            row.dataset.codigo = r.country.codigo;
+            row.innerHTML = `
+                <img src="assets/flags/${r.country.codigo}.png" alt="">
+                <span class="decide-name">${r.country.nome}</span>
+                <button class="decide-glue">Colar</button>
+                <button class="decide-keep">Guardar</button>`;
+            row.querySelector('.decide-glue').addEventListener('click', () => {
+                if (glueSticker(r.country.codigo)) {
+                    if (window.SFX) window.SFX.play('sticker_paste');
+                    row.classList.add('done'); row.querySelector('.decide-name').textContent = r.country.nome + ' — colada ✓';
+                    row.querySelectorAll('button').forEach(b => b.remove());
+                }
+            });
+            row.querySelector('.decide-keep').addEventListener('click', () => {
+                row.classList.add('done'); row.querySelector('.decide-name').textContent = r.country.nome + ' — na pilha';
+                row.querySelectorAll('button').forEach(b => b.remove());
+            });
+            list.appendChild(row);
+        });
+    }
 
     if (buttons.closePack) buttons.closePack.addEventListener('click', () => {
         modals.pack.classList.add('hidden');

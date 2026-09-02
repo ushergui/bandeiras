@@ -809,3 +809,106 @@
   backdrop-filter: blur(2px);
 }
 .album-pack-btn, .album-trades-btn { backdrop-filter: blur(4px); }
+
+/* =====================================================
+   FASE 9 — pilha, colar figurinha, maquina de troca
+   ===================================================== */
+
+/* ---- botao "+" no slot vazio (tem copia na pilha) ---- */
+.album-card.missing.has-pilha .ac-frame {
+  border-color: color-mix(in srgb, var(--cont-accent) 60%, #fff 10%);
+  border-style: solid;
+  background: color-mix(in srgb, var(--cont-accent) 12%, rgba(9,16,28,.4));
+  animation: plusPulse 1.8s ease-in-out infinite;
+}
+@keyframes plusPulse {
+  50% { box-shadow: 0 0 16px 2px color-mix(in srgb, var(--cont-accent) 55%, transparent); }
+}
+.ac-plus {
+  position: absolute;
+  width: 40%; aspect-ratio: 1; max-width: 44px;
+  border-radius: 50%;
+  background: var(--cont-accent, #34d399);
+  color: #0c1626;
+  border: 3px solid rgba(255,255,255,.85);
+  font-size: 1.5rem; font-weight: 900; line-height: 1;
+  display: grid; place-items: center;
+  box-shadow: 0 4px 14px rgba(0,0,0,.4);
+  cursor: pointer;
+}
+.ac-plus:hover { transform: scale(1.12); }
+.ac-plus:active { transform: scale(0.95); }
+
+/* ---- botao "⬆" para colar a Legend por cima da comum ---- */
+.ac-up {
+  position: absolute; top: 3px; left: 3px;
+  width: 22px; height: 22px; border-radius: 8px;
+  background: linear-gradient(135deg, #a855f7, #7c3aed);
+  color: #fff; border: 1px solid rgba(255,255,255,.5);
+  font-size: 0.8rem; line-height: 1; display: grid; place-items: center;
+  cursor: pointer;
+}
+.ac-up:hover { transform: scale(1.15); }
+
+/* ---- figurinha recem-colada (desce e assenta) ---- */
+@keyframes stickDown {
+  0%   { transform: translateY(-40px) scale(1.15); opacity: 0; }
+  60%  { transform: translateY(4px) scale(0.98); opacity: 1; }
+  100% { transform: translateY(0) scale(1); }
+}
+.album-card.just-glued .ac-frame { animation: stickDown 0.55s cubic-bezier(0.2, 1.4, 0.4, 1); }
+
+/* ---- estrela nas figurinhas novas do pacote ---- */
+.pc-star {
+  position: absolute; top: 2px; right: 2px;
+  color: #fde047; font-size: 1rem;
+  filter: drop-shadow(0 1px 3px rgba(0,0,0,.6));
+}
+
+/* ---- linha branca de rasgar o envelope ---- */
+.pack-tear-line {
+  position: absolute; top: 10px; left: 8%; right: 8%; height: 3px;
+  border-radius: 3px;
+  background: linear-gradient(90deg, transparent, rgba(255,255,255,.95), transparent);
+  animation: tearGlow 1.6s ease-in-out infinite;
+}
+@keyframes tearGlow { 50% { opacity: .35; } }
+.pack-stage.opening .pack-tear-line { display: none; }
+
+/* ---- tela "o que fazer com as novas" ---- */
+.pack-decide { text-align: left; margin-top: 8px; }
+.pack-decide.hidden { display: none; }
+.pack-decide-title { font-weight: 900; font-size: 0.9rem; margin: 0 0 8px; color: var(--text-white); }
+#pack-decide-list { display: flex; flex-direction: column; gap: 6px; max-height: 34vh; overflow-y: auto; }
+.decide-row {
+  display: flex; align-items: center; gap: 8px;
+  background: rgba(255,255,255,.05); border-radius: 10px; padding: 6px 8px;
+}
+.decide-row.done { opacity: .55; }
+.decide-row img { width: 34px; height: 23px; object-fit: cover; border-radius: 3px; flex-shrink: 0; }
+.decide-name { flex: 1; font-size: 0.82rem; font-weight: 700; }
+.decide-glue, .decide-keep {
+  padding: 6px 12px; border-radius: 9px; font-size: 0.78rem; font-weight: 800;
+}
+.decide-glue { background: var(--accent-green); color: #06281c; }
+.decide-keep { background: rgba(255,255,255,.1); color: var(--text-white); }
+
+/* ---- maquina de troca ---- */
+.trade-machine {
+  background: linear-gradient(150deg, rgba(139,92,246,.14), rgba(59,130,246,.10));
+  border: 1px solid rgba(139,92,246,.35);
+  border-radius: 16px; padding: 14px;
+}
+.trade-machine h3 { text-align: left; font-size: 0.95rem; margin: 0 0 4px; }
+.trade-machine p { text-align: left; font-size: 0.82rem; color: var(--text-muted); margin: 0 0 10px; }
+.trade-machine p b { color: var(--text-white); }
+.tm-bar { height: 8px; border-radius: 999px; background: rgba(0,0,0,.35); overflow: hidden; margin-bottom: 10px; }
+.tm-fill { display: block; height: 100%; width: 0; border-radius: 999px; background: linear-gradient(90deg, #8b5cf6, #ec4899); transition: width .3s ease; }
+.tm-row { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+.tm-count { font-family: ui-monospace, monospace; font-weight: 800; font-size: 0.85rem; color: var(--text-white); }
+.tm-btn {
+  padding: 9px 12px; border-radius: 10px; font-size: 0.8rem; font-weight: 800;
+  background: rgba(255,255,255,.08); border: 1px solid rgba(255,255,255,.15); color: var(--text-white);
+}
+.tm-btn:disabled { opacity: .4; }
+#tm-pull { flex: 1; min-width: 120px; min-height: 42px; }
