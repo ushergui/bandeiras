@@ -1669,36 +1669,35 @@ document.addEventListener('DOMContentLoaded', () => {
 
             item.style.setProperty('--acc', meta.accent);
 
+            const foot = `<div class="fig-foot"><span class="fig-name">${c.nome}</span><span class="fig-code">${code}</span></div>`;
+            const shape = `<img class="fig-shape" src="assets/shapes/${c.codigo}.svg" alt="" loading="lazy" onerror="this.remove()">`;
+
             if (!colada) {
                 const canGlue = pilha.length > 0;
                 item.className = 'album-card fig-card missing' + (canGlue ? ' has-pilha' : '');
                 item.innerHTML = `
                     <div class="fig">
                         <span class="fig-bg dim"></span>
-                        <span class="fig-code">${code}</span>
-                        <div class="fig-frame empty">
-                            <img class="fig-sil" src="assets/shapes/${c.codigo}.svg" alt="" loading="lazy"
-                                 onerror="this.style.display='none'">
-                            ${canGlue ? `<button class="ac-plus" data-glue="${c.codigo}" aria-label="Colar">+</button>` : ''}
-                        </div>
-                        <div class="fig-name">${c.nome}</div>
+                        <img class="fig-shape big" src="assets/shapes/${c.codigo}.svg" alt="" loading="lazy" onerror="this.remove()">
+                        ${canGlue ? `<button class="ac-plus" data-glue="${c.codigo}" aria-label="Colar">+</button>` : ''}
+                        ${foot}
                     </div>`;
             } else {
-                const shiny = !!c.fixedShiny || colada !== 'base';
+                const shiny = !!c.fixedShiny && colada === 'base';
+                const legend = colada !== 'base';
                 const better = bestPilha(c.codigo);
                 const canUp = better && RARITY_ORDER.indexOf(better) > RARITY_ORDER.indexOf(colada);
-                item.className = `album-card fig-card collected rarity-${colada}` + (shiny ? ' shiny' : '');
+                item.className = `album-card fig-card collected rarity-${colada}`
+                    + (shiny ? ' shiny' : '') + (legend ? ' legend' : '');
                 const badge = pilha.length ? `<span class="fig-count" title="Na pilha">×${pilha.length}</span>` : '';
                 const up = canUp ? `<button class="fig-up" data-glue="${c.codigo}" data-rar="${better}" title="Colar a versão ${better}">⬆</button>` : '';
                 item.innerHTML = `
                     <div class="fig">
                         <span class="fig-bg"></span>
-                        <span class="fig-code">${code}</span>
-                        <div class="fig-frame">
-                            <img class="fig-flag" src="assets/flags/${c.codigo}.png" alt="${c.nome}" loading="lazy">
-                            <span class="fig-foil"></span>
-                        </div>
-                        <div class="fig-name">${c.nome}</div>
+                        ${shape}
+                        <span class="fig-foil"></span>
+                        <div class="fig-flagwrap"><img class="fig-flag" src="assets/flags/${c.codigo}.png" alt="${c.nome}" loading="lazy"></div>
+                        ${foot}
                         ${badge}${up}
                     </div>`;
             }
@@ -1958,19 +1957,20 @@ document.addEventListener('DOMContentLoaded', () => {
 
             results.forEach((r, i) => {
                 const card = document.createElement('div');
-                const shiny = !!r.country.fixedShiny || r.rarity !== 'base';
-                card.className = `pack-card fig-card rarity-${r.rarity}` + (r.isNew ? ' is-new' : '') + (shiny ? ' shiny' : '');
+                const legend = r.rarity !== 'base';
+                const shiny = !!r.country.fixedShiny && !legend;
+                card.className = `pack-card fig-card rarity-${r.rarity}` + (r.isNew ? ' is-new' : '')
+                    + (shiny ? ' shiny' : '') + (legend ? ' legend' : '');
                 card.style.animationDelay = `${i * 0.14}s`;
                 card.style.setProperty('--acc', (CONTINENT_META[r.country.continente] || {}).accent || '#60a5fa');
                 card.innerHTML = `
                     <div class="fig">
                         <span class="fig-bg"></span>
+                        <img class="fig-shape" src="assets/shapes/${r.country.codigo}.svg" alt="" onerror="this.remove()">
+                        <span class="fig-foil"></span>
                         ${r.isNew ? '<span class="pc-star">★</span>' : ''}
-                        <div class="fig-frame">
-                            <img class="fig-flag" src="assets/flags/${r.country.codigo}.png" alt="${r.country.nome}">
-                            <span class="fig-foil"></span>
-                        </div>
-                        <div class="fig-name">${r.country.nome}</div>
+                        <div class="fig-flagwrap"><img class="fig-flag" src="assets/flags/${r.country.codigo}.png" alt="${r.country.nome}"></div>
+                        <div class="fig-foot"><span class="fig-name">${r.country.nome}</span></div>
                         <div class="pc-tag">${r.isNew ? (RARITY_LABELS[r.rarity] || RARITY_LABELS.base).text : 'repetida'}</div>
                     </div>`;
                 elements.openedStickers.appendChild(card);

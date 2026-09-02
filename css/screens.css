@@ -1011,117 +1011,125 @@
 }
 
 /* =====================================================
-   FASE 11 — FIGURINHA COMPOSTA (card de verdade)
-   a bandeira faz parte da figurinha; fundo por continente,
-   nome, codigo, e uma MOLDURA que fica metalica/colorida
-   conforme brilho fixo ou raridade
+   FASE 12 — FIGURINHA COMPOSTA (o card INTEIRO tem tema)
+   comum   -> fundo na cor do continente (opaco), contorno real do pais
+   brilho  -> MESMO fundo do continente, mas o card inteiro metaliza
+   legend  -> tira o continente: card inteiro roxo/bronze/prata/ouro metalico
+   sempre  -> so a bandeira, o nome e o codigo (perto do nome) por cima
    ===================================================== */
 
-.album-grid { grid-template-columns: repeat(auto-fill, minmax(96px, 1fr)); }
+@keyframes metalSweep { 0% { background-position: 0% 50%; } 100% { background-position: 260% 50%; } }
+
+.album-grid { grid-template-columns: repeat(auto-fill, minmax(98px, 1fr)); }
 
 .fig-card { display: block; }
 .fig-card .fig {
-  position: relative; display: flex; flex-direction: column; gap: 5px;
-  padding: 8px 6px 7px; border-radius: 13px; overflow: hidden;
-  min-height: 122px; box-shadow: 0 3px 12px rgba(0,0,0,.42);
+  position: relative; display: flex; flex-direction: column;
+  padding: 8px 7px 7px; border-radius: 13px; overflow: hidden;
+  min-height: 130px; box-shadow: 0 3px 12px rgba(0,0,0,.42);
+  isolation: isolate;
+}
+/* plaquinha escura embaixo pro texto ler em qualquer fundo */
+.fig-card .fig::after {
+  content: ""; position: absolute; left: 0; right: 0; bottom: 0; height: 46%;
+  background: linear-gradient(transparent, rgba(0,0,0,.72)); z-index: 3; pointer-events: none;
 }
 
-/* fundo do card (tingido pelo continente) */
+/* fundo do card = cor do continente (opaco) */
 .fig-bg {
   position: absolute; inset: 0; z-index: 0;
   background:
-    radial-gradient(rgba(255,255,255,.05) 1px, transparent 1.6px) 0 0 / 11px 11px,
-    radial-gradient(circle at 50% -10%, color-mix(in srgb, var(--acc, #60a5fa) 40%, #16273f), #0b1524 78%);
+    radial-gradient(rgba(255,255,255,.05) 1px, transparent 1.5px) 0 0 / 12px 12px,
+    linear-gradient(157deg,
+      color-mix(in srgb, var(--acc, #60a5fa) 58%, #0a1220),
+      color-mix(in srgb, var(--acc, #60a5fa) 22%, #0a1220) 76%);
 }
-.fig-bg.dim { filter: saturate(.35) brightness(.62); }
+.fig-bg.dim { background:
+    linear-gradient(157deg, color-mix(in srgb, var(--acc,#60a5fa) 20%, #0a1220), #0a1220 78%); }
 
-/* codigo no cantinho (estilo Copa) */
-.fig-code {
-  position: absolute; top: 5px; left: 6px; z-index: 3;
-  font: 800 .5rem/1 ui-monospace, "SFMono-Regular", monospace; letter-spacing: .03em;
-  color: color-mix(in srgb, var(--acc, #60a5fa) 45%, #fff);
-  background: rgba(0,0,0,.4); padding: 1px 5px; border-radius: 6px;
+/* contorno real do pais (assets/shapes) como marca d'agua */
+.fig-shape {
+  position: absolute; top: 46%; left: 50%; transform: translate(-50%, -50%);
+  width: 78%; height: 62%; object-fit: contain; z-index: 1; pointer-events: none;
+  opacity: .13; filter: brightness(0) invert(1);
 }
+.fig-shape.big { width: 66%; height: 60%; opacity: .3; }
 
-/* moldura da bandeira */
-.fig-frame {
-  position: relative; z-index: 2; padding: 3px; border-radius: 8px; align-self: center;
-  width: 100%;
-  background: linear-gradient(135deg, #aab3c0, #6a7482 45%, #c3cad4 62%, #6a7482);
-  box-shadow: inset 0 0 0 1px rgba(255,255,255,.18), 0 2px 7px rgba(0,0,0,.4);
-}
-.fig-flag {
-  display: block; width: 100%; aspect-ratio: 3/2; object-fit: cover;
-  border-radius: 5px;
-}
+/* varredura metalica sobre o card inteiro (brilho fixo e legend) */
 .fig-foil { display: none; }
-
-/* nome */
-.fig-name {
-  position: relative; z-index: 2; margin-top: auto;
-  font: 900 .6rem/1.15 "Nunito", system-ui, sans-serif;
-  text-transform: uppercase; letter-spacing: .02em; text-align: center; color: #fff;
-  text-shadow: 0 1px 3px rgba(0,0,0,.75);
-  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+.fig-card.shiny .fig-foil, .fig-card.legend .fig-foil {
+  display: block; position: absolute; inset: 0; z-index: 3; pointer-events: none;
+  background: linear-gradient(112deg, transparent 34%, rgba(255,255,255,.4) 47%,
+              rgba(255,255,255,.08) 54%, transparent 68%);
+  background-size: 280% 280%;
+  animation: metalSweep 3.4s linear infinite;
+}
+.fig-card.shiny .fig-foil { mix-blend-mode: overlay; }
+.fig-card.legend .fig-foil { mix-blend-mode: screen; animation-duration: 2.8s; }
+.fig-card.shiny .fig {
+  box-shadow: 0 3px 14px rgba(0,0,0,.45), inset 0 0 0 1.5px rgba(255,255,255,.32),
+              inset 0 0 24px rgba(255,255,255,.12);
 }
 
-/* ---- BRILHO FIXO / RARIDADE: so a MOLDURA muda ---- */
-@keyframes metalSweep { 0% { background-position: 0% 50%; } 100% { background-position: 300% 50%; } }
-
-.fig-card.shiny .fig-frame {
-  background-image: linear-gradient(115deg, #e7edf4, #8b95a3 22%, #ffffff 40%, #9aa5b3 58%, #e7edf4 80%, #8b95a3);
-  background-size: 300% 100%;
-  animation: metalSweep 3s linear infinite;
-  box-shadow: inset 0 0 0 1px rgba(255,255,255,.35), 0 0 12px rgba(226,232,240,.45), 0 2px 8px rgba(0,0,0,.4);
-}
-.fig-card.shiny .fig-foil {
-  display: block; position: absolute; inset: 3px; border-radius: 5px; pointer-events: none;
-  background: linear-gradient(115deg, transparent 38%, rgba(255,255,255,.5) 50%, transparent 62%);
-  background-size: 250% 250%; animation: metalSweep 3s linear infinite; mix-blend-mode: screen;
-}
-
-.fig-card.rarity-roxa   .fig-frame { background-image: linear-gradient(115deg,#3a1163,#c77dff 30%,#f0d6ff 46%,#9d4edd 62%,#3a1163); box-shadow: inset 0 0 0 1px rgba(255,255,255,.3), 0 0 16px 2px rgba(168,85,247,.6), 0 2px 8px rgba(0,0,0,.4); }
-.fig-card.rarity-bronze .fig-frame { background-image: linear-gradient(115deg,#5b2f14,#e0a06a 30%,#ffd9b0 46%,#b06a35 62%,#5b2f14); box-shadow: inset 0 0 0 1px rgba(255,255,255,.28), 0 0 16px 2px rgba(205,127,50,.6), 0 2px 8px rgba(0,0,0,.4); }
-.fig-card.rarity-prata  .fig-frame { background-image: linear-gradient(115deg,#5c6672,#e8eef5 30%,#ffffff 46%,#aab4c0 62%,#5c6672); box-shadow: inset 0 0 0 1px rgba(255,255,255,.4), 0 0 18px 3px rgba(226,232,240,.75), 0 2px 8px rgba(0,0,0,.4); }
-.fig-card.rarity-ouro   .fig-frame { background-image: linear-gradient(115deg,#6e4d12,#ffe38a 28%,#fff6d0 46%,#d19a2b 62%,#6e4d12); box-shadow: inset 0 0 0 1px rgba(255,255,255,.4), 0 0 22px 4px rgba(251,191,36,.8), 0 2px 8px rgba(0,0,0,.4); padding: 3.5px; }
-.fig-card.rarity-roxa .fig-frame, .fig-card.rarity-bronze .fig-frame,
-.fig-card.rarity-prata .fig-frame, .fig-card.rarity-ouro .fig-frame {
-  background-size: 300% 100%; animation: metalSweep 2.6s linear infinite;
-}
-.fig-card.rarity-ouro .fig, .fig-card.rarity-roxa .fig,
-.fig-card.rarity-prata .fig, .fig-card.rarity-bronze .fig {
-  box-shadow: 0 3px 16px rgba(0,0,0,.5), inset 0 0 30px color-mix(in srgb, var(--acc,#60a5fa) 12%, transparent);
-}
+/* ---- LEGEND: o card inteiro vira a cor da raridade, metalico ---- */
+.fig-card.legend .fig-bg { animation: metalSweep 2.6s linear infinite; background-size: 240% 240%; }
+.fig-card.rarity-roxa   .fig-bg { background-image: linear-gradient(125deg,#2a0a4d,#a855f7 28%,#efdcff 46%,#7c3aed 62%,#2a0a4d); }
+.fig-card.rarity-bronze .fig-bg { background-image: linear-gradient(125deg,#3f2109,#d98e4f 28%,#ffe0c2 46%,#a05a2c 62%,#3f2109); }
+.fig-card.rarity-prata  .fig-bg { background-image: linear-gradient(125deg,#4a525d,#dfe6ef 28%,#ffffff 46%,#9aa5b2 62%,#4a525d); }
+.fig-card.rarity-ouro   .fig-bg { background-image: linear-gradient(125deg,#5e440f,#ffd766 26%,#fff5cf 46%,#c8962a 62%,#5e440f); }
+.fig-card.legend .fig-shape { opacity: .2; }
+.fig-card.rarity-roxa   .fig { box-shadow: 0 3px 18px rgba(0,0,0,.5), inset 0 0 0 2px rgba(255,255,255,.35), 0 0 18px 2px rgba(168,85,247,.55); }
+.fig-card.rarity-bronze .fig { box-shadow: 0 3px 18px rgba(0,0,0,.5), inset 0 0 0 2px rgba(255,255,255,.35), 0 0 18px 2px rgba(205,127,50,.55); }
+.fig-card.rarity-prata  .fig { box-shadow: 0 3px 18px rgba(0,0,0,.5), inset 0 0 0 2px rgba(255,255,255,.45), 0 0 20px 3px rgba(226,232,240,.6); }
+.fig-card.rarity-ouro   .fig { box-shadow: 0 3px 18px rgba(0,0,0,.5), inset 0 0 0 2px rgba(255,255,255,.45), 0 0 24px 4px rgba(251,191,36,.7); }
 
 @media (prefers-reduced-motion: reduce) {
-  .fig-frame, .fig-foil { animation: none !important; }
+  .fig-bg, .fig-foil { animation: none !important; }
 }
 
-/* ---- slot vazio ---- */
-.fig-card.missing .fig-frame.empty {
-  background: none; padding: 0;
-  border: 2px dashed color-mix(in srgb, var(--acc, #60a5fa) 38%, rgba(255,255,255,.22));
-  box-shadow: none;
+/* ---- a bandeira ---- */
+.fig-flagwrap { position: relative; z-index: 4; width: 70%; margin: 3px auto 7px; }
+.fig-flag {
+  display: block; width: 100%; aspect-ratio: 3/2; object-fit: cover;
+  border-radius: 4px; border: 2px solid rgba(255,255,255,.9);
+  box-shadow: 0 2px 7px rgba(0,0,0,.5);
 }
-.fig-card.missing .fig-sil {
-  width: 100%; aspect-ratio: 3/2; object-fit: contain; padding: 12px;
-  opacity: .22; filter: brightness(0) invert(1);
+
+/* ---- nome + codigo (juntos, embaixo) ---- */
+.fig-foot {
+  position: relative; z-index: 4; margin-top: auto;
+  display: flex; flex-direction: column; align-items: center; gap: 1px;
 }
-.fig-card.missing .fig-name { color: var(--text-muted); }
-.fig-card.has-pilha .fig-frame.empty {
-  border-color: color-mix(in srgb, var(--acc, #60a5fa) 75%, #fff);
-  animation: plusPulse 1.8s ease-in-out infinite;
+.fig-name {
+  font: 900 .6rem/1.15 "Nunito", system-ui, sans-serif;
+  text-transform: uppercase; letter-spacing: .02em; text-align: center; color: #fff;
+  text-shadow: 0 1px 3px rgba(0,0,0,.85);
+  max-width: 100%; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
 }
+.fig-code {
+  font: 800 .5rem/1 ui-monospace, "SFMono-Regular", monospace; letter-spacing: .08em;
+  color: rgba(255,255,255,.82); text-shadow: 0 1px 3px rgba(0,0,0,.9);
+}
+.fig-card.missing .fig-name { color: color-mix(in srgb, #fff 62%, var(--acc, #60a5fa)); }
+
+/* ---- slot vazio / "+" ---- */
+.fig-card.has-pilha .fig { box-shadow: 0 0 0 2px color-mix(in srgb, var(--acc,#60a5fa) 70%, #fff), 0 3px 12px rgba(0,0,0,.42); animation: plusPulse 1.8s ease-in-out infinite; }
+.fig-card .ac-plus {
+  position: absolute; z-index: 5; top: 44%; left: 50%; transform: translate(-50%, -50%);
+  width: 34px; height: 34px;
+}
+.fig-card .ac-plus:hover { transform: translate(-50%, -50%) scale(1.12); }
+.fig-card .ac-plus:active { transform: translate(-50%, -50%) scale(.95); }
 
 /* badges */
 .fig-count {
-  position: absolute; top: 5px; right: 6px; z-index: 4;
+  position: absolute; top: 5px; right: 6px; z-index: 5;
   font: 900 .56rem/1 "Nunito", sans-serif;
   background: rgba(0,0,0,.72); color: #fff; border-radius: 8px; padding: 1px 5px;
   border: 1px solid rgba(255,255,255,.25);
 }
 .fig-up {
-  position: absolute; bottom: 24px; right: 6px; z-index: 4;
+  position: absolute; bottom: 30px; right: 6px; z-index: 5;
   width: 22px; height: 22px; border-radius: 8px;
   background: linear-gradient(135deg, #a855f7, #7c3aed);
   color: #fff; border: 1px solid rgba(255,255,255,.5);
@@ -1129,19 +1137,20 @@
 }
 .fig-up:hover { transform: scale(1.15); }
 
-/* colar: a bandeira "desce" pra dentro da moldura */
+/* colar: a bandeira "desce" e assenta */
 .album-card.just-glued .fig-flag { animation: stickDown 1.15s cubic-bezier(0.22, 1, 0.36, 1); }
-.album-card.just-glued .ac-frame { animation: none; }
 
 /* ---- pack-card (tela de revelacao) usa o mesmo card ---- */
 .pack-card.fig-card { opacity: 0; transform: translateY(14px) scale(.9); animation: packCardIn .4s ease forwards; }
-.pack-card.fig-card .fig { min-height: 138px; }
+.pack-card.fig-card .fig { min-height: 150px; }
+.pack-card .fig-flagwrap { width: 72%; }
 .pc-tag {
-  position: relative; z-index: 2; font: 900 .55rem/1 "Nunito", sans-serif;
-  text-transform: uppercase; letter-spacing: .03em; text-align: center; color: var(--text-muted);
+  position: relative; z-index: 4; margin-top: 3px;
+  font: 900 .55rem/1 "Nunito", sans-serif;
+  text-transform: uppercase; letter-spacing: .03em; text-align: center; color: rgba(255,255,255,.65);
 }
 .pack-card.is-new .pc-tag { color: #4ade80; }
-.pc-star { z-index: 5; }
+.pc-star { z-index: 6; }
 
 /* =====================================================
    FASE 11 — ENVELOPE: rasgo mexe na estrutura, toque NAO abre
