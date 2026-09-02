@@ -1009,3 +1009,195 @@
     filter: drop-shadow(0 2px 8px rgba(0,0,0,.4));
   }
 }
+
+/* =====================================================
+   FASE 11 — FIGURINHA COMPOSTA (card de verdade)
+   a bandeira faz parte da figurinha; fundo por continente,
+   nome, codigo, e uma MOLDURA que fica metalica/colorida
+   conforme brilho fixo ou raridade
+   ===================================================== */
+
+.album-grid { grid-template-columns: repeat(auto-fill, minmax(96px, 1fr)); }
+
+.fig-card { display: block; }
+.fig-card .fig {
+  position: relative; display: flex; flex-direction: column; gap: 5px;
+  padding: 8px 6px 7px; border-radius: 13px; overflow: hidden;
+  min-height: 122px; box-shadow: 0 3px 12px rgba(0,0,0,.42);
+}
+
+/* fundo do card (tingido pelo continente) */
+.fig-bg {
+  position: absolute; inset: 0; z-index: 0;
+  background:
+    radial-gradient(rgba(255,255,255,.05) 1px, transparent 1.6px) 0 0 / 11px 11px,
+    radial-gradient(circle at 50% -10%, color-mix(in srgb, var(--acc, #60a5fa) 40%, #16273f), #0b1524 78%);
+}
+.fig-bg.dim { filter: saturate(.35) brightness(.62); }
+
+/* codigo no cantinho (estilo Copa) */
+.fig-code {
+  position: absolute; top: 5px; left: 6px; z-index: 3;
+  font: 800 .5rem/1 ui-monospace, "SFMono-Regular", monospace; letter-spacing: .03em;
+  color: color-mix(in srgb, var(--acc, #60a5fa) 45%, #fff);
+  background: rgba(0,0,0,.4); padding: 1px 5px; border-radius: 6px;
+}
+
+/* moldura da bandeira */
+.fig-frame {
+  position: relative; z-index: 2; padding: 3px; border-radius: 8px; align-self: center;
+  width: 100%;
+  background: linear-gradient(135deg, #aab3c0, #6a7482 45%, #c3cad4 62%, #6a7482);
+  box-shadow: inset 0 0 0 1px rgba(255,255,255,.18), 0 2px 7px rgba(0,0,0,.4);
+}
+.fig-flag {
+  display: block; width: 100%; aspect-ratio: 3/2; object-fit: cover;
+  border-radius: 5px;
+}
+.fig-foil { display: none; }
+
+/* nome */
+.fig-name {
+  position: relative; z-index: 2; margin-top: auto;
+  font: 900 .6rem/1.15 "Nunito", system-ui, sans-serif;
+  text-transform: uppercase; letter-spacing: .02em; text-align: center; color: #fff;
+  text-shadow: 0 1px 3px rgba(0,0,0,.75);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+
+/* ---- BRILHO FIXO / RARIDADE: so a MOLDURA muda ---- */
+@keyframes metalSweep { 0% { background-position: 0% 50%; } 100% { background-position: 300% 50%; } }
+
+.fig-card.shiny .fig-frame {
+  background-image: linear-gradient(115deg, #e7edf4, #8b95a3 22%, #ffffff 40%, #9aa5b3 58%, #e7edf4 80%, #8b95a3);
+  background-size: 300% 100%;
+  animation: metalSweep 3s linear infinite;
+  box-shadow: inset 0 0 0 1px rgba(255,255,255,.35), 0 0 12px rgba(226,232,240,.45), 0 2px 8px rgba(0,0,0,.4);
+}
+.fig-card.shiny .fig-foil {
+  display: block; position: absolute; inset: 3px; border-radius: 5px; pointer-events: none;
+  background: linear-gradient(115deg, transparent 38%, rgba(255,255,255,.5) 50%, transparent 62%);
+  background-size: 250% 250%; animation: metalSweep 3s linear infinite; mix-blend-mode: screen;
+}
+
+.fig-card.rarity-roxa   .fig-frame { background-image: linear-gradient(115deg,#3a1163,#c77dff 30%,#f0d6ff 46%,#9d4edd 62%,#3a1163); box-shadow: inset 0 0 0 1px rgba(255,255,255,.3), 0 0 16px 2px rgba(168,85,247,.6), 0 2px 8px rgba(0,0,0,.4); }
+.fig-card.rarity-bronze .fig-frame { background-image: linear-gradient(115deg,#5b2f14,#e0a06a 30%,#ffd9b0 46%,#b06a35 62%,#5b2f14); box-shadow: inset 0 0 0 1px rgba(255,255,255,.28), 0 0 16px 2px rgba(205,127,50,.6), 0 2px 8px rgba(0,0,0,.4); }
+.fig-card.rarity-prata  .fig-frame { background-image: linear-gradient(115deg,#5c6672,#e8eef5 30%,#ffffff 46%,#aab4c0 62%,#5c6672); box-shadow: inset 0 0 0 1px rgba(255,255,255,.4), 0 0 18px 3px rgba(226,232,240,.75), 0 2px 8px rgba(0,0,0,.4); }
+.fig-card.rarity-ouro   .fig-frame { background-image: linear-gradient(115deg,#6e4d12,#ffe38a 28%,#fff6d0 46%,#d19a2b 62%,#6e4d12); box-shadow: inset 0 0 0 1px rgba(255,255,255,.4), 0 0 22px 4px rgba(251,191,36,.8), 0 2px 8px rgba(0,0,0,.4); padding: 3.5px; }
+.fig-card.rarity-roxa .fig-frame, .fig-card.rarity-bronze .fig-frame,
+.fig-card.rarity-prata .fig-frame, .fig-card.rarity-ouro .fig-frame {
+  background-size: 300% 100%; animation: metalSweep 2.6s linear infinite;
+}
+.fig-card.rarity-ouro .fig, .fig-card.rarity-roxa .fig,
+.fig-card.rarity-prata .fig, .fig-card.rarity-bronze .fig {
+  box-shadow: 0 3px 16px rgba(0,0,0,.5), inset 0 0 30px color-mix(in srgb, var(--acc,#60a5fa) 12%, transparent);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .fig-frame, .fig-foil { animation: none !important; }
+}
+
+/* ---- slot vazio ---- */
+.fig-card.missing .fig-frame.empty {
+  background: none; padding: 0;
+  border: 2px dashed color-mix(in srgb, var(--acc, #60a5fa) 38%, rgba(255,255,255,.22));
+  box-shadow: none;
+}
+.fig-card.missing .fig-sil {
+  width: 100%; aspect-ratio: 3/2; object-fit: contain; padding: 12px;
+  opacity: .22; filter: brightness(0) invert(1);
+}
+.fig-card.missing .fig-name { color: var(--text-muted); }
+.fig-card.has-pilha .fig-frame.empty {
+  border-color: color-mix(in srgb, var(--acc, #60a5fa) 75%, #fff);
+  animation: plusPulse 1.8s ease-in-out infinite;
+}
+
+/* badges */
+.fig-count {
+  position: absolute; top: 5px; right: 6px; z-index: 4;
+  font: 900 .56rem/1 "Nunito", sans-serif;
+  background: rgba(0,0,0,.72); color: #fff; border-radius: 8px; padding: 1px 5px;
+  border: 1px solid rgba(255,255,255,.25);
+}
+.fig-up {
+  position: absolute; bottom: 24px; right: 6px; z-index: 4;
+  width: 22px; height: 22px; border-radius: 8px;
+  background: linear-gradient(135deg, #a855f7, #7c3aed);
+  color: #fff; border: 1px solid rgba(255,255,255,.5);
+  font-size: .8rem; line-height: 1; display: grid; place-items: center;
+}
+.fig-up:hover { transform: scale(1.15); }
+
+/* colar: a bandeira "desce" pra dentro da moldura */
+.album-card.just-glued .fig-flag { animation: stickDown 1.15s cubic-bezier(0.22, 1, 0.36, 1); }
+.album-card.just-glued .ac-frame { animation: none; }
+
+/* ---- pack-card (tela de revelacao) usa o mesmo card ---- */
+.pack-card.fig-card { opacity: 0; transform: translateY(14px) scale(.9); animation: packCardIn .4s ease forwards; }
+.pack-card.fig-card .fig { min-height: 138px; }
+.pc-tag {
+  position: relative; z-index: 2; font: 900 .55rem/1 "Nunito", sans-serif;
+  text-transform: uppercase; letter-spacing: .03em; text-align: center; color: var(--text-muted);
+}
+.pack-card.is-new .pc-tag { color: #4ade80; }
+.pc-star { z-index: 5; }
+
+/* =====================================================
+   FASE 11 — ENVELOPE: rasgo mexe na estrutura, toque NAO abre
+   ===================================================== */
+.pack-stage { min-height: 184px; }
+.pack-wrapper { overflow: visible; }
+
+/* aba/tampa que levanta ao rasgar */
+.pack-lid {
+  position: absolute; top: -3px; left: -3px; right: -3px; height: 40%;
+  border-radius: 18px 18px 4px 4px;
+  background: linear-gradient(140deg, #f8b74d, #c96a1c);
+  border-bottom: 2px dashed rgba(255,255,255,.9);
+  transform-origin: bottom center; transform: perspective(520px) rotateX(0deg);
+  opacity: 0; z-index: 4; pointer-events: none;
+  clip-path: polygon(0 0,100% 0,100% 68%,93% 84%,86% 68%,79% 86%,72% 68%,65% 86%,58% 68%,51% 86%,44% 68%,37% 86%,30% 68%,23% 84%,16% 68%,9% 84%,0 68%);
+}
+.pack-wrapper.tearing { transform: rotate(calc(var(--tear, 0) * -2.5deg)) scale(1.015); }
+.pack-wrapper.tearing .pack-lid {
+  opacity: 1;
+  transform: perspective(520px) rotateX(calc(var(--tear, 0) * -85deg));
+}
+.pack-wrapper.tearing .pack-emoji { transform: translateY(calc(var(--tear,0) * 6px)); }
+
+/* dica: risco atravessando sozinho + "arraste" */
+@keyframes tearHintMove {
+  0%, 100% { left: 9%; opacity: .25; }
+  12% { opacity: 1; }
+  50% { left: 64%; opacity: 1; }
+  64% { opacity: .15; }
+}
+.pack-wrapper:not(.tearing):not(.opening) .pack-tear-line {
+  animation: tearHintMove 2.4s ease-in-out infinite;
+}
+.pack-hint { animation: hintBob 2.4s ease-in-out infinite; }
+@keyframes hintBob { 50% { opacity: .55; transform: translateY(1px); } }
+
+/* chacoalha quando a pessoa so toca (nao arrasta) */
+@keyframes packShake {
+  0%, 100% { transform: translateX(0) rotate(0); }
+  20% { transform: translateX(-5px) rotate(-1.5deg); }
+  40% { transform: translateX(5px) rotate(1.5deg); }
+  60% { transform: translateX(-3px) rotate(-1deg); }
+  80% { transform: translateX(3px) rotate(1deg); }
+}
+.pack-wrapper.hinting { animation: packShake .5s ease; }
+.pack-wrapper.hinting .pack-tear-line { animation-duration: .5s; }
+@media (prefers-reduced-motion: reduce) {
+  .pack-wrapper.hinting { animation: none; }
+  .pack-wrapper:not(.tearing) .pack-tear-line { animation: none; }
+}
+
+/* ajuste: o "+" nao pode invadir o nome */
+.fig-card .ac-plus {
+  width: 30%; max-width: 34px; z-index: 5;
+  top: 50%; left: 50%; transform: translate(-50%, -50%);
+}
+.fig-card .ac-plus:hover { transform: translate(-50%, -50%) scale(1.12); }
+.fig-card .ac-plus:active { transform: translate(-50%, -50%) scale(0.95); }

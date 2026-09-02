@@ -1667,33 +1667,40 @@ document.addEventListener('DOMContentLoaded', () => {
             const pilha = pilhaOf(c.codigo);
             const item = document.createElement('div');
 
+            item.style.setProperty('--acc', meta.accent);
+
             if (!colada) {
                 const canGlue = pilha.length > 0;
-                item.className = 'album-card missing' + (canGlue ? ' has-pilha' : '');
+                item.className = 'album-card fig-card missing' + (canGlue ? ' has-pilha' : '');
                 item.innerHTML = `
-                    <div class="ac-frame">
-                        <img class="ac-silhouette" src="assets/shapes/${c.codigo}.svg" alt="" loading="lazy"
-                             onerror="this.style.display='none'">
-                        ${canGlue
-                        ? `<button class="ac-plus" data-glue="${c.codigo}" aria-label="Colar">+</button>`
-                        : `<span class="ac-num">${code}</span>`}
-                    </div>
-                    <div class="ac-name">${c.nome}</div>`;
+                    <div class="fig">
+                        <span class="fig-bg dim"></span>
+                        <span class="fig-code">${code}</span>
+                        <div class="fig-frame empty">
+                            <img class="fig-sil" src="assets/shapes/${c.codigo}.svg" alt="" loading="lazy"
+                                 onerror="this.style.display='none'">
+                            ${canGlue ? `<button class="ac-plus" data-glue="${c.codigo}" aria-label="Colar">+</button>` : ''}
+                        </div>
+                        <div class="fig-name">${c.nome}</div>
+                    </div>`;
             } else {
-                const holo = !!c.fixedShiny || colada === 'ouro' || colada === 'prata' || colada === 'bronze' || colada === 'roxa';
+                const shiny = !!c.fixedShiny || colada !== 'base';
                 const better = bestPilha(c.codigo);
                 const canUp = better && RARITY_ORDER.indexOf(better) > RARITY_ORDER.indexOf(colada);
-                item.className = `album-card collected rarity-${colada}` + (holo ? ' holo' : '');
-                const badge = pilha.length ? `<span class="ac-count" title="Na pilha">×${pilha.length}</span>` : '';
-                const up = canUp ? `<button class="ac-up" data-glue="${c.codigo}" data-rar="${better}" title="Colar a versão ${better}">⬆</button>` : '';
+                item.className = `album-card fig-card collected rarity-${colada}` + (shiny ? ' shiny' : '');
+                const badge = pilha.length ? `<span class="fig-count" title="Na pilha">×${pilha.length}</span>` : '';
+                const up = canUp ? `<button class="fig-up" data-glue="${c.codigo}" data-rar="${better}" title="Colar a versão ${better}">⬆</button>` : '';
                 item.innerHTML = `
-                    <div class="ac-frame">
-                        <img src="assets/flags/${c.codigo}.png" alt="${c.nome}" loading="lazy">
-                        <span class="ac-shine"></span>
-                        <span class="ac-code">${code}</span>
+                    <div class="fig">
+                        <span class="fig-bg"></span>
+                        <span class="fig-code">${code}</span>
+                        <div class="fig-frame">
+                            <img class="fig-flag" src="assets/flags/${c.codigo}.png" alt="${c.nome}" loading="lazy">
+                            <span class="fig-foil"></span>
+                        </div>
+                        <div class="fig-name">${c.nome}</div>
                         ${badge}${up}
-                    </div>
-                    <div class="ac-name">${c.nome}</div>`;
+                    </div>`;
             }
             item.title = `${code} · ${c.nome}`;
             grid.appendChild(item);
@@ -1703,19 +1710,6 @@ document.addEventListener('DOMContentLoaded', () => {
             b.addEventListener('click', e => {
                 e.stopPropagation();
                 doGlue(b.dataset.glue, b.dataset.rar, b);
-            });
-        });
-
-        // toque na figurinha colada mostra a sigla por 2s (no desktop ja aparece no hover)
-        grid.querySelectorAll('.album-card.collected').forEach(card => {
-            card.addEventListener('click', e => {
-                if (e.target.closest('[data-glue]')) return;
-                grid.querySelectorAll('.album-card.show-code').forEach(c => { if (c !== card) c.classList.remove('show-code'); });
-                card.classList.toggle('show-code');
-                clearTimeout(card._codeT);
-                if (card.classList.contains('show-code')) {
-                    card._codeT = setTimeout(() => card.classList.remove('show-code'), 2200);
-                }
             });
         });
 
@@ -1741,7 +1735,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // cola com animação (a figurinha "desce" e gruda) + confete + som
     function doGlue(code, rar, btn) {
-        const frame = btn.closest('.ac-frame');
+        const frame = btn.closest('.fig-frame') || btn.closest('.fig');
         if (glueSticker(code, rar)) {
             if (window.SFX) window.SFX.play('sticker_paste');
             if (!calmMode && typeof confetti !== 'undefined' && frame) {
@@ -1964,16 +1958,21 @@ document.addEventListener('DOMContentLoaded', () => {
 
             results.forEach((r, i) => {
                 const card = document.createElement('div');
-                card.className = `pack-card rarity-${r.rarity}` + (r.isNew ? ' is-new' : '');
+                const shiny = !!r.country.fixedShiny || r.rarity !== 'base';
+                card.className = `pack-card fig-card rarity-${r.rarity}` + (r.isNew ? ' is-new' : '') + (shiny ? ' shiny' : '');
                 card.style.animationDelay = `${i * 0.14}s`;
+                card.style.setProperty('--acc', (CONTINENT_META[r.country.continente] || {}).accent || '#60a5fa');
                 card.innerHTML = `
-                    <div class="pc-frame">
-                        <img src="assets/flags/${r.country.codigo}.png" alt="${r.country.nome}">
-                        <span class="ac-shine"></span>
+                    <div class="fig">
+                        <span class="fig-bg"></span>
                         ${r.isNew ? '<span class="pc-star">★</span>' : ''}
-                    </div>
-                    <div class="pc-name">${r.country.nome}</div>
-                    <div class="pc-tag">${r.isNew ? (RARITY_LABELS[r.rarity] || RARITY_LABELS.base).text : 'repetida'}</div>`;
+                        <div class="fig-frame">
+                            <img class="fig-flag" src="assets/flags/${r.country.codigo}.png" alt="${r.country.nome}">
+                            <span class="fig-foil"></span>
+                        </div>
+                        <div class="fig-name">${r.country.nome}</div>
+                        <div class="pc-tag">${r.isNew ? (RARITY_LABELS[r.rarity] || RARITY_LABELS.base).text : 'repetida'}</div>
+                    </div>`;
                 elements.openedStickers.appendChild(card);
             });
 
@@ -2026,8 +2025,14 @@ document.addEventListener('DOMContentLoaded', () => {
         stage.addEventListener('pointerup', () => { if (dragging) cancelTear(); });
         stage.addEventListener('pointercancel', cancelTear);
 
-        // toque simples / clique tambem abre (acessivel)
-        stage.addEventListener('click', () => { if (!moved) runPackOpen(); moved = false; });
+        // toque simples NAO abre: mostra o gesto (chacoalha + risco atravessa)
+        stage.addEventListener('click', () => {
+            if (moved) { moved = false; return; }
+            const el = wrap(); if (!el || stage.classList.contains('opening')) return;
+            el.classList.remove('hinting'); void el.offsetWidth; el.classList.add('hinting');
+            if (window.SFX) window.SFX.play('tap');
+            setTimeout(() => el.classList.remove('hinting'), 900);
+        });
     })();
 
     // lista "o que fazer com as novas" (só as que ainda não estão coladas)
