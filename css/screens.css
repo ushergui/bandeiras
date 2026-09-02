@@ -1647,3 +1647,132 @@
 @media (max-width: 460px) {
   .fig-card.nano .fig-sub, .tm-mini .fig-sub { display: none; }
 }
+
+/* =====================================================
+   FASE 20 — sub-linha menor, zoom da figurinha
+   ===================================================== */
+
+/* cidade · UF menor pra sobrar espaço pro nome da paisagem */
+.fig-sub { font-size: .36rem; }
+.fig-card.is-collection .fig-name { font-size: .52rem; }
+
+/* ---- zoom: aproxima a figurinha sem tirar do álbum ---- */
+.fig-zoom {
+  position: fixed; inset: 0; z-index: 240;
+  display: grid; place-items: center; padding: 20px;
+  background: rgba(4, 9, 18, .78);
+  -webkit-backdrop-filter: blur(4px); backdrop-filter: blur(4px);
+  animation: fzFade .18s ease;
+}
+.fig-zoom.hidden { display: none; }
+@keyframes fzFade { from { opacity: 0; } }
+
+.fig-zoom-x {
+  position: absolute; top: 14px; right: 14px; z-index: 2;
+  width: 40px; height: 40px; min-height: 0; border-radius: 12px;
+  background: rgba(255,255,255,.1); border: 1px solid rgba(255,255,255,.2);
+  color: #fff; font-size: 1rem; display: grid; place-items: center;
+}
+
+.fig-zoom-stage {
+  display: flex; flex-direction: column; align-items: center; gap: 14px;
+  width: 100%; max-width: 360px;
+  animation: fzPop .28s cubic-bezier(.2, 1.3, .4, 1);
+}
+@keyframes fzPop { from { transform: scale(.55); opacity: 0; } }
+
+.fig-zoom-card { width: min(72vw, 300px); }
+.fig-zoom-card .fig-card { width: 100%; }
+.fig-zoom-card .fig-card .fig { min-height: 0; padding: 12px 12px 11px; border-radius: 18px; }
+.fig-zoom-card .fig-flagwrap { width: 78%; }
+.fig-zoom-card .fig-name { font-size: 1rem; white-space: normal; -webkit-line-clamp: 3; }
+.fig-zoom-card .fig-sub { font-size: .68rem; }
+.fig-zoom-card .fig-code { font-size: .62rem; }
+.fig-zoom-card .fig-card.is-collection .fig-name { font-size: .95rem; }
+
+.fig-zoom-info {
+  text-align: center; color: #fff; width: 100%;
+  background: rgba(255,255,255,.06); border: 1px solid rgba(255,255,255,.1);
+  border-radius: 16px; padding: 14px 16px;
+}
+.fig-zoom-info h3 { margin: 0 0 4px; font-size: 1.15rem; line-height: 1.2; }
+.fz-code {
+  display: inline-block; font: 800 .72rem/1 ui-monospace, monospace; letter-spacing: .08em;
+  background: rgba(0,0,0,.35); color: color-mix(in srgb, var(--accent-blue, #60a5fa) 60%, #fff);
+  padding: 2px 8px; border-radius: 7px; margin-bottom: 8px;
+}
+.fig-zoom-info p { margin: 4px 0; font-size: .9rem; color: rgba(255,255,255,.8); }
+.fig-zoom-info .fz-rar { font-weight: 800; color: #fde68a; }
+
+@media (prefers-reduced-motion: reduce) {
+  .fig-zoom, .fig-zoom-stage { animation: none; }
+}
+
+/* =====================================================
+   FASE 21 — modos Forca e Mapa
+   ===================================================== */
+
+/* ---------- FORCA ---------- */
+.forca { display: flex; flex-direction: column; align-items: center; gap: 16px; padding: 6px 0 4px; }
+.forca.hidden { display: none; }
+
+.forca-top { display: flex; align-items: center; gap: 16px; }
+.forca-svg { width: 108px; height: 118px; color: #cbd5e1; flex-shrink: 0; }
+.forca-svg .fp { opacity: 0; transition: opacity .25s ease; }
+.forca-svg[data-wrong="1"] .fp1,
+.forca-svg[data-wrong="2"] .fp1, .forca-svg[data-wrong="2"] .fp2,
+.forca-svg[data-wrong="3"] .fp1, .forca-svg[data-wrong="3"] .fp2, .forca-svg[data-wrong="3"] .fp3,
+.forca-svg[data-wrong="4"] .fp1, .forca-svg[data-wrong="4"] .fp2, .forca-svg[data-wrong="4"] .fp3, .forca-svg[data-wrong="4"] .fp4,
+.forca-svg[data-wrong="5"] .fp1, .forca-svg[data-wrong="5"] .fp2, .forca-svg[data-wrong="5"] .fp3, .forca-svg[data-wrong="5"] .fp4, .forca-svg[data-wrong="5"] .fp5,
+.forca-svg[data-wrong="6"] .fp { opacity: 1; }
+.forca-svg[data-wrong="6"] .forca-body { color: #f87171; }
+.forca-svg[data-wrong="6"] { color: #f87171; }
+
+.forca-meta { display: flex; flex-direction: column; gap: 6px; text-align: left; }
+.forca-hint { font-size: .82rem; color: var(--text-muted); font-weight: 700; }
+.forca-wrong { font-size: 1rem; font-weight: 900; color: #fca5a5; }
+
+.forca-word { display: flex; flex-wrap: wrap; justify-content: center; gap: 5px 4px; max-width: 92vw; }
+.fw-slot {
+  min-width: 24px; height: 34px; padding: 0 3px;
+  border-bottom: 3px solid rgba(255,255,255,.35);
+  display: grid; place-items: center;
+  font: 900 1.25rem/1 "Nunito", sans-serif; color: #fff;
+}
+.fw-slot.filled { border-color: var(--accent-green, #4ade80); animation: fwIn .25s ease; }
+@keyframes fwIn { from { transform: translateY(-6px); opacity: 0; } }
+.fw-space { width: 14px; }
+
+.forca-keys {
+  display: grid; grid-template-columns: repeat(9, 1fr); gap: 5px;
+  width: 100%; max-width: 420px;
+}
+.fk {
+  min-height: 0; aspect-ratio: 1; border-radius: 8px; padding: 0;
+  font: 900 .95rem/1 "Nunito", sans-serif;
+  background: rgba(255,255,255,.09); border: 1px solid rgba(255,255,255,.14); color: #fff;
+}
+.fk:disabled { opacity: 1; }
+.fk.hit { background: color-mix(in srgb, var(--accent-green,#22c55e) 40%, #0b1524); border-color: #22c55e; }
+.fk.miss { background: rgba(239,68,68,.18); border-color: rgba(239,68,68,.4); color: #fca5a5; opacity: .5; }
+@media (max-width: 380px) { .forca-keys { grid-template-columns: repeat(7, 1fr); } .fk { font-size: .85rem; } }
+
+/* ---------- MAPA (contorno) ---------- */
+.options-container.shape-options {
+  display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px;
+  max-width: 460px; margin: 0 auto;
+}
+.shape-option {
+  display: grid; place-items: center; aspect-ratio: 4/3; padding: 12px;
+  border-radius: 14px; background: rgba(255,255,255,.05);
+  border: 2px solid rgba(255,255,255,.12); cursor: pointer;
+}
+.shape-option img {
+  width: 100%; height: 100%; object-fit: contain;
+  filter: brightness(0) invert(1); opacity: .82;
+}
+.shape-option:hover { border-color: rgba(255,255,255,.3); }
+.shape-option.correct { border-color: #22c55e; background: rgba(34,197,94,.16); box-shadow: 0 0 16px rgba(34,197,94,.4); }
+.shape-option.correct img { opacity: 1; filter: none; }
+.shape-option.wrong { border-color: #ef4444; background: rgba(239,68,68,.14); }
+.shape-option.disabled { opacity: .5; pointer-events: none; }

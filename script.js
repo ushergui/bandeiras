@@ -722,11 +722,141 @@ document.addEventListener('DOMContentLoaded', () => {
                 displayNameOptions(shuffle(opts));
             }
         },
+        'Mapa': {
+            title: "Que Formato é?",
+            setup: () => {
+                elements.memoryGame.classList.add('hidden');
+                const pool = gameState.availableCountries;
+                if (pool.length === 0) { handleLevelComplete(); return; }
+                correctAnswer = (gameConfig.type === 'Jornada') ? getWeightedCountry(pool) : shuffle([...pool])[0];
+
+                elements.instruction.textContent = `Toque no contorno ${correctAnswer.artigo} ${correctAnswer.nome}`;
+                const media = document.getElementById('question-media');
+                if (media) { media.innerHTML = `<img src="${itemImg(correctAnswer)}" alt="bandeira">`; media.classList.remove('hidden'); }
+
+                const wrong = countries.filter(c => c.codigo !== correctAnswer.codigo);
+                const hard = wrong.filter(c => c.continente === correctAnswer.continente);
+                const opts = shuffle([correctAnswer, ...shuffle(hard.length >= 3 ? hard : wrong).slice(0, 3)]);
+                elements.options.classList.remove('hidden');
+                elements.options.innerHTML = '';
+                elements.options.className = 'options-container shape-options';
+                opts.forEach(c => {
+                    const w = document.createElement('div'); w.className = 'option-wrapper';
+                    const b = document.createElement('div'); b.className = 'flag-option shape-option';
+                    b.dataset.codigo = c.codigo; b.dataset.type = 'shape';
+                    b.innerHTML = `<img src="assets/shapes/${c.codigo}.svg" alt="" onerror="this.closest('.option-wrapper').remove()">`;
+                    b.addEventListener('click', handleOptionClick);
+                    w.appendChild(b); elements.options.appendChild(w);
+                });
+            }
+        },
+        'Forca': {
+            title: "A Lendária Forca",
+            setup: () => setupForca()
+        },
         'Memoria': {
             title: "Jogo da Memória",
             setup: () => setupMemoryGame()
         }
     };
+
+    // ─── FORCA ───────────────────────────────────────────
+    let forcaState = null;
+    const FORCA_MAX = 6;
+    function stripAccent(s) { return s.normalize('NFD').replace(/[̀-ͯ]/g, ''); }
+
+    function setupForca() {
+        elements.memoryGame.classList.add('hidden');
+        elements.options.classList.add('hidden');
+        const box = document.getElementById('forca-container');
+        box.classList.remove('hidden');
+        const media = document.getElementById('question-media');
+        if (media) { media.classList.add('hidden'); media.innerHTML = ''; }
+
+        const pool = gameState.availableCountries;
+        if (pool.length === 0) { handleLevelComplete(); return; }
+        correctAnswer = (gameConfig.type === 'Jornada') ? getWeightedCountry(pool) : shuffle([...pool])[0];
+
+        const display = correctAnswer.nome.toUpperCase();
+        forcaState = { display, plain: stripAccent(display), guessed: new Set(), wrong: 0 };
+        elements.instruction.textContent = 'Adivinhe o país letra por letra';
+        document.getElementById('forca-hint').textContent =
+            `${correctAnswer.continente} · ${display.replace(/\s/g, '').length} letras`;
+        renderForca();
+    }
+
+    function renderForca() {
+        const s = forcaState;
+        const svg = document.getElementById('forca-svg');
+        if (svg) svg.dataset.wrong = s.wrong;
+        document.getElementById('forca-wrong').textContent = `❌ ${s.wrong}/${FORCA_MAX}`;
+
+        const wordEl = document.getElementById('forca-word');
+        wordEl.innerHTML = '';
+        [...s.display].forEach((ch, i) => {
+            const plain = s.plain[i];
+            const sp = document.createElement('span');
+            if (ch === ' ') { sp.className = 'fw-space'; }
+            else {
+                sp.className = 'fw-slot';
+                sp.textContent = s.guessed.has(plain) ? ch : '';
+                if (s.guessed.has(plain)) sp.classList.add('filled');
+            }
+            wordEl.appendChild(sp);
+        });
+
+        const keys = document.getElementById('forca-keys');
+        keys.innerHTML = '';
+        'ABCDEFGHIJKLMNOPQRSTUVWXYZ'.split('').forEach(L => {
+            const b = document.createElement('button');
+            b.className = 'fk'; b.textContent = L;
+            const used = s.guessed.has(L);
+            if (used) b.classList.add(s.plain.includes(L) ? 'hit' : 'miss'), b.disabled = true;
+            if (gameLocked) b.disabled = true;
+            b.addEventListener('click', () => forcaGuess(L));
+            keys.appendChild(b);
+        });
+    }
+
+    function forcaGuess(L) {
+        const s = forcaState;
+        if (!s || gameLocked || s.guessed.has(L)) return;
+        s.guessed.add(L);
+        const hit = s.plain.includes(L);
+        if (window.SFX) window.SFX.play(hit ? 'tap' : 'wrong');
+        if (!hit) s.wrong++;
+
+        const solved = [...s.plain].every(ch => ch === ' ' || s.guessed.has(ch));
+        const lost = s.wrong >= FORCA_MAX;
+        renderForca();
+
+        const responseMs = roundStartAt ? Date.now() - roundStartAt : null;
+        if (solved || lost) {
+            gameLocked = true;
+            updateCountryStats(correctAnswer.codigo, solved, responseMs);
+            if (solved) {
+                playSound('win'); gameState.streak++;
+                const pts = Math.max(2, 12 - s.wrong * 2) + (gameState.streak > 1 ? gameState.streak : 0);
+                gameState.score += pts;
+                if (gameState.streak === 15) grantBonusPack('streak15', 1, 'Sequência de 15!');
+                elements.feedback.textContent = `Boa! ${correctAnswer.nome} (+${pts} pts)`;
+                elements.feedback.style.color = '#32CD32';
+            } else {
+                playSound('wrong'); gameState.streak = 0;
+                if (gameConfig.lives !== 'infinite') gameState.chances--;
+                // revela a palavra
+                s.guessed = new Set(s.plain.split(''));
+                renderForca();
+                elements.feedback.textContent = `Era ${correctAnswer.artigo} ${correctAnswer.nome}.`;
+                elements.feedback.style.color = '#FF6347';
+            }
+            gameState.availableCountries = gameState.availableCountries.filter(c => c.codigo !== correctAnswer.codigo);
+            buttons.next.classList.remove('hidden'); buttons.facts.classList.remove('hidden');
+            updateStats(); updateProgressBar();
+            if (gameState.chances === 0 && gameConfig.lives !== 'infinite') { setTimeout(() => gameOver(false), 1200); return; }
+            if (gameState.availableCountries.length === 0) setTimeout(handleLevelComplete, 1200);
+        }
+    }
 
     function setupStandardRound(cb, type) { prepareStandardLogic(cb, type, false); }
 
@@ -750,6 +880,8 @@ document.addEventListener('DOMContentLoaded', () => {
         showScreen('game');
         screens.game.classList.remove('game-over-view');
         elements.options.classList.remove('hidden');
+        const fb = document.getElementById('forca-container');
+        if (fb) fb.classList.toggle('hidden', conf.mode !== 'Forca');
         buttons.backToMenu.textContent = 'Sair';
         buttons.playAgain.classList.add('hidden');
         elements.feedback.textContent = '';
@@ -818,9 +950,14 @@ document.addEventListener('DOMContentLoaded', () => {
         roundStartAt = Date.now();
 
         const replay = document.getElementById('replay-audio-btn');
-        if (replay) replay.hidden = (gameConfig.mode === 'Memoria' || gameConfig.mode === 'NomePorBandeira');
+        if (replay) replay.hidden = ['Memoria', 'NomePorBandeira', 'Forca', 'Mapa'].includes(gameConfig.mode);
         const media = document.getElementById('question-media');
-        if (media && gameConfig.mode !== 'NomePorBandeira') { media.classList.add('hidden'); media.innerHTML = ''; }
+        const keepMedia = ['NomePorBandeira', 'Mapa'].includes(gameConfig.mode);
+        if (media && !keepMedia) { media.classList.add('hidden'); media.innerHTML = ''; }
+
+        const forcaBox = document.getElementById('forca-container');
+        if (forcaBox) forcaBox.classList.toggle('hidden', gameConfig.mode !== 'Forca');
+        elements.options.classList.remove('shape-options');
 
         gameModes[gameConfig.mode].setup();
     }
@@ -833,7 +970,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
         const type = el.dataset.type;
         let isCor;
-        if (type === 'flag') isCor = el.dataset.codigo === correctAnswer.codigo;
+        if (type === 'flag' || type === 'shape') isCor = el.dataset.codigo === correctAnswer.codigo;
         else if (gameConfig.mode === 'ContinentePorPais') isCor = el.dataset.continente === correctAnswer.continente;
         else isCor = el.dataset.codigo === correctAnswer.codigo; // NomePorBandeira
         const val = el.dataset.codigo || el.dataset.continente;
@@ -866,14 +1003,22 @@ document.addEventListener('DOMContentLoaded', () => {
             if (gameConfig.lives !== 'infinite') gameState.chances--;
             gameState.attemptsThisRound++;
 
-            if (type === 'flag') {
+            if (type === 'shape') {
+                document.querySelectorAll('.shape-option').forEach(o => {
+                    o.classList.add('disabled');
+                    if (o.dataset.codigo === correctAnswer.codigo) o.classList.add('correct');
+                });
+                elements.feedback.textContent = `Ops! O contorno ${correctAnswer.artigo} ${correctAnswer.nome} é o verde.`;
+                buttons.next.classList.remove('hidden');
+                gameLocked = true;
+            } else if (type === 'flag') {
                 const c = countries.find(x => x.codigo === val);
                 document.getElementById('constructive-img-wrong').src = `assets/flags/${val}.png`;
                 document.getElementById('constructive-name-wrong').textContent = c ? c.nome : 'Desconhecido';
-                
+
                 document.getElementById('constructive-img-right').src = `assets/flags/${correctAnswer.codigo}.png`;
                 document.getElementById('constructive-name-right').textContent = correctAnswer.nome;
-                
+
                 document.getElementById('constructive-feedback-modal').classList.remove('hidden');
                 elements.feedback.textContent = `Atenção à diferença!`;
             } else if (gameConfig.mode === 'ContinentePorPais') {
@@ -1714,6 +1859,49 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
+    // aproxima a figurinha pra ver detalhes (não tira do álbum, só amplia)
+    function openFigZoom(code) {
+        const c = albumItem(code);
+        if (!c) return;
+        const box = document.getElementById('fig-zoom');
+        const cardEl = document.getElementById('fig-zoom-card');
+        const info = document.getElementById('fig-zoom-info');
+        if (!box || !cardEl || !info) return;
+
+        const colada = coladaRarity(code);
+        const pilha = pilhaOf(code);
+
+        if (colada) {
+            cardEl.innerHTML = figCardHTML(c, colada);
+        } else {
+            const acc = (CONTINENT_META[c.continente] || {}).accent || '#60a5fa';
+            cardEl.innerHTML = `<div class="fig-card missing ${c._img ? 'is-collection' : ''}" style="--acc:${acc}">
+                <div class="fig"><span class="fig-bg dim"></span>${itemShape(c, 'big')}
+                <div class="fig-foot"><span class="fig-name">${c.nome}</span></div></div></div>`;
+        }
+        cardEl.querySelectorAll('img').forEach(i => i.loading = 'eager');
+
+        let where = '';
+        if (c._kind === 'img') where = `📍 ${c._sub}`;
+        else if (c._kind === 'flag') where = `🏛️ Capital: ${c.capital}`;
+        else where = `🌎 ${c.continente} · capital: ${c.capital}`;
+        const rarTxt = colada
+            ? (colada === 'base' ? (c.fixedShiny ? '✨ Figurinha brilhante' : 'Figurinha comum') : (RARITY_LABELS[colada] || {}).text)
+            : '🔒 Ainda não colada';
+        info.innerHTML = `
+            <h3>${c.nome}</h3>
+            <span class="fz-code">${stickerCode(code)}</span>
+            <p>${where}</p>
+            <p class="fz-rar">${rarTxt}${pilha.length ? ` · ${pilha.length} na pilha` : ''}</p>`;
+
+        box.classList.remove('hidden');
+        if (window.SFX) window.SFX.play('tap');
+    }
+    function closeFigZoom() {
+        const box = document.getElementById('fig-zoom');
+        if (box) box.classList.add('hidden');
+    }
+
     function animatePageTurn() {
         const g = elements.albumGrid;
         if (!g || window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
@@ -1778,6 +1966,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     </div>`;
             }
             item.title = `${code} · ${c.nome}`;
+            item.dataset.code = c.codigo;
             grid.appendChild(item);
         });
 
@@ -1785,6 +1974,14 @@ document.addEventListener('DOMContentLoaded', () => {
             b.addEventListener('click', e => {
                 e.stopPropagation();
                 doGlue(b.dataset.glue, b.dataset.rar, b);
+            });
+        });
+
+        // tocar na figurinha aproxima pra ver detalhes
+        grid.querySelectorAll('.album-card').forEach(card => {
+            card.addEventListener('click', e => {
+                if (e.target.closest('[data-glue]')) return;
+                openFigZoom(card.dataset.code);
             });
         });
 
@@ -1920,6 +2117,14 @@ document.addEventListener('DOMContentLoaded', () => {
 
     document.getElementById('open-trades-btn').addEventListener('click', openTrades);
     document.getElementById('trades-back').addEventListener('click', () => showScreen('album'));
+
+    (function wireFigZoom() {
+        const box = document.getElementById('fig-zoom');
+        if (!box) return;
+        box.addEventListener('click', e => { if (e.target === box) closeFigZoom(); });
+        document.getElementById('fig-zoom-close').addEventListener('click', closeFigZoom);
+        document.addEventListener('keydown', e => { if (e.key === 'Escape') closeFigZoom(); });
+    })();
     document.getElementById('trades-confirm').addEventListener('click', () => {
         if (!tradeGive || !tradeGet || !tradeOther) return;
         const gname = (countries.find(c => c.codigo === tradeGive) || {}).nome;
@@ -2228,8 +2433,8 @@ document.addEventListener('DOMContentLoaded', () => {
         const results = [];
         for (let i = 0; i < PACK_SIZE; i++) {
             const drawn = shuffle([...ALBUM_ITEMS])[0];
-            let rarity = rollRarity();
-            if (drawn.fixedShiny && rarity === 'base') rarity = 'ouro';
+            const rarity = rollRarity();
+            // brilho fixo NÃO é raridade: continua 'base', o card renderiza metalizado
             let e = stickers.find(s => s.codigo === drawn.codigo);
             if (!e) { e = { codigo: drawn.codigo, colada: null, pilha: [] }; stickers.push(e); }
             const isNew = !e.colada;
@@ -2431,6 +2636,8 @@ document.addEventListener('DOMContentLoaded', () => {
         NomePorBandeira:   { icon: '🔎', label: 'De que País é?' },
         PaisPorCapital:    { icon: '🏛️', label: 'Qual o País?' },
         ContinentePorPais: { icon: '🌎', label: 'Qual o Continente?' },
+        Mapa:              { icon: '🗺️', label: 'Que Formato é?' },
+        Forca:             { icon: '🪢', label: 'A Lendária Forca' },
         Memoria:           { icon: '🃏', label: 'Jogo da Memória' },
     };
     const setupEl = document.getElementById('game-setup');

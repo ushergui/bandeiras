@@ -17,16 +17,16 @@
     <link rel="icon" href="assets/icons/favicon-32.png" sizes="32x32" type="image/png">
     <link rel="apple-touch-icon" href="assets/icons/apple-touch-icon.png">
 
-    <link rel="stylesheet" href="style.css?v=20260903i">
-    <link rel="stylesheet" href="css/app-shell.css?v=20260903i">
-    <link rel="stylesheet" href="css/screens.css?v=20260903i">
+    <link rel="stylesheet" href="style.css?v=20260903k">
+    <link rel="stylesheet" href="css/app-shell.css?v=20260903k">
+    <link rel="stylesheet" href="css/screens.css?v=20260903k">
     <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800;900&display=swap" rel="stylesheet">
     <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
     <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
-    <script src="countries.js?v=20260903i"></script>
-    <script src="collections.js?v=20260903i"></script>
-    <script src="curiosities.js?v=20260903i"></script>
-    <script src="js/sfx.js?v=20260903i"></script>
+    <script src="countries.js?v=20260903k"></script>
+    <script src="collections.js?v=20260903k"></script>
+    <script src="curiosities.js?v=20260903k"></script>
+    <script src="js/sfx.js?v=20260903k"></script>
 </head>
 
 <body>
@@ -113,6 +113,12 @@
                     </button>
                     <button class="mode-button" data-gamemode="ContinentePorPais">
                         <span class="mb-icon">🌎</span><span>Qual o Continente?</span>
+                    </button>
+                    <button class="mode-button" data-gamemode="Mapa">
+                        <span class="mb-icon">🗺️</span><span>Que Formato é?</span>
+                    </button>
+                    <button class="mode-button special-mode" data-gamemode="Forca">
+                        <span class="mb-icon">🪢</span><span>A Lendária Forca</span>
                     </button>
                     <button class="mode-button special-mode" data-gamemode="Memoria">
                         <span class="mb-icon">🃏</span><span>Jogo da Memória</span>
@@ -311,6 +317,31 @@
 
                 <div id="memory-game-container" class="hidden">
                     <div id="memory-grid" class="memory-grid"></div>
+                </div>
+
+                <div id="forca-container" class="forca hidden">
+                    <div class="forca-top">
+                        <svg id="forca-svg" class="forca-svg" viewBox="0 0 120 130" data-wrong="0">
+                            <g class="forca-gallows" stroke="currentColor" stroke-width="4" stroke-linecap="round" fill="none">
+                                <line x1="10" y1="124" x2="70" y2="124"/><line x1="30" y1="124" x2="30" y2="8"/>
+                                <line x1="30" y1="8" x2="82" y2="8"/><line x1="82" y1="8" x2="82" y2="22"/>
+                            </g>
+                            <g class="forca-body" stroke="currentColor" stroke-width="4" stroke-linecap="round" fill="none">
+                                <circle class="fp fp1" cx="82" cy="34" r="12"/>
+                                <line class="fp fp2" x1="82" y1="46" x2="82" y2="82"/>
+                                <line class="fp fp3" x1="82" y1="56" x2="66" y2="70"/>
+                                <line class="fp fp4" x1="82" y1="56" x2="98" y2="70"/>
+                                <line class="fp fp5" x1="82" y1="82" x2="68" y2="102"/>
+                                <line class="fp fp6" x1="82" y1="82" x2="96" y2="102"/>
+                            </g>
+                        </svg>
+                        <div class="forca-meta">
+                            <span id="forca-hint" class="forca-hint"></span>
+                            <span id="forca-wrong" class="forca-wrong"></span>
+                        </div>
+                    </div>
+                    <div id="forca-word" class="forca-word"></div>
+                    <div id="forca-keys" class="forca-keys"></div>
                 </div>
             </div>
 
@@ -527,6 +558,14 @@
         </div>
     </div>
 
+    <div id="fig-zoom" class="fig-zoom hidden">
+        <button id="fig-zoom-close" class="fig-zoom-x" aria-label="Fechar">✕</button>
+        <div class="fig-zoom-stage">
+            <div id="fig-zoom-card" class="fig-zoom-card"></div>
+            <div id="fig-zoom-info" class="fig-zoom-info"></div>
+        </div>
+    </div>
+
     <div id="constructive-feedback-modal" class="modal-backdrop hidden">
         <div class="modal-content" style="max-width: 500px; text-align: center;">
             <h2 style="color: #FF6347; font-size: 1.8em; margin-bottom: 10px;">Quase lá!</h2>
@@ -564,7 +603,7 @@
         </div>
     </div>
 
-    <script src="script.js?v=20260903i"></script>
+    <script src="script.js?v=20260903k"></script>
 </body>
 
 </html>
