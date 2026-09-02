@@ -19,6 +19,7 @@
 
     <link rel="stylesheet" href="style.css?v=20260902">
     <link rel="stylesheet" href="css/app-shell.css?v=20260902">
+    <link rel="stylesheet" href="css/screens.css?v=20260902">
     <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800;900&display=swap" rel="stylesheet">
     <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
     <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
@@ -30,29 +31,42 @@
 
     <div class="main-container" id="main-container">
 
-                <div id="profile-menu" class="screen">
-            <div class="profile-header">
-                <div class="profile-logo">🌍</div>
+                <div id="profile-menu" class="screen auth-screen">
+            <div class="auth-hero">
+                <div class="auth-logo"><img src="assets/icons/icon-192.png" alt="Detetive Global"></div>
                 <h1>Detetive Global</h1>
-                <p class="profile-subtitle">Quem vai explorar o mundo hoje?</p>
+                <p class="profile-subtitle">Aprenda as bandeiras do mundo brincando</p>
             </div>
 
-            <div id="profiles-list" class="profiles-grid-fancy"></div>
-
-            <div class="new-profile-form">
-                <!-- Avatar preview + trigger -->
-                <div class="avatar-preview-row">
-                    <div class="avatar-preview-bubble" id="avatar-preview-bubble">🌍</div>
-                    <button class="avatar-pick-btn" id="open-avatar-picker">
-                        Escolher Avatar ✨
-                    </button>
+            <div class="auth-card">
+                <div class="auth-tabs">
+                    <button type="button" class="auth-tab active" data-tab="login">Entrar</button>
+                    <button type="button" class="auth-tab" data-tab="signup">Criar conta</button>
                 </div>
 
-                <input type="hidden" id="selected-avatar" value="🌍">
-                <div class="new-profile-input-row">
-                    <input type="text" id="new-profile-name" placeholder="Seu nome..." maxlength="16" autocomplete="off">
-                    <button id="create-profile-btn" class="create-btn">Criar</button>
-                </div>
+                <form id="auth-form" autocomplete="on">
+                    <div class="auth-avatar-row hidden" data-signup>
+                        <div class="avatar-preview-bubble" id="avatar-preview-bubble">🌍</div>
+                        <button type="button" class="avatar-pick-btn" id="open-avatar-picker">Escolher avatar ✨</button>
+                    </div>
+                    <input type="hidden" id="selected-avatar" value="🌍">
+
+                    <label class="auth-field">
+                        <span>Usuário</span>
+                        <input type="text" id="auth-username" name="username" autocomplete="username"
+                            maxlength="16" placeholder="Seu apelido" autocapitalize="none" spellcheck="false">
+                    </label>
+                    <label class="auth-field">
+                        <span>Senha</span>
+                        <input type="password" id="auth-password" name="password"
+                            autocomplete="current-password" placeholder="Sua senha">
+                    </label>
+
+                    <p id="auth-error" class="auth-error hidden"></p>
+                    <button type="submit" id="auth-submit" class="btn-primary">Entrar</button>
+                </form>
+
+                <div id="auth-accounts" class="hidden"></div>
             </div>
         </div>
 
@@ -392,15 +406,6 @@
     </div>
 
     <script src="script.js?v=20260902"></script>
-    <script>
-        if ('serviceWorker' in navigator) {
-            window.addEventListener('load', function () {
-                navigator.serviceWorker.register('/sw.js').catch(function (e) {
-                    console.warn('SW não registrado:', e);
-                });
-            });
-        }
-    </script>
 </body>
 
 </html>

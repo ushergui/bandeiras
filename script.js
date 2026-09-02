@@ -78,6 +78,65 @@ const API = {
     },
 };
 
+// ═══════════════════════════════════════════════════════
+// AUTENTICAÇÃO — usuário + senha ("modo local")
+// Troca só esta implementação quando o Supabase existir.
+// ═══════════════════════════════════════════════════════
+const Auth = {
+    async _hash(password, salt) {
+        const bytes = new TextEncoder().encode(`${salt}:${password}`);
+        const buf = await crypto.subtle.digest('SHA-256', bytes);
+        return [...new Uint8Array(buf)].map(b => b.toString(16).padStart(2, '0')).join('');
+    },
+    _accounts() { return Store._get(Store._profilesKey, []); },
+    _saveAccounts(list) { Store._set(Store._profilesKey, list); },
+    list() { return this._accounts().map(a => ({ name: a.name, avatar: a.avatar || '🌍' })); },
+    avatarOf(name) {
+        const a = this._accounts().find(x => x.name === name);
+        return a ? (a.avatar || '🌍') : '🌍';
+    },
+    async signup(name, password, avatar) {
+        name = (name || '').trim();
+        if (name.length < 2 || name.length > 16) return { error: 'O usuário precisa ter de 2 a 16 caracteres.' };
+        if (!/^[\p{L}\p{N} _.\-]+$/u.test(name)) return { error: 'Use apenas letras, números, espaço, ponto ou hífen.' };
+        if ((password || '').length < 4) return { error: 'A senha precisa ter pelo menos 4 caracteres.' };
+        const accts = this._accounts();
+        if (accts.some(a => a.name.toLowerCase() === name.toLowerCase())) {
+            return { error: 'Esse usuário já existe. Tente entrar.' };
+        }
+        const salt = (crypto.randomUUID && crypto.randomUUID()) || String(Math.random());
+        const hash = await this._hash(password, salt);
+        const acct = { name, avatar: avatar || '🌍', salt, hash, created_at: new Date().toISOString() };
+        accts.push(acct);
+        this._saveAccounts(accts);
+        localStorage.setItem(Store._packsCountKey(name), 1);
+        return { name, avatar: acct.avatar };
+    },
+    async login(name, password) {
+        name = (name || '').trim();
+        const accts = this._accounts();
+        const acct = accts.find(a => a.name.toLowerCase() === name.toLowerCase());
+        if (!acct) return { error: 'Usuário não encontrado. Crie uma conta.' };
+        if (!acct.hash) {
+            // conta antiga (sem senha) — adota a senha digitada agora
+            acct.salt = (crypto.randomUUID && crypto.randomUUID()) || String(Math.random());
+            acct.hash = await this._hash(password, acct.salt);
+            this._saveAccounts(accts.map(a => (a.name === acct.name ? acct : a)));
+            return { name: acct.name, avatar: acct.avatar || '🌍' };
+        }
+        const hash = await this._hash(password, acct.salt);
+        if (hash !== acct.hash) return { error: 'Senha incorreta.' };
+        return { name: acct.name, avatar: acct.avatar || '🌍' };
+    },
+    removeAccount(name) {
+        this._saveAccounts(this._accounts().filter(a => a.name !== name));
+    },
+    logout() {
+        localStorage.removeItem('currentUser');
+        localStorage.removeItem('detetive_avatar');
+    },
+};
+
 // In-memory cache for current session (to avoid too many API calls during a game)
 const _cache = {};
 
@@ -373,46 +432,7 @@ document.addEventListener('DOMContentLoaded', () => {
     let memoryMatches = 0;
     let memoryMoves = 0;
 
-    // --- PERFIL ---
-    async function initProfiles() {
-        const container = document.getElementById('profiles-list');
-        if (!container) return;
-        container.innerHTML = '<p class="profiles-empty-state">Carregando...</p>';
-        
-        try {
-            const profiles = await API.getProfiles();
-            container.innerHTML = '';
-            
-            if (profiles.length === 0) {
-                container.innerHTML = '<p class="profiles-empty-state">✨ Nenhum explorador ainda.<br>Crie seu perfil abaixo!</p>';
-                return;
-            }
-            
-            profiles.forEach(p => {
-                const card = document.createElement('div');
-                card.className = 'profile-card-fancy';
-                card.innerHTML = `
-                    <button class="pc-delete" title="Remover" onclick="event.stopPropagation(); deleteProfileUI('${p.name}')">✕</button>
-                    <span class="pc-avatar">${p.avatar}</span>
-                    <div class="pc-name">${p.name}</div>
-                    <div class="pc-meta">🃏 ${p.sticker_count} fig. • Nv ${p.journey_level}</div>
-                `;
-                card.addEventListener('click', () => selectProfile(p.name, p.avatar));
-                container.appendChild(card);
-            });
-        } catch(e) {
-            container.innerHTML = '<p class="profiles-empty-state">Erro ao carregar. Verifique o servidor.</p>';
-            console.error('initProfiles error:', e);
-        }
-    }
-    
-    async function deleteProfileUI(name) {
-        if (!confirm(`Remover o perfil "${name}"? Todo o progresso será apagado!`)) return;
-        await API.deleteProfile(name);
-        initProfiles();
-    }
-    window.deleteProfileUI = deleteProfileUI;
-
+    // --- PERFIL / SESSÃO ---
 
     async function selectProfile(name, avatar) {
         currentUser = name;
@@ -888,29 +908,97 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
-    // Event Listeners
-    if (buttons.createProfile) buttons.createProfile.addEventListener('click', async () => {
-        const name = elements.newProfileInput.value.trim();
-        if (!name) return showToast('Digite um nome!', 'error');
-        // Get selected avatar from hidden input
-        const hiddenAvatar = document.getElementById('selected-avatar');
-        const avatar = hiddenAvatar ? hiddenAvatar.value : '🌍';
-        
-        const result = await API.createProfile(name, avatar);
-        if (result.error) return showToast(result.error === 'Nome ja existe' ? 'Este nome já existe!' : result.error, 'error');
-        
-        elements.newProfileInput.value = '';
-        await initProfiles();
-        selectProfile(name, avatar);
-    });
-    
-    // Re-init avatar picker when returning to profile screen
-    buttons.changeProfile.addEventListener('click', () => { 
-        currentUser = null;
-          localStorage.removeItem("currentUser"); 
+    // ─── TELA DE LOGIN / CADASTRO ────────────────────────
+    const authForm = document.getElementById('auth-form');
+    const authUser = document.getElementById('auth-username');
+    const authPass = document.getElementById('auth-password');
+    const authErr = document.getElementById('auth-error');
+    const authSubmit = document.getElementById('auth-submit');
+    const authTabs = Array.from(document.querySelectorAll('.auth-tab'));
+    let authMode = 'login';
+
+    function showAuthError(msg) { if (authErr) { authErr.textContent = msg; authErr.classList.remove('hidden'); } }
+    function hideAuthError() { if (authErr) authErr.classList.add('hidden'); }
+
+    function setAuthMode(mode) {
+        authMode = mode;
+        authTabs.forEach(t => t.classList.toggle('active', t.dataset.tab === mode));
+        document.querySelectorAll('[data-signup]').forEach(el => el.classList.toggle('hidden', mode !== 'signup'));
+        if (authSubmit) authSubmit.textContent = mode === 'signup' ? 'Criar conta e entrar' : 'Entrar';
+        if (authPass) authPass.autocomplete = mode === 'signup' ? 'new-password' : 'current-password';
+        hideAuthError();
+    }
+
+    function renderAuthAccounts() {
+        const wrap = document.getElementById('auth-accounts');
+        if (!wrap) return;
+        const accts = Auth.list();
+        if (!accts.length) { wrap.innerHTML = ''; wrap.classList.add('hidden'); return; }
+        wrap.classList.remove('hidden');
+        wrap.innerHTML = '<p class="auth-accounts-label">Contas neste aparelho</p>';
+        const row = document.createElement('div');
+        row.className = 'auth-accounts-row';
+        accts.forEach(a => {
+            const chip = document.createElement('button');
+            chip.type = 'button';
+            chip.className = 'auth-account-chip';
+            chip.innerHTML = `<span class="aa-avatar">${a.avatar}</span><span class="aa-name"></span><span class="aa-remove" title="Remover deste aparelho">✕</span>`;
+            chip.querySelector('.aa-name').textContent = a.name;
+            chip.addEventListener('click', (e) => {
+                if (e.target.classList.contains('aa-remove')) {
+                    if (confirm(`Remover "${a.name}" deste aparelho? O progresso salvo aqui será apagado.`)) {
+                        Auth.removeAccount(a.name);
+                        API.deleteProfile(a.name);
+                        renderAuthAccounts();
+                    }
+                    return;
+                }
+                setAuthMode('login');
+                authUser.value = a.name;
+                authPass.value = '';
+                authPass.focus();
+            });
+            row.appendChild(chip);
+        });
+        wrap.appendChild(row);
+    }
+
+    authTabs.forEach(t => t.addEventListener('click', () => setAuthMode(t.dataset.tab)));
+
+    if (authForm) authForm.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        hideAuthError();
+        const name = authUser.value.trim();
+        const pass = authPass.value;
+        if (!name || !pass) return showAuthError('Preencha usuário e senha.');
+        authSubmit.disabled = true;
+        authSubmit.textContent = 'Aguarde…';
+        const avatar = (document.getElementById('selected-avatar') || {}).value || '🌍';
+        const res = authMode === 'signup'
+            ? await Auth.signup(name, pass, avatar)
+            : await Auth.login(name, pass);
+        authSubmit.disabled = false;
+        setAuthMode(authMode);
+        if (res.error) return showAuthError(res.error);
+        authPass.value = '';
+        localStorage.setItem('detetive_avatar', res.avatar);
         _cache.progress = null;
         _cache.stickers = null;
-        showScreen('profile'); 
+        _cache.packsCount = null;
+        await selectProfile(res.name, res.avatar);
+    });
+
+    // Botão "Sair" (no menu principal) → volta para o login
+    buttons.changeProfile.addEventListener('click', () => {
+        Auth.logout();
+        currentUser = null;
+        _cache.progress = null;
+        _cache.stickers = null;
+        _cache.packsCount = null;
+        if (authPass) authPass.value = '';
+        setAuthMode('login');
+        renderAuthAccounts();
+        showScreen('profile');
         setTimeout(initAvatarPicker, 50);
     });
 
@@ -1767,11 +1855,14 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // ─── BOOTSTRAP ───────────────────────────────────────
     initAvatarPicker();
-    if (currentUser) {
-        const savedAvatar = localStorage.getItem('detetive_avatar') || '🌍';
-        selectProfile(currentUser, savedAvatar);
+    setAuthMode('login');
+    renderAuthAccounts();
+
+    if (currentUser && Auth.list().some(a => a.name === currentUser)) {
+        selectProfile(currentUser, Auth.avatarOf(currentUser));
     } else {
-        initProfiles();
+        Auth.logout();
+        currentUser = null;
         showScreen('profile');
     }
 });
