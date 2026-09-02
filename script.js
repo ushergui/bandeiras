@@ -137,6 +137,56 @@ const Auth = {
     },
 };
 
+// ═══════════════════════════════════════════════════════
+// TROCAS — entre contas do mesmo aparelho ("modo local")
+// Vira offer/accept via Supabase Realtime quando o backend existir.
+// ═══════════════════════════════════════════════════════
+const Trades = {
+    _key: n => `dg_stickers_${n}`,
+    _read(name) { try { return JSON.parse(localStorage.getItem(this._key(name)) || '[]'); } catch (e) { return []; } },
+    _write(name, list) { localStorage.setItem(this._key(name), JSON.stringify(list)); },
+
+    others(me) { return Auth.list().filter(a => a.name !== me); },
+
+    // figurinhas repetidas (count >= 2) de um usuário
+    repeats(name) { return this._read(name).filter(s => (s.count || 1) >= 2); },
+
+    // códigos que `name` ainda não tem
+    missingCodes(name, allCodes) {
+        const have = new Set(this._read(name).map(s => s.codigo));
+        return allCodes.filter(c => !have.has(c));
+    },
+
+    // move 1 figurinha de `from` para `to`
+    _give(from, to, codigo) {
+        const src = this._read(from);
+        const it = src.find(s => s.codigo === codigo);
+        if (!it || (it.count || 1) < 2) return false; // só troca repetidas
+        it.count -= 1;
+        this._write(from, src);
+
+        const dst = this._read(to);
+        const d = dst.find(s => s.codigo === codigo);
+        if (d) d.count = (d.count || 1) + 1;
+        else dst.push({ codigo, rarity: it.rarity || 'base', count: 1 });
+        this._write(to, dst);
+        return true;
+    },
+
+    // troca: `me` dá `iGive`, recebe `iGet` de `other`
+    execute(me, other, iGive, iGet) {
+        const okA = this._give(me, other, iGive);
+        if (!okA) return { error: 'Você não tem essa figurinha repetida.' };
+        const okB = this._give(other, me, iGet);
+        if (!okB) {
+            // desfaz
+            this._give(other, me, iGive);
+            return { error: `${other} não tem essa figurinha repetida.` };
+        }
+        return { ok: true };
+    },
+};
+
 // In-memory cache for current session (to avoid too many API calls during a game)
 const _cache = {};
 
@@ -285,6 +335,7 @@ document.addEventListener('DOMContentLoaded', () => {
         profile: document.getElementById('profile-menu'),
         main: document.getElementById('main-menu'),
         setup: document.getElementById('game-setup'),
+        trades: document.getElementById('trades-menu'),
         game: document.getElementById('game-screen'),
         passport: document.getElementById('passport-menu'),
         album: document.getElementById('album-menu'),
@@ -845,6 +896,7 @@ document.addEventListener('DOMContentLoaded', () => {
         screens[key].classList.remove('hidden');
         updateAppNav(key);
         if (key === 'main') refreshHub();
+        if (key === 'album' && typeof renderAlbum === 'function') renderAlbum();
         try { elements.mainContainer.scrollTop = 0; window.scrollTo(0, 0); } catch (e) {}
     }
 
@@ -1411,6 +1463,7 @@ document.addEventListener('DOMContentLoaded', () => {
     function renderAlbum() {
         const grid = elements.albumGrid;
         if (!grid) return;
+        if (!currentContinent) currentContinent = CONTINENTS_ORDER[0];
         const meta = CONTINENT_META[currentContinent] || { emoji: '🌐', accent: '#94a3b8' };
         const screen = document.getElementById('album-menu');
         if (screen) screen.style.setProperty('--cont-accent', meta.accent);
@@ -1465,6 +1518,14 @@ document.addEventListener('DOMContentLoaded', () => {
         const fill = document.getElementById('album-overall-fill');
         if (fill) fill.style.width = `${pct}%`;
 
+        const repEl = document.getElementById('repeats-count');
+        if (repEl) {
+            const reps = loadStickers().filter(s => (s.count || 1) >= 2).length;
+            repEl.textContent = reps;
+            const tb = document.getElementById('open-trades-btn');
+            if (tb) tb.classList.toggle('has-repeats', reps > 0);
+        }
+
         buildContinentNav();
     }
 
@@ -1479,6 +1540,98 @@ document.addEventListener('DOMContentLoaded', () => {
         showScreen('album');
     }
     if (buttons.showAlbum) buttons.showAlbum.addEventListener('click', openAlbum);
+
+    // ─── TROCAS ──────────────────────────────────────────
+    const ALL_CODES = countries.map(c => c.codigo);
+    let tradeOther = null, tradeGive = null, tradeGet = null;
+
+    function openTrades() {
+        tradeOther = tradeGive = tradeGet = null;
+        document.getElementById('trades-panel').classList.add('hidden');
+        const wrap = document.getElementById('trades-accounts');
+        wrap.innerHTML = '';
+        const others = Trades.others(currentUser);
+        if (!others.length) {
+            wrap.innerHTML = '<p class="trades-empty">Crie outra conta neste aparelho (tela de login) para poder trocar.</p>';
+        } else {
+            others.forEach(a => {
+                const myRepeats = Trades.repeats(currentUser);
+                const theirRepeats = Trades.repeats(a.name);
+                const btn = document.createElement('button');
+                btn.className = 'trade-account';
+                btn.innerHTML = `<span class="ta-avatar">${a.avatar}</span>
+                    <span class="ta-name">${a.name}</span>
+                    <span class="ta-meta">${theirRepeats.length} repetidas</span>`;
+                btn.addEventListener('click', () => selectTradePartner(a.name));
+                wrap.appendChild(btn);
+            });
+        }
+        showScreen('trades');
+    }
+
+    function stickerChip(codigo, count, selected) {
+        const c = countries.find(x => x.codigo === codigo) || { nome: codigo };
+        const el = document.createElement('button');
+        el.className = 'trade-chip' + (selected ? ' selected' : '');
+        el.dataset.codigo = codigo;
+        el.innerHTML = `<img src="assets/flags/${codigo}.png" alt=""><span>${c.nome}</span>${count > 1 ? `<b>×${count}</b>` : ''}`;
+        return el;
+    }
+
+    function selectTradePartner(name) {
+        tradeOther = name;
+        tradeGive = tradeGet = null;
+        document.querySelectorAll('.trade-account').forEach(b =>
+            b.classList.toggle('active', b.querySelector('.ta-name').textContent === name));
+        document.getElementById('trades-other-name').textContent = name;
+        document.getElementById('trades-panel').classList.remove('hidden');
+        renderTradeStrips();
+    }
+
+    function renderTradeStrips() {
+        const theyMiss = new Set(Trades.missingCodes(tradeOther, ALL_CODES));
+        const iMiss = new Set(Trades.missingCodes(currentUser, ALL_CODES));
+
+        const mineWrap = document.getElementById('trades-mine');
+        mineWrap.innerHTML = '';
+        const mine = Trades.repeats(currentUser).filter(s => theyMiss.has(s.codigo));
+        if (!mine.length) mineWrap.innerHTML = '<p class="trades-empty">Você não tem repetidas que faltem pra essa conta.</p>';
+        mine.forEach(s => {
+            const chip = stickerChip(s.codigo, s.count, tradeGive === s.codigo);
+            chip.addEventListener('click', () => { tradeGive = s.codigo; renderTradeStrips(); });
+            mineWrap.appendChild(chip);
+        });
+
+        const theirsWrap = document.getElementById('trades-theirs');
+        theirsWrap.innerHTML = '';
+        const theirs = Trades.repeats(tradeOther).filter(s => iMiss.has(s.codigo));
+        if (!theirs.length) theirsWrap.innerHTML = '<p class="trades-empty">Essa conta não tem repetidas que faltem pra você.</p>';
+        theirs.forEach(s => {
+            const chip = stickerChip(s.codigo, s.count, tradeGet === s.codigo);
+            chip.addEventListener('click', () => { tradeGet = s.codigo; renderTradeStrips(); });
+            theirsWrap.appendChild(chip);
+        });
+
+        const btn = document.getElementById('trades-confirm');
+        const ready = tradeGive && tradeGet;
+        btn.disabled = !ready;
+        btn.textContent = ready ? 'Confirmar troca' : 'Escolha uma de cada lado';
+    }
+
+    document.getElementById('open-trades-btn').addEventListener('click', openTrades);
+    document.getElementById('trades-back').addEventListener('click', () => showScreen('album'));
+    document.getElementById('trades-confirm').addEventListener('click', () => {
+        if (!tradeGive || !tradeGet || !tradeOther) return;
+        const gname = (countries.find(c => c.codigo === tradeGive) || {}).nome;
+        const rname = (countries.find(c => c.codigo === tradeGet) || {}).nome;
+        const res = Trades.execute(currentUser, tradeOther, tradeGive, tradeGet);
+        if (res.error) { showToast(res.error, 'error'); return; }
+        _cache.stickers = Trades._read(currentUser);
+        showToast(`Troca feita! Você deu ${gname} e recebeu ${rname}.`, 'success');
+        if (!calmMode && typeof confetti !== 'undefined') confetti({ particleCount: 50, spread: 60, origin: { y: 0.6 } });
+        tradeGive = tradeGet = null;
+        selectTradePartner(tradeOther);
+    });
 
     const PACK_SIZE = 4;
 

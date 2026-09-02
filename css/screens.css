@@ -650,3 +650,57 @@
 .pack-card.is-new .pc-tag { color: #4ade80; }
 
 @media (max-width: 480px) { .opened-stickers-grid { grid-template-columns: repeat(2, 1fr); } }
+
+/* =====================================================
+   FASE 6b — TROCAS
+   ===================================================== */
+.album-trades-btn {
+  display: flex; align-items: center; justify-content: center; gap: 8px;
+  width: 100%; padding: 11px; border-radius: 12px;
+  background: rgba(139, 92, 246, 0.14); border: 1px solid rgba(139, 92, 246, 0.4);
+  color: #c4b5fd; font-weight: 800; font-size: 0.9rem;
+}
+.album-trades-btn.has-repeats { color: #ddd6fe; border-color: #a855f7; box-shadow: 0 0 14px rgba(168,85,247,.35); }
+.album-trades-btn:hover { background: rgba(139, 92, 246, 0.22); }
+.album-trades-btn .apb-count { background: #a855f7; color: #fff; }
+
+#trades-menu.trades { display: flex; flex-direction: column; gap: 14px; }
+.trades-hint { text-align: left; font-size: 0.85rem; color: var(--text-muted); }
+.trades-hint b { color: var(--text-white); }
+.trades-empty { font-size: 0.82rem; color: var(--text-muted); text-align: center; padding: 14px; }
+
+.trades-accounts { display: flex; flex-direction: column; gap: 8px; }
+.trade-account {
+  display: flex; align-items: center; gap: 10px; padding: 12px 14px; border-radius: 14px;
+  background: var(--bg-card-2); border: 2px solid rgba(255,255,255,.1);
+  color: var(--text-white); text-align: left;
+}
+.trade-account:hover { border-color: rgba(139,92,246,.5); }
+.trade-account.active { border-color: #a855f7; background: rgba(168,85,247,.16); }
+.trade-account .ta-avatar { font-size: 1.5rem; }
+.trade-account .ta-name { font-weight: 800; flex: 1; }
+.trade-account .ta-meta { font-size: 0.75rem; color: var(--text-muted); font-weight: 700; }
+
+.trades-panel { display: flex; flex-direction: column; gap: 14px; }
+.trades-panel.hidden { display: none; }
+.trades-cols { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.trades-col h3 { font-size: 0.8rem; text-align: left; color: var(--text-white); }
+.trades-col h3 small { color: var(--text-muted); font-weight: 600; }
+.trades-strip {
+  display: flex; flex-direction: column; gap: 6px; margin-top: 8px;
+  max-height: 42vh; overflow-y: auto;
+}
+.trade-chip {
+  display: flex; align-items: center; gap: 8px; padding: 6px 8px; border-radius: 10px;
+  background: rgba(255,255,255,.04); border: 2px solid transparent; color: var(--text-white);
+  font-size: 0.8rem; font-weight: 700;
+}
+.trade-chip img { width: 34px; height: 23px; object-fit: cover; border-radius: 3px; flex-shrink: 0; }
+.trade-chip span { flex: 1; text-align: left; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.trade-chip b { font-size: 0.72rem; color: var(--accent-gold); }
+.trade-chip.selected { border-color: #a855f7; background: rgba(168,85,247,.18); }
+
+@media (max-width: 460px) {
+  .trades-cols { grid-template-columns: 1fr; }
+  .trades-strip { max-height: 30vh; }
+}

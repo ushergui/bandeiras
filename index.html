@@ -17,14 +17,14 @@
     <link rel="icon" href="assets/icons/favicon-32.png" sizes="32x32" type="image/png">
     <link rel="apple-touch-icon" href="assets/icons/apple-touch-icon.png">
 
-    <link rel="stylesheet" href="style.css?v=20260902g">
-    <link rel="stylesheet" href="css/app-shell.css?v=20260902g">
-    <link rel="stylesheet" href="css/screens.css?v=20260902g">
+    <link rel="stylesheet" href="style.css?v=20260902i">
+    <link rel="stylesheet" href="css/app-shell.css?v=20260902i">
+    <link rel="stylesheet" href="css/screens.css?v=20260902i">
     <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800;900&display=swap" rel="stylesheet">
     <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
     <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
-    <script src="countries.js?v=20260902g"></script>
-    <script src="curiosities.js?v=20260902g"></script>
+    <script src="countries.js?v=20260902i"></script>
+    <script src="curiosities.js?v=20260902i"></script>
 </head>
 
 <body>
@@ -197,6 +197,10 @@
 
             <div class="album-overall-bar"><span id="album-overall-fill"></span></div>
 
+            <button id="open-trades-btn" class="album-trades-btn">
+                🔄 Trocar repetidas <span id="repeats-count" class="apb-count">0</span>
+            </button>
+
             <div id="continent-nav" class="continent-nav"></div>
 
             <div class="album-page-head">
@@ -205,6 +209,31 @@
             </div>
 
             <div id="album-grid" class="album-grid"></div>
+        </div>
+
+        <div id="trades-menu" class="screen trades hidden">
+            <header class="setup-head">
+                <button class="setup-back" id="trades-back" aria-label="Voltar">‹</button>
+                <span class="setup-mode"><span class="mb-icon">🔄</span><span>Trocar figurinhas</span></span>
+            </header>
+
+            <p class="trades-hint">Troque suas <b>figurinhas repetidas</b> com outras contas deste aparelho.</p>
+
+            <div id="trades-accounts" class="trades-accounts"></div>
+
+            <div id="trades-panel" class="trades-panel hidden">
+                <div class="trades-cols">
+                    <div class="trades-col">
+                        <h3>Você dá <small>(repetidas)</small></h3>
+                        <div id="trades-mine" class="trades-strip"></div>
+                    </div>
+                    <div class="trades-col">
+                        <h3>Você recebe <small>de <b id="trades-other-name"></b></small></h3>
+                        <div id="trades-theirs" class="trades-strip"></div>
+                    </div>
+                </div>
+                <button id="trades-confirm" class="btn-primary" disabled>Escolha uma de cada lado</button>
+            </div>
         </div>
 
         <div id="game-screen" class="screen game hidden">
@@ -463,7 +492,7 @@
         </div>
     </div>
 
-    <script src="script.js?v=20260902g"></script>
+    <script src="script.js?v=20260902i"></script>
 </body>
 
 </html>
