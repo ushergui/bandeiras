@@ -17,15 +17,15 @@
     <link rel="icon" href="assets/icons/favicon-32.png" sizes="32x32" type="image/png">
     <link rel="apple-touch-icon" href="assets/icons/apple-touch-icon.png">
 
-    <link rel="stylesheet" href="style.css?v=20260903b">
-    <link rel="stylesheet" href="css/app-shell.css?v=20260903b">
-    <link rel="stylesheet" href="css/screens.css?v=20260903b">
+    <link rel="stylesheet" href="style.css?v=20260903d">
+    <link rel="stylesheet" href="css/app-shell.css?v=20260903d">
+    <link rel="stylesheet" href="css/screens.css?v=20260903d">
     <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800;900&display=swap" rel="stylesheet">
     <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
     <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
-    <script src="countries.js?v=20260903b"></script>
-    <script src="curiosities.js?v=20260903b"></script>
-    <script src="js/sfx.js?v=20260903b"></script>
+    <script src="countries.js?v=20260903d"></script>
+    <script src="curiosities.js?v=20260903d"></script>
+    <script src="js/sfx.js?v=20260903d"></script>
 </head>
 
 <body>
@@ -247,14 +247,14 @@
                     </div>
                 </div>
 
+                <div id="tm-slots" class="tm-slots"></div>
+
                 <div class="tm-row">
                     <span id="tm-count" class="tm-count">0 / 7</span>
                     <div class="tm-bar"><span id="tm-progress" class="tm-fill"></span></div>
-                    <button id="tm-add" class="tm-btn">Escolher repetidas</button>
+                    <button id="tm-add" class="tm-btn">Escolher figurinhas</button>
                     <button id="tm-pull" class="btn-primary" disabled>Puxar a alavanca</button>
                 </div>
-
-                <div id="tm-picker" class="tm-picker hidden"></div>
             </section>
 
             <p class="trades-hint">Ou troque diretamente com outra conta deste aparelho.</p>
@@ -502,6 +502,21 @@
         </div>
     </div>
 
+    <div id="tm-picker-modal" class="modal-backdrop hidden">
+        <div class="modal-content tmp-modal">
+            <header class="tmp-head">
+                <h2>Escolha 7 figurinhas repetidas</h2>
+                <button id="tmp-close" class="tmp-x" aria-label="Fechar">✕</button>
+            </header>
+            <p class="tmp-sub"><b id="tmp-selcount">0</b> / 7 escolhidas — toque de novo pra pôr mais de uma</p>
+            <div id="tmp-grid" class="tmp-grid"></div>
+            <div class="tmp-actions">
+                <button id="tmp-clear" class="tm-btn">Limpar</button>
+                <button id="tmp-confirm" class="btn-primary" disabled>Alimentar a máquina</button>
+            </div>
+        </div>
+    </div>
+
     <div id="constructive-feedback-modal" class="modal-backdrop hidden">
         <div class="modal-content" style="max-width: 500px; text-align: center;">
             <h2 style="color: #FF6347; font-size: 1.8em; margin-bottom: 10px;">Quase lá!</h2>
@@ -539,7 +554,7 @@
         </div>
     </div>
 
-    <script src="script.js?v=20260903b"></script>
+    <script src="script.js?v=20260903d"></script>
 </body>
 
 </html>

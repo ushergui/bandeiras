@@ -1479,3 +1479,89 @@
 
 /* botoezinhos pequenos nao devem herdar o min-height de 48 do alvo de toque */
 .tmp-chip, .tmp-slot.filled, .fig-up, .fig-card .ac-plus, .slot-lights i { min-height: 0; }
+
+/* =====================================================
+   FASE 16 — escolher figurinhas p/ a maquina: modal
+   flutuante com as PREVIAS do album (nao bandeira solta)
+   ===================================================== */
+
+/* mini card reutilizavel (previa) */
+.fig-card.nano .fig { min-height: 0; padding: 4px 4px 3px; border-radius: 9px; }
+.fig-card.nano .fig::after { height: 34%; }
+.fig-card.nano .fig-flagwrap { width: 76%; margin: 1px auto 3px; }
+.fig-card.nano .fig-flag { border-width: 1.5px; }
+.fig-card.nano .fig-name {
+  font-size: .46rem; letter-spacing: 0;
+}
+.fig-card.nano .fig-code { font-size: .4rem; letter-spacing: .04em; }
+.fig-card.nano .fig-shape { opacity: .1; }
+
+/* ---- os 7 espacos na maquina ---- */
+.tm-slots {
+  display: grid; grid-template-columns: repeat(7, 1fr); gap: 4px; margin: 8px 0 2px;
+}
+.tm-mini { min-width: 0; }
+.tm-mini.empty {
+  aspect-ratio: 3 / 4; border-radius: 9px;
+  border: 1.5px dashed rgba(255,255,255,.16); background: rgba(255,255,255,.03);
+}
+@media (max-width: 460px) {
+  .tm-slots { grid-template-columns: repeat(7, 1fr); gap: 3px; }
+  .fig-card.nano .fig-name { display: none; }
+}
+
+/* ---- modal flutuante ---- */
+.tmp-modal { max-width: min(680px, 94vw); width: 100%; text-align: left; }
+.tmp-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 10px; }
+.tmp-head h2 { font-size: 1.15rem; margin: 0; }
+.tmp-x {
+  flex-shrink: 0; width: 34px; height: 34px; min-height: 0; border-radius: 10px;
+  background: rgba(255,255,255,.08); border: 1px solid rgba(255,255,255,.14);
+  color: var(--text-white); font-size: .9rem; display: grid; place-items: center;
+}
+.tmp-sub { font-size: .84rem; color: var(--text-muted); margin: 4px 0 12px; }
+.tmp-sub b { color: var(--accent-green, #4ade80); font-size: 1rem; }
+
+.tmp-grid {
+  display: grid; grid-template-columns: repeat(auto-fill, minmax(92px, 1fr));
+  gap: 10px; max-height: 56vh; overflow-y: auto; padding: 2px;
+  overscroll-behavior: contain;
+}
+.tmp-pick {
+  position: relative; padding: 0; background: none; min-height: 0;
+  border: 2px solid transparent; border-radius: 15px; cursor: pointer;
+  transition: transform .12s ease;
+}
+.tmp-pick:not(:disabled):hover { transform: translateY(-2px); }
+.tmp-pick.on { border-color: #4ade80; box-shadow: 0 0 0 3px rgba(74,222,128,.25); }
+.tmp-pick:disabled { opacity: .4; }
+.tmp-pick .fig-card { pointer-events: none; }
+
+.tmp-total {
+  position: absolute; top: 4px; left: 4px; z-index: 5;
+  font: 900 .6rem/1 "Nunito", sans-serif; color: #fff;
+  background: rgba(0,0,0,.62); border-radius: 7px; padding: 1px 5px;
+  border: 1px solid rgba(255,255,255,.2);
+}
+.tmp-badge {
+  position: absolute; top: 3px; right: 3px; z-index: 6;
+  min-width: 24px; height: 24px; padding: 0 3px; border-radius: 999px;
+  display: grid; place-items: center;
+  font: 900 .92rem/1 "Nunito", sans-serif; color: #06281c;
+  background: #4ade80; border: 2px solid #0b1524;
+  box-shadow: 0 2px 8px rgba(74,222,128,.6);
+}
+.tmp-pick.on .fig { filter: brightness(1.04); }
+.tmp-pick.on::after {
+  content: ""; position: absolute; inset: 0; border-radius: 13px; pointer-events: none;
+  box-shadow: inset 0 0 0 2px rgba(74,222,128,.5);
+}
+
+.tmp-actions { display: flex; gap: 8px; margin-top: 14px; }
+.tmp-actions .tm-btn { flex: 0 0 auto; }
+.tmp-actions .btn-primary { flex: 1; min-height: 44px; }
+.tmp-empty { text-align: center; color: var(--text-muted); font-size: .86rem; padding: 24px 10px; }
+
+@media (min-width: 720px) {
+  .tmp-grid { grid-template-columns: repeat(auto-fill, minmax(104px, 1fr)); max-height: 60vh; }
+}

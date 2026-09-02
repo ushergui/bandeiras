@@ -372,7 +372,8 @@ document.addEventListener('DOMContentLoaded', () => {
         ranking: document.getElementById('ranking-modal'),
         facts: document.getElementById('facts-modal'),
         achievement: document.getElementById('achievement-modal'),
-        pack: document.getElementById('pack-modal')
+        pack: document.getElementById('pack-modal'),
+        tmPicker: document.getElementById('tm-picker-modal')
     };
 
     const elements = {
@@ -1809,8 +1810,7 @@ document.addEventListener('DOMContentLoaded', () => {
             const prize = document.getElementById('tm-prize');
             if (prize) { prize.className = 'tray-card'; prize.innerHTML = ''; }
         }
-        const pk = document.getElementById('tm-picker');
-        if (pk) pk.classList.add('hidden');
+        if (modals.tmPicker) modals.tmPicker.classList.add('hidden');
         renderMachine();
         const wrap = document.getElementById('trades-accounts');
         wrap.innerHTML = '';
@@ -1938,6 +1938,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const slot = document.getElementById('tm-slot');
         if (slot) slot.classList.toggle('ready', n >= MACHINE_COST && !machineBusy);
         if (!reelsBuilt()) buildReels(null);
+        renderMachineSlots();
     }
 
     // quantas cópias dá pra jogar na máquina: as que sobram além da que você guarda pra colar
@@ -1946,41 +1947,91 @@ document.addEventListener('DOMContentLoaded', () => {
         return (s.pilha || []).length - reservedCount(s.codigo) - (col ? 0 : 1);
     }
 
-    function renderPicker() {
-        const box = document.getElementById('tm-picker');
-        if (!box || box.classList.contains('hidden')) return;
-        const stk = loadStickers().filter(s => depositable(s) + reservedCount(s.codigo) > 0);
-        const slots = Array.from({ length: MACHINE_COST }, (_, i) => {
-            const code = machineDeposit[i];
-            return code
-                ? `<button class="tmp-slot filled" data-rm="${i}" title="Tirar"><img src="assets/flags/${code}.png" alt=""></button>`
-                : `<span class="tmp-slot"></span>`;
-        }).join('');
-        const full = machineDeposit.length >= MACHINE_COST;
-        const chips = stk.map(s => {
-            const avail = depositable(s);
-            const c = countries.find(x => x.codigo === s.codigo) || { nome: s.codigo };
-            return `<button class="tmp-chip" data-add="${s.codigo}" ${(avail <= 0 || full) ? 'disabled' : ''}>
-                <img src="assets/flags/${s.codigo}.png" alt=""><span>${c.nome}</span><b>×${avail}</b></button>`;
-        }).join('') || '<p class="tmp-empty">Você não tem figurinhas repetidas de sobra.</p>';
-        box.innerHTML = `<div class="tmp-hint">Escolha 7 repetidas pra alimentar a máquina:</div>
-            <div class="tmp-slots">${slots}</div><div class="tmp-chips">${chips}</div>`;
-        box.querySelectorAll('[data-add]').forEach(b => b.onclick = () => machineAddOne(b.dataset.add));
-        box.querySelectorAll('[data-rm]').forEach(b => b.onclick = () => machineRemoveOne(+b.dataset.rm));
+    function weakestRar(code) {
+        const s = loadStickers().find(x => x.codigo === code);
+        if (!s || !s.pilha || !s.pilha.length) return 'base';
+        return [...s.pilha].sort((a, b) => RARITY_ORDER.indexOf(a) - RARITY_ORDER.indexOf(b))[0];
     }
 
-    function machineAddOne(code) {
-        if (machineBusy || machineDeposit.length >= MACHINE_COST) return;
-        const s = loadStickers().find(x => x.codigo === code);
-        if (!s || depositable(s) <= 0) { showToast('Sem cópias de sobra dessa figurinha.', 'error'); return; }
-        machineDeposit.push(code);
-        if (window.SFX) window.SFX.play('tick');
-        renderMachine(); renderPicker();
+    // um mini card de figurinha, igual à prévia do álbum
+    function figCardHTML(c, rarity, extra) {
+        const legend = rarity && rarity !== 'base';
+        const shiny = !!c.fixedShiny && !legend;
+        const acc = (CONTINENT_META[c.continente] || {}).accent || '#60a5fa';
+        const cls = 'fig-card ' + (legend ? 'legend rarity-' + rarity : (shiny ? 'shiny rarity-base' : 'rarity-base')) + (extra ? ' ' + extra : '');
+        return `<div class="${cls}" style="--acc:${acc}">
+            <div class="fig">
+                <span class="fig-bg"></span>
+                <img class="fig-shape" src="assets/shapes/${c.codigo}.svg" alt="" onerror="this.remove()">
+                <span class="fig-foil"></span>
+                <div class="fig-flagwrap"><img class="fig-flag" src="assets/flags/${c.codigo}.png" alt="${c.nome}"></div>
+                <div class="fig-foot"><span class="fig-name">${c.nome}</span><span class="fig-code">${stickerCode(c.codigo)}</span></div>
+            </div>
+        </div>`;
     }
-    function machineRemoveOne(idx) {
-        machineDeposit.splice(idx, 1);
-        if (window.SFX) window.SFX.play('tap');
-        renderMachine(); renderPicker();
+
+    // os 7 espacos da maquina, com a previa das figurinhas escolhidas
+    function renderMachineSlots() {
+        const box = document.getElementById('tm-slots');
+        if (!box) return;
+        box.innerHTML = Array.from({ length: MACHINE_COST }, (_, i) => {
+            const code = machineDeposit[i];
+            if (!code) return `<span class="tm-mini empty"></span>`;
+            const c = countries.find(x => x.codigo === code);
+            return c ? `<div class="tm-mini">${figCardHTML(c, weakestRar(code), 'nano')}</div>` : '<span class="tm-mini empty"></span>';
+        }).join('');
+    }
+
+    // ---- modal flutuante pra escolher as repetidas ----
+    function openPickerModal() {
+        if (machineBusy) return;
+        renderPickerModal();
+        modals.tmPicker.classList.remove('hidden');
+    }
+    function closePickerModal() { modals.tmPicker.classList.add('hidden'); }
+
+    function renderPickerModal() {
+        const grid = document.getElementById('tmp-grid');
+        if (!grid) return;
+        const stk = loadStickers()
+            .filter(s => depositable(s) + reservedCount(s.codigo) > 0)
+            .map(s => ({ s, c: countries.find(x => x.codigo === s.codigo) }))
+            .filter(o => o.c)
+            .sort((a, b) => a.c.nome.localeCompare(b.c.nome, 'pt'));
+
+        const full = machineDeposit.length >= MACHINE_COST;
+        grid.innerHTML = stk.map(({ s, c }) => {
+            const total = depositable(s) + reservedCount(c.codigo);
+            const picked = reservedCount(c.codigo);
+            return `<button class="tmp-pick${picked ? ' on' : ''}" data-code="${c.codigo}" ${(!picked && full) ? 'disabled' : ''}>
+                ${figCardHTML(c, weakestRar(c.codigo))}
+                <span class="tmp-total">×${total}</span>
+                ${picked ? `<span class="tmp-badge">${picked}</span>` : ''}
+            </button>`;
+        }).join('') || '<p class="tmp-empty">Você não tem figurinhas repetidas de sobra pra máquina.</p>';
+
+        grid.querySelectorAll('[data-code]').forEach(b => b.onclick = () => pickToggle(b.dataset.code));
+
+        document.getElementById('tmp-selcount').textContent = machineDeposit.length;
+        const conf = document.getElementById('tmp-confirm');
+        if (conf) conf.disabled = machineDeposit.length !== MACHINE_COST;
+    }
+
+    // toque: +1; se já está no máximo dessa figurinha, volta a 0
+    function pickToggle(code) {
+        if (machineBusy) return;
+        const s = loadStickers().find(x => x.codigo === code);
+        if (!s) return;
+        const maxHere = depositable(s) + reservedCount(code);
+        if (reservedCount(code) >= maxHere || machineDeposit.length >= MACHINE_COST) {
+            // tira todas dessa figurinha
+            machineDeposit = machineDeposit.filter(x => x !== code);
+            if (window.SFX) window.SFX.play('tap');
+        } else {
+            machineDeposit.push(code);
+            if (window.SFX) window.SFX.play('tick');
+        }
+        renderMachine(); renderPickerModal();
     }
 
     function machinePull() {
@@ -1998,8 +2049,7 @@ document.addEventListener('DOMContentLoaded', () => {
         });
         saveStickers(stickers);
 
-        const box = document.getElementById('tm-picker');
-        if (box) box.classList.add('hidden');
+        closePickerModal();
         renderMachine();
 
         // prioriza país que falta no continente atual, senão qualquer que falte colar
@@ -2066,13 +2116,17 @@ document.addEventListener('DOMContentLoaded', () => {
         renderMachine();
     }
 
-    document.getElementById('tm-add').addEventListener('click', () => {
-        if (machineBusy) return;
-        const box = document.getElementById('tm-picker');
-        box.classList.toggle('hidden');
-        renderPicker();
-    });
+    document.getElementById('tm-add').addEventListener('click', openPickerModal);
     document.getElementById('tm-pull').addEventListener('click', machinePull);
+    document.getElementById('tmp-close').addEventListener('click', closePickerModal);
+    document.getElementById('tmp-confirm').addEventListener('click', () => {
+        if (machineDeposit.length === MACHINE_COST) { closePickerModal(); renderMachine(); }
+    });
+    document.getElementById('tmp-clear').addEventListener('click', () => {
+        machineDeposit = []; if (window.SFX) window.SFX.play('tap');
+        renderMachine(); renderPickerModal();
+    });
+    modals.tmPicker.addEventListener('click', e => { if (e.target === modals.tmPicker) closePickerModal(); });
 
     // alavanca: arrastar pra baixo puxa
     (function wireLever() {
