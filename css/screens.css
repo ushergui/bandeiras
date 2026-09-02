@@ -1423,3 +1423,59 @@
 @media (prefers-reduced-motion: reduce) {
   .ct-todo, .album-card.point-here::after { animation: none; }
 }
+
+/* =====================================================
+   FASE 15 — bandeiras NUNCA colam: caixa e espaco fixos,
+   encolhem juntas em telas menores
+   ===================================================== */
+
+/* ---- rolos da maquina ---- */
+.slot-window { gap: 8px; padding: 8px; }
+.reel-tile {
+  height: 58px; flex: 0 0 58px;
+  display: flex; align-items: center; justify-content: center;
+  padding: 0 6px;                 /* a folga vertical vem da diferenca tile x bandeira */
+}
+.reel-tile img {
+  width: 100%; max-width: 74px; height: auto;
+  aspect-ratio: 3 / 2;            /* caixa fixa: todas do mesmo tamanho */
+  object-fit: cover;              /* recorta pra preencher — nada de bandeira gigante */
+  border-radius: 3px;
+  border: 1px solid rgba(255,255,255,.28);
+  display: block;
+}
+@keyframes reelRoll { to { transform: translateY(-464px); } }  /* 8 tiles de 58 */
+
+/* ---- slots do "escolher repetidas" ---- */
+.tmp-slots {
+  display: flex; gap: 6px; margin-bottom: 12px; align-items: flex-start;
+}
+.tmp-slot {
+  flex: 1 1 0; min-width: 0; max-width: 58px;
+  height: clamp(22px, 7.5vw, 30px); min-height: 0;
+  border-radius: 5px; padding: 0;
+}
+.tmp-slot.filled { min-height: 0; }
+.tmp-slot.filled img { width: 100%; height: 100%; object-fit: cover; display: block; }
+
+/* ---- chips: bandeira com caixa fixa ---- */
+.tmp-chip img {
+  width: 28px; height: 19px; flex: 0 0 28px;
+  object-fit: cover; border-radius: 3px; border: 1px solid rgba(255,255,255,.2);
+}
+
+/* ---- carta da bandeja ---- */
+.tray-card img { width: 34px; height: 23px; flex: 0 0 34px; object-fit: cover; }
+
+/* ---- maquina inteira: encolhe em telas bem estreitas ----
+   (altura do tile fica fixa por causa da conta do giro no JS;
+    a bandeira dentro é que encolhe com a coluna)            */
+@media (max-width: 360px) {
+  .slot-cabinet { width: 92vw; padding: 10px; }
+  .slot-window { gap: 6px; padding: 6px; }
+  .reel-tile { padding: 0 4px; }
+  .reel-tile img { max-width: 58px; }
+}
+
+/* botoezinhos pequenos nao devem herdar o min-height de 48 do alvo de toque */
+.tmp-chip, .tmp-slot.filled, .fig-up, .fig-card .ac-plus, .slot-lights i { min-height: 0; }
