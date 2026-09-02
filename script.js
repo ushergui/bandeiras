@@ -1632,10 +1632,21 @@ document.addEventListener('DOMContentLoaded', () => {
             btn.addEventListener('click', () => {
                 if (currentContinent === cont) return;
                 currentContinent = cont;
+                animatePageTurn();
                 renderAlbum();
             });
             nav.appendChild(btn);
         });
+    }
+
+    function animatePageTurn() {
+        const g = elements.albumGrid;
+        if (!g || window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+        g.classList.remove('page-turn');
+        void g.offsetWidth;
+        g.classList.add('page-turn');
+        setTimeout(() => g.classList.remove('page-turn'), 550);
+        if (window.SFX) window.SFX.play('whoosh');
     }
 
     function renderAlbum() {
@@ -1695,6 +1706,19 @@ document.addEventListener('DOMContentLoaded', () => {
             });
         });
 
+        // toque na figurinha colada mostra a sigla por 2s (no desktop ja aparece no hover)
+        grid.querySelectorAll('.album-card.collected').forEach(card => {
+            card.addEventListener('click', e => {
+                if (e.target.closest('[data-glue]')) return;
+                grid.querySelectorAll('.album-card.show-code').forEach(c => { if (c !== card) c.classList.remove('show-code'); });
+                card.classList.toggle('show-code');
+                clearTimeout(card._codeT);
+                if (card.classList.contains('show-code')) {
+                    card._codeT = setTimeout(() => card.classList.remove('show-code'), 2200);
+                }
+            });
+        });
+
         const st = continentStats(currentContinent);
         const set = (id, v) => { const el = document.getElementById(id); if (el) el.textContent = v; };
         set('album-continent-name', `${meta.emoji} ${currentContinent}`);
@@ -1729,7 +1753,7 @@ document.addEventListener('DOMContentLoaded', () => {
             }
             renderAlbum();
             const card = elements.albumGrid.querySelector(`[title^="${stickerCode(code)} "]`);
-            if (card) { card.classList.add('just-glued'); setTimeout(() => card.classList.remove('just-glued'), 700); }
+            if (card) { card.classList.add('just-glued'); setTimeout(() => card.classList.remove('just-glued'), 1400); }
             refreshHub();
         }
     }
@@ -1894,6 +1918,8 @@ document.addEventListener('DOMContentLoaded', () => {
         elements.openedStickers.classList.add('hidden');
         document.getElementById('pack-decide').classList.add('hidden');
         elements.packAnimationContainer.classList.remove('hidden', 'opening');
+        const pw = elements.packAnimationContainer.querySelector('.pack-wrapper');
+        if (pw) { pw.classList.remove('tearing'); pw.style.setProperty('--tear', '0'); }
         if (buttons.closePack) buttons.closePack.classList.add('hidden');
         modals.pack.classList.remove('hidden');
     }
@@ -1917,7 +1943,7 @@ document.addEventListener('DOMContentLoaded', () => {
         return results;
     }
 
-    if (elements.packAnimationContainer) elements.packAnimationContainer.addEventListener('click', () => {
+    function runPackOpen() {
         if (elements.packAnimationContainer.classList.contains('opening')) return;
         if (!removePack()) { showToast('Você não tem pacotes!', 'error'); return; }
 
@@ -1959,7 +1985,50 @@ document.addEventListener('DOMContentLoaded', () => {
             buildDecideList(results);
             if (buttons.closePack) buttons.closePack.classList.remove('hidden');
         }, 650);
-    });
+    }
+
+    // ─── ENVELOPE: rasgo guiado seguindo o cursor ───────
+    (function wirePackTear() {
+        const stage = elements.packAnimationContainer;
+        if (!stage) return;
+        const wrap = () => stage.querySelector('.pack-wrapper');
+        let dragging = false, moved = false, w = null;
+
+        const setTear = f => { f = Math.max(0, Math.min(1, f)); if (w) w.style.setProperty('--tear', f.toFixed(3)); return f; };
+
+        stage.addEventListener('pointerdown', e => {
+            if (stage.classList.contains('opening')) return;
+            w = wrap(); if (!w) return;
+            dragging = true; moved = false;
+            w.classList.add('tearing');
+            const r = w.getBoundingClientRect();
+            setTear((e.clientX - r.left) / r.width);
+            try { stage.setPointerCapture(e.pointerId); } catch (_) {}
+        });
+        stage.addEventListener('pointermove', e => {
+            if (!dragging || !w) return;
+            moved = true;
+            const r = w.getBoundingClientRect();
+            const f = setTear((e.clientX - r.left) / r.width);
+            if (f >= 0.62) finishTear();
+        });
+        const cancelTear = () => {
+            if (!dragging) return;
+            dragging = false;
+            if (w) { w.classList.remove('tearing'); w.style.setProperty('--tear', '0'); }
+        };
+        const finishTear = () => {
+            if (!dragging) return;
+            dragging = false;
+            if (w) w.classList.remove('tearing');
+            runPackOpen();
+        };
+        stage.addEventListener('pointerup', () => { if (dragging) cancelTear(); });
+        stage.addEventListener('pointercancel', cancelTear);
+
+        // toque simples / clique tambem abre (acessivel)
+        stage.addEventListener('click', () => { if (!moved) runPackOpen(); moved = false; });
+    })();
 
     // lista "o que fazer com as novas" (só as que ainda não estão coladas)
     function buildDecideList(results) {

@@ -912,3 +912,100 @@
 }
 .tm-btn:disabled { opacity: .4; }
 #tm-pull { flex: 1; min-width: 120px; min-height: 42px; }
+
+/* =====================================================
+   FASE 10 — efeitos (envelope, virar pagina),
+   sigla discreta, botoes de voltar claros
+   ===================================================== */
+
+/* ---- colar figurinha: mais lento e suave ---- */
+@keyframes stickDown {
+  0%   { transform: translateY(-46px) scale(1.12) rotate(-2deg); opacity: 0; }
+  55%  { transform: translateY(6px) scale(0.99); opacity: 1; }
+  78%  { transform: translateY(-2px) scale(1.01); }
+  100% { transform: translateY(0) scale(1) rotate(0); }
+}
+.album-card.just-glued .ac-frame { animation: stickDown 1.15s cubic-bezier(0.22, 1, 0.36, 1); }
+@media (prefers-reduced-motion: reduce) {
+  .album-card.just-glued .ac-frame { animation: none; }
+}
+
+/* ---- sigla discreta na figurinha colada ----
+   a figurinha JA e a bandeira, entao a sigla fica escondida;
+   aparece no hover (desktop) ou toque (celular)          */
+.album-card.collected .ac-code {
+  position: absolute; left: 4px; bottom: 4px;
+  font-size: 0.56rem; font-weight: 800; letter-spacing: .04em;
+  padding: 1px 5px; border-radius: 6px;
+  background: rgba(6, 12, 22, .72); color: #e8eef5;
+  border: 1px solid rgba(255,255,255,.18);
+  opacity: 0; transform: translateY(3px);
+  transition: opacity .18s ease, transform .18s ease;
+  pointer-events: none;
+}
+.album-card.collected:hover .ac-code,
+.album-card.collected.show-code .ac-code { opacity: 1; transform: none; }
+
+/* sigla no slot vazio: leve, ao fundo, so pra saber o que vai ali */
+.album-card.missing .ac-num {
+  position: absolute; font-size: 0.72rem; font-weight: 900; letter-spacing: .05em;
+  color: color-mix(in srgb, var(--cont-accent, #94a3b8) 55%, #fff 12%);
+  opacity: .5;
+}
+
+/* ---- botoes de voltar claros e rotulados ---- */
+.setup-back {
+  width: auto; min-width: 42px; height: 42px; padding: 0 14px 0 10px;
+  display: inline-flex; align-items: center; gap: 4px;
+  font-size: 1rem; font-weight: 800;
+}
+.setup-back::before { content: "‹"; font-size: 1.5rem; line-height: 1; }
+.game-exit::before { content: "‹"; font-weight: 900; margin-right: 3px; }
+
+/* ---- envelope: rasgo seguindo o cursor ---- */
+.pack-wrapper { touch-action: none; overflow: hidden; --tear: 0; }
+.pack-tear-line {
+  left: 0; right: auto;
+  width: 3px; height: 78%; top: 11%;
+  left: calc(6% + var(--tear) * 88%);
+  background: linear-gradient(180deg, transparent, rgba(255,255,255,.98) 20%, rgba(255,255,255,.98) 80%, transparent);
+  box-shadow: 0 0 10px 2px rgba(255,255,255,.7);
+  transition: left .04s linear;
+}
+.pack-wrapper.tearing .pack-tear-line { animation: none; }
+.pack-wrapper.tearing::after {
+  content: ""; position: absolute; inset: 0;
+  background: repeating-linear-gradient(-8deg,
+     rgba(255,255,255,.9) 0 2px, transparent 2px 7px);
+  -webkit-mask: linear-gradient(90deg, #000 0 calc(var(--tear) * 100%), transparent calc(var(--tear) * 100%));
+          mask: linear-gradient(90deg, #000 0 calc(var(--tear) * 100%), transparent calc(var(--tear) * 100%));
+  pointer-events: none;
+}
+.pack-wrapper.tearing .pack-emoji,
+.pack-wrapper.tearing .pack-brand,
+.pack-wrapper.tearing .pack-hint { opacity: calc(1 - var(--tear) * 1.4); }
+
+/* ---- virar pagina do album ---- */
+#album-grid { transform-style: preserve-3d; }
+#album-grid.page-turn {
+  animation: pageTurn .5s cubic-bezier(.4, 0, .2, 1);
+  transform-origin: left center;
+}
+@keyframes pageTurn {
+  0%   { transform: perspective(1400px) rotateY(0); opacity: 1; }
+  45%  { transform: perspective(1400px) rotateY(-14deg); opacity: .35; }
+  55%  { transform: perspective(1400px) rotateY(12deg); opacity: .35; }
+  100% { transform: perspective(1400px) rotateY(0); opacity: 1; }
+}
+@media (prefers-reduced-motion: reduce) {
+  #album-grid.page-turn { animation: none; }
+}
+
+/* ---- logo horizontal no hub (desktop) ---- */
+.hub-logo-wide { display: none; }
+@media (min-width: 768px) {
+  .hub-logo-wide {
+    display: block; height: 40px; width: auto; margin: 0 auto 2px;
+    filter: drop-shadow(0 2px 8px rgba(0,0,0,.4));
+  }
+}
