@@ -17,17 +17,17 @@
     <link rel="icon" href="assets/icons/favicon-32.png" sizes="32x32" type="image/png">
     <link rel="apple-touch-icon" href="assets/icons/apple-touch-icon.png">
 
-    <link rel="stylesheet" href="style.css?v=20260903t">
-    <link rel="stylesheet" href="css/app-shell.css?v=20260903t">
-    <link rel="stylesheet" href="css/screens.css?v=20260903t">
+    <link rel="stylesheet" href="style.css?v=20260903u">
+    <link rel="stylesheet" href="css/app-shell.css?v=20260903u">
+    <link rel="stylesheet" href="css/screens.css?v=20260903u">
     <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800;900&display=swap" rel="stylesheet">
     <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
     <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
-    <script src="countries.js?v=20260903t"></script>
-    <script src="collections.js?v=20260903t"></script>
-    <script src="curiosities.js?v=20260903t"></script>
-    <script src="curiosities_br.js?v=20260903t"></script>
-    <script src="js/sfx.js?v=20260903t"></script>
+    <script src="countries.js?v=20260903u"></script>
+    <script src="collections.js?v=20260903u"></script>
+    <script src="curiosities.js?v=20260903u"></script>
+    <script src="curiosities_br.js?v=20260903u"></script>
+    <script src="js/sfx.js?v=20260903u"></script>
 </head>
 
 <body>
@@ -195,12 +195,34 @@
             <button class="btn-primary setup-start" id="setup-start" disabled>Começar</button>
         </div>
 
-        <div id="passport-menu" class="screen hidden">
-            <h1>Passaporte 🛂</h1>
-            <p>Descobertos: <span id="passport-count">0</span> | <span style="color:gold">Ouro: <span
-                        id="passport-gold">0</span></span></p>
+        <div id="passport-menu" class="screen passport hidden">
+            <header class="pp-head">
+                <button class="setup-back back-button" data-target="main-menu" aria-label="Voltar">Voltar</button>
+                <span class="setup-mode"><span class="mb-icon">🛂</span><span>Meu Passaporte</span></span>
+            </header>
+
+            <div class="pp-overall">
+                <div class="pp-overall-txt"><b id="passport-count">0</b> de <span id="pp-total">0</span> bandeiras descobertas</div>
+                <div class="pp-bar"><span id="pp-fill"></span></div>
+            </div>
+
+            <div class="pp-stats">
+                <div class="pp-stat"><span class="pps-v" id="pp-dominadas">0</span><span class="pps-l">dominadas 🏅</span></div>
+                <div class="pp-stat"><span class="pps-v" id="pp-aprendendo">0</span><span class="pps-l">aprendendo</span></div>
+                <div class="pp-stat"><span class="pps-v" id="pp-descobrir">0</span><span class="pps-l">a descobrir</span></div>
+            </div>
+
+            <div id="pp-hard-wrap" class="pp-hard-wrap hidden">
+                <h3>Suas mais difíceis — revise!</h3>
+                <div id="pp-hard" class="pp-hard"></div>
+            </div>
+
+            <div id="pp-cont-nav" class="continent-nav"></div>
+            <div class="album-page-head">
+                <span id="pp-cont-name">Continente</span>
+                <span id="pp-cont-count" class="acc-count">0/0</span>
+            </div>
             <div id="passport-grid" class="passport-grid"></div>
-            <button class="back-button" data-target="main-menu">Voltar</button>
         </div>
 
         <div id="album-menu" class="screen album hidden">
@@ -505,17 +527,14 @@
     </div>
 
     <div id="ranking-modal" class="modal-backdrop hidden">
-        <div class="modal-content">
-            <h2>Ranking 🏆</h2>
-            <select id="ranking-filter" style="margin-bottom: 10px; padding: 5px; width: 100%; font-family: inherit; font-size: 1em; border-radius: 5px;">
-                <option value="Todos">Todos os Modos</option>
-                <option value="Qual a Bandeira?">Qual a Bandeira?</option>
-                <option value="Qual o País?">Qual o País?</option>
-                <option value="Qual o Continente?">Qual o Continente?</option>
-                <option value="Jogo da Memória">Jogo da Memória</option>
-            </select>
-            <div id="ranking-list" style="text-align: left; margin: 15px 0; max-height: 300px; overflow-y: auto;"></div>
-            <button id="close-ranking-button">Fechar</button>
+        <div class="modal-content rk-card">
+            <header class="rk-head">
+                <h2>🏆 Ranking</h2>
+                <button id="close-ranking-button" class="tmp-x" aria-label="Fechar">✕</button>
+            </header>
+            <div id="ranking-filter" class="rk-filter"></div>
+            <div id="rk-podium" class="rk-podium"></div>
+            <div id="ranking-list" class="rk-list"></div>
         </div>
     </div>
 
@@ -630,7 +649,7 @@
         </div>
     </div>
 
-    <script src="script.js?v=20260903t"></script>
+    <script src="script.js?v=20260903u"></script>
 </body>
 
 </html>

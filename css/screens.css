@@ -1994,3 +1994,95 @@
   font-size: 2rem; font-weight: 900; color: #fca5a5;
   background: rgba(15, 27, 45, 0.55); border-radius: inherit;
 }
+
+/* =====================================================
+   FASE 28 — Passaporte e Ranking repaginados
+   ===================================================== */
+
+#passport-menu.passport { display: flex; flex-direction: column; gap: 14px; }
+.pp-head { display: flex; align-items: center; gap: 10px; }
+
+.pp-overall { }
+.pp-overall-txt { font-size: .9rem; font-weight: 700; color: var(--text-white); margin-bottom: 6px; }
+.pp-overall-txt b { color: #4ade80; font-size: 1.05rem; }
+.pp-bar { height: 9px; border-radius: 999px; background: rgba(0,0,0,.35); overflow: hidden; }
+.pp-bar span { display: block; height: 100%; border-radius: 999px; background: linear-gradient(90deg, #22c55e, #4ade80); transition: width .5s ease; }
+
+.pp-stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+.pp-stat {
+  display: flex; flex-direction: column; align-items: center; gap: 2px;
+  padding: 10px 6px; border-radius: 12px;
+  background: rgba(255,255,255,.05); border: 1px solid rgba(255,255,255,.08);
+}
+.pps-v { font-size: 1.3rem; font-weight: 900; color: #fff; }
+.pps-l { font-size: .68rem; font-weight: 700; color: var(--text-muted); text-align: center; }
+
+.pp-hard-wrap { padding: 12px; border-radius: 14px; background: rgba(239,68,68,.1); border: 1px solid rgba(239,68,68,.3); }
+.pp-hard-wrap.hidden { display: none; }
+.pp-hard-wrap h3 { margin: 0 0 8px; font-size: .9rem; color: #fca5a5; }
+.pp-hard { display: flex; gap: 8px; overflow-x: auto; padding-bottom: 4px; }
+.pp-hard-item {
+  flex-shrink: 0; min-height: 0; padding: 6px; border-radius: 10px;
+  background: rgba(255,255,255,.06); border: 1px solid rgba(255,255,255,.12);
+  display: flex; flex-direction: column; align-items: center; gap: 4px; width: 72px;
+}
+.pp-hard-item img { width: 100%; aspect-ratio: 3/2; object-fit: cover; border-radius: 4px; }
+.pp-hard-item span { font-size: .6rem; font-weight: 700; color: #fff; text-align: center; line-height: 1.1; overflow: hidden; }
+
+.passport-grid {
+  display: grid; grid-template-columns: repeat(auto-fill, minmax(66px, 1fr)); gap: 8px;
+  padding: 12px; border-radius: 16px; max-height: none; overflow: visible;
+  background: linear-gradient(160deg, rgba(255,255,255,.03), rgba(0,0,0,.18));
+  border: 1px solid rgba(255,255,255,.06);
+}
+.pp-stamp {
+  position: relative; aspect-ratio: 1; min-height: 0; padding: 5px; border-radius: 10px;
+  display: grid; place-items: center; overflow: hidden;
+  background: rgba(255,255,255,.04); border: 2px solid rgba(255,255,255,.08);
+  transform: rotate(-2deg); transition: transform .15s ease;
+}
+.pp-stamp:nth-child(even) { transform: rotate(2deg); }
+.pp-stamp:hover { transform: rotate(0) scale(1.06); z-index: 2; }
+.pp-stamp img { width: 90%; aspect-ratio: 3/2; object-fit: cover; border-radius: 3px; }
+.pp-stamp.pp-lock { opacity: .32; filter: grayscale(100%); }
+.pp-stamp.pp-new   { border-color: #60a5fa; box-shadow: 0 0 8px rgba(96,165,250,.35); }
+.pp-stamp.pp-learn { border-color: #fbbf24; box-shadow: 0 0 8px rgba(251,191,36,.4); }
+.pp-stamp.pp-gold  { border-color: #f59e0b; background: rgba(245,158,11,.12); box-shadow: 0 0 14px rgba(245,158,11,.55); }
+.pp-seal {
+  position: absolute; top: 2px; right: 3px; font-size: .8rem; color: #fde047;
+  filter: drop-shadow(0 1px 2px rgba(0,0,0,.6));
+}
+
+/* ---- RANKING ---- */
+.rk-card { max-width: 420px; text-align: left; }
+.rk-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px; }
+.rk-head h2 { margin: 0; font-size: 1.2rem; }
+.rk-filter { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 14px; }
+.rk-chip {
+  min-height: 0; padding: 6px 12px; border-radius: 999px; font-size: .78rem; font-weight: 800;
+  background: rgba(255,255,255,.07); border: 1px solid rgba(255,255,255,.14); color: var(--text-white);
+}
+.rk-chip.on { background: rgba(124,58,237,.3); border-color: #a855f7; color: #fff; }
+
+.rk-podium { display: flex; gap: 8px; margin-bottom: 12px; }
+.rk-pod {
+  flex: 1; display: flex; flex-direction: column; align-items: center; gap: 2px;
+  padding: 12px 6px 10px; border-radius: 14px;
+  background: rgba(255,255,255,.05); border: 1px solid rgba(255,255,255,.1);
+}
+.rk-pod-1 { background: rgba(251,191,36,.16); border-color: rgba(251,191,36,.5); order: 2; transform: translateY(-6px); }
+.rk-pod-2 { order: 1; }
+.rk-pod-3 { order: 3; }
+.rk-pod.me { outline: 2px solid #4ade80; }
+.rk-medal { font-size: 1.5rem; }
+.rk-pod-name { font-size: .74rem; font-weight: 800; color: #fff; text-align: center; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%; }
+.rk-pod-score { font-size: .9rem; font-weight: 900; color: #4ade80; }
+
+.rk-list { display: flex; flex-direction: column; gap: 4px; max-height: 44vh; overflow-y: auto; }
+.rk-row { display: flex; align-items: center; gap: 10px; padding: 8px 10px; border-radius: 9px; background: rgba(255,255,255,.04); font-size: .86rem; }
+.rk-row.me { background: rgba(74,222,128,.14); border: 1px solid rgba(74,222,128,.4); }
+.rk-row.rk-far { margin-top: 6px; }
+.rk-pos { width: 22px; font-weight: 900; color: var(--text-muted); text-align: center; }
+.rk-name { flex: 1; font-weight: 700; color: #fff; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.rk-score { font-weight: 900; color: #4ade80; }
+.rk-empty { text-align: center; color: var(--text-muted); padding: 24px 10px; font-size: .88rem; }

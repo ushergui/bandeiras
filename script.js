@@ -1773,50 +1773,148 @@ document.addEventListener('DOMContentLoaded', () => {
     buttons.closeRanking.addEventListener('click', () => modals.ranking.classList.add('hidden'));
 
     // Passaporte e Ranking
+    let rankFilter = 'Todos';
     function renderRanking(filter) {
-        let l = JSON.parse(localStorage.getItem('ranking_global')) || [];
-        if (filter && filter !== 'Todos') {
-            l = l.filter(r => r.mode === filter);
+        rankFilter = filter || 'Todos';
+        const all = JSON.parse(localStorage.getItem('ranking_global')) || [];
+        const modes = [...new Set(all.map(r => r.mode).filter(Boolean))];
+
+        // chips de filtro
+        const fbox = document.getElementById('ranking-filter');
+        if (fbox) {
+            fbox.innerHTML = ['Todos', ...modes].map(m =>
+                `<button class="rk-chip${m === rankFilter ? ' on' : ''}" data-m="${m}">${m === 'Todos' ? 'Geral' : m}</button>`).join('');
+            fbox.querySelectorAll('.rk-chip').forEach(b => b.onclick = () => renderRanking(b.dataset.m));
         }
-        const c = document.getElementById('ranking-list'); c.innerHTML = '';
-        if (l.length === 0) {
-            c.innerHTML = '<p style="color:#777; text-align:center;">Nenhum detetive nesta categoria ainda!</p>';
-        } else {
-            l.forEach((r, i) => c.innerHTML += `<p><strong>${i + 1}. ${r.nome}</strong>: <span style="color:#32CD32; font-weight:bold;">${r.score}</span> <small style="color:#777;">(${r.mode || 'Geral'})</small></p>`);
+
+        const l = (rankFilter === 'Todos' ? all : all.filter(r => r.mode === rankFilter))
+            .slice().sort((a, b) => b.score - a.score);
+
+        const podium = document.getElementById('rk-podium');
+        const list = document.getElementById('ranking-list');
+        if (!l.length) {
+            if (podium) podium.innerHTML = '';
+            list.innerHTML = '<p class="rk-empty">Nenhum detetive nesta categoria ainda. Jogue uma partida!</p>';
+            return;
+        }
+        const medal = ['🥇', '🥈', '🥉'];
+        if (podium) {
+            podium.innerHTML = l.slice(0, 3).map((r, i) =>
+                `<div class="rk-pod rk-pod-${i + 1}${r.nome === currentUser ? ' me' : ''}">
+                    <span class="rk-medal">${medal[i]}</span>
+                    <span class="rk-pod-name">${r.nome}</span>
+                    <span class="rk-pod-score">${r.score}</span>
+                </div>`).join('');
+        }
+        list.innerHTML = l.slice(3, 30).map((r, i) =>
+            `<div class="rk-row${r.nome === currentUser ? ' me' : ''}">
+                <span class="rk-pos">${i + 4}</span>
+                <span class="rk-name">${r.nome}</span>
+                <span class="rk-score">${r.score}</span>
+            </div>`).join('') || '';
+        // se você não está no top 30, mostra sua melhor posição
+        const myIdx = l.findIndex(r => r.nome === currentUser);
+        if (myIdx >= 30) {
+            const r = l[myIdx];
+            list.innerHTML += `<div class="rk-row me rk-far"><span class="rk-pos">${myIdx + 1}</span><span class="rk-name">${r.nome} (você)</span><span class="rk-score">${r.score}</span></div>`;
         }
     }
 
     function openRanking() {
-        document.getElementById('ranking-filter').value = 'Todos';
         renderRanking('Todos');
         modals.ranking.classList.remove('hidden');
     }
     if (buttons.showRanking) buttons.showRanking.addEventListener('click', openRanking);
 
-    document.getElementById('ranking-filter').addEventListener('change', (e) => {
-        renderRanking(e.target.value);
-    });
+    // ─── PASSAPORTE (dashboard de aprendizado) ────────────
+    let ppCont = null;
+    function ppState(s) {
+        if (!s || !s.acertos) return 'lock';
+        const m = s.mastery || 0;
+        if (m >= 85 || (s.acertos >= 5 && (s.erros || 0) < 2)) return 'gold';
+        if (m >= 40) return 'learn';
+        return 'new';
+    }
 
     async function openPassport() {
         if (!_cache.progress && currentUser) {
-            _cache.progress = await API.getProgress(currentUser);
+            try { _cache.progress = await API.getProgress(currentUser); } catch (e) { _cache.progress = {}; }
         }
-        const p = loadPlayerProgress();
-        const g = elements.passportGrid;
-        g.innerHTML = '';
-        let u = 0, go = 0;
-        countries.forEach(c => {
-            const s = p[c.codigo] || { acertos: 0 };
-            if (s.acertos > 0) { u++; if (s.acertos >= 5 && s.erros < 2) go++; }
-            const i = document.createElement('div');
-            i.className = 'passport-item';
-            if (s.acertos > 0) { i.classList.add('unlocked'); if (s.acertos >= 5 && s.erros < 2) i.classList.add('gold'); }
-            i.innerHTML = `<img src="assets/flags/${c.codigo}.png" alt="${c.nome}" loading="lazy">`;
-            g.appendChild(i);
-        });
-        elements.passportCount.textContent = u;
-        elements.passportGold.textContent = go;
+        if (!ppCont) ppCont = CONTINENTS_ORDER[0];
+        renderPassport();
         showScreen('passport');
+    }
+
+    function renderPassport() {
+        const p = loadPlayerProgress();
+        const set = (id, v) => { const el = document.getElementById(id); if (el) el.textContent = v; };
+
+        let disc = 0, gold = 0, learn = 0;
+        countries.forEach(c => {
+            const st = ppState(p[c.codigo]);
+            if (st !== 'lock') disc++;
+            if (st === 'gold') gold++;
+            if (st === 'learn') learn++;
+        });
+        set('passport-count', disc); set('pp-total', countries.length);
+        set('pp-dominadas', gold);
+        set('pp-aprendendo', learn);
+        set('pp-descobrir', countries.length - disc);
+        const fill = document.getElementById('pp-fill');
+        if (fill) fill.style.width = `${Math.round(disc / countries.length * 100)}%`;
+
+        // mais difíceis
+        const hard = countries
+            .map(c => ({ c, s: p[c.codigo] || {} }))
+            .filter(o => (o.s.erros || 0) > 0 && ppState(o.s) !== 'gold')
+            .sort((a, b) => (b.s.erros - b.s.acertos) - (a.s.erros - a.s.acertos))
+            .slice(0, 6);
+        const hw = document.getElementById('pp-hard-wrap');
+        const hbox = document.getElementById('pp-hard');
+        if (hard.length && hbox) {
+            hw.classList.remove('hidden');
+            hbox.innerHTML = hard.map(o =>
+                `<button class="pp-hard-item" data-code="${o.c.codigo}" title="${o.c.nome}">
+                    <img src="assets/flags/${o.c.codigo}.png" alt=""><span>${o.c.nome}</span>
+                </button>`).join('');
+            hbox.querySelectorAll('[data-code]').forEach(b => b.onclick = () => openFigZoom(b.dataset.code));
+        } else if (hw) hw.classList.add('hidden');
+
+        // nav de continentes
+        const nav = document.getElementById('pp-cont-nav');
+        if (nav) {
+            nav.innerHTML = '';
+            CONTINENTS_ORDER.filter(c => CONTINENT_META[c] && ['AMS', 'AMN', 'AMC', 'EUR', 'ASI', 'AFR', 'OCE'].includes(CONTINENT_META[c].sigla)).forEach(cont => {
+                const meta = CONTINENT_META[cont];
+                const list = countries.filter(c => c.continente === cont);
+                const have = list.filter(c => ppState(p[c.codigo]) !== 'lock').length;
+                const btn = document.createElement('button');
+                btn.className = 'continent-tab' + (cont === ppCont ? ' active' : '');
+                btn.style.setProperty('--tab-accent', meta.accent);
+                btn.innerHTML = `<span class="ct-emoji">${meta.emoji}</span><span class="ct-name">${cont}</span><span class="ct-count">${have}/${list.length}</span>`;
+                btn.onclick = () => { ppCont = cont; renderPassport(); };
+                nav.appendChild(btn);
+            });
+        }
+
+        const meta = CONTINENT_META[ppCont] || {};
+        const grid = elements.passportGrid;
+        grid.innerHTML = '';
+        const inCont = countries.filter(c => c.continente === ppCont);
+        inCont.forEach(c => {
+            const st = ppState(p[c.codigo]);
+            const el = document.createElement('button');
+            el.className = `pp-stamp pp-${st}`;
+            el.title = `${c.nome}${st === 'lock' ? ' — não descoberta' : ''}`;
+            el.dataset.code = c.codigo;
+            el.innerHTML = `<img src="assets/flags/${c.codigo}.png" alt="${c.nome}" loading="lazy">`
+                + (st === 'gold' ? '<span class="pp-seal">★</span>' : '');
+            el.onclick = () => openFigZoom(c.codigo);
+            grid.appendChild(el);
+        });
+        set('pp-cont-name', `${meta.emoji || ''} ${ppCont}`);
+        const ppc = document.getElementById('pp-cont-count');
+        if (ppc) ppc.textContent = `${inCont.filter(c => ppState(p[c.codigo]) !== 'lock').length}/${inCont.length}`;
     }
     if (buttons.showPassport) buttons.showPassport.addEventListener('click', openPassport);
 
