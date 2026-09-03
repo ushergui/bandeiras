@@ -489,7 +489,38 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     let gameState = {};
+    let session = { correct: 0, wrong: 0, mastered: 0, missed: {} };
     let correctAnswer = null;
+
+    // pares de bandeiras que confundem — dica curta ao errar
+    const FLAG_TIPS = {
+        'ro|td': 'Chade e Romênia usam as mesmas 3 cores. O azul do Chade é mais escuro (quase índigo).',
+        'id|mc': 'Indonésia e Mônaco são vermelho sobre branco. Mônaco é quase quadrada; a Indonésia é mais comprida.',
+        'mc|pl': 'A Polônia é branco em cima e vermelho embaixo — o contrário de Mônaco.',
+        'id|pl': 'A Polônia é branco em cima; a Indonésia é vermelho em cima.',
+        'lu|nl': 'Luxemburgo é mais claro e mais comprido que a Holanda, e o azul é celeste.',
+        'ci|ie': 'Na Irlanda o verde fica na haste; na Costa do Marfim é o laranja que fica na haste.',
+        'gn|ml': 'Mali tem o verde na haste; a Guiné tem o vermelho na haste.',
+        'ml|sn': 'Iguais, mas o Senegal tem uma estrela verde no centro.',
+        'au|nz': 'A Austrália tem 6 estrelas brancas; a Nova Zelândia tem 4 estrelas vermelhas com borda branca.',
+        'is|no': 'Noruega: fundo vermelho, cruz azul. Islândia: fundo azul, cruz vermelha.',
+        'co|ec': 'O Equador tem um brasão grande no centro; a Colômbia é lisa.',
+        'co|ve': 'A Venezuela tem um arco de estrelas brancas; a Colômbia é lisa.',
+        'lr|us': 'Os EUA têm 50 estrelas; a Libéria tem só 1.',
+        'my|us': 'A Malásia tem crescente e estrela amarelos no cantão azul.',
+        'eg|ye': 'Iêmen é liso; o Egito tem a águia dourada no centro.',
+        'iq|ye': 'Iêmen é liso; o Iraque tem "Deus é maior" escrito em verde.',
+        'ru|si': 'A Eslovênia tem um brasão no canto superior esquerdo; a Rússia é lisa.',
+        'ru|sk': 'A Eslováquia tem um brasão no centro-esquerda; a Rússia é lisa.',
+        'si|sk': 'O brasão da Eslováquia é uma cruz sobre montes; o da Eslovênia tem o monte Triglav e estrelas.',
+        'bh|qa': 'O Catar é bordô (vinho) e tem 9 pontas; o Bahrein é vermelho e tem 5 pontas.',
+        'bd|jp': 'No Japão o círculo é vermelho sobre branco e centralizado; em Bangladesh é sobre verde e puxado pra esquerda.',
+        'in|ne': 'A Índia tem a roda azul (Chakra) no centro; o Níger tem um círculo laranja.',
+        'ar|uy': 'A Argentina tem o sol no meio da faixa branca; o Uruguai tem 9 listras e o sol no cantão.',
+        'at|lv': 'A Letônia é vermelho-escuro (carmim) e a faixa branca é bem fininha.',
+        'cf|td': 'A República Centro-Africana tem 4 faixas horizontais + 1 vertical vermelha e uma estrela.',
+    };
+    function flagTip(a, b) { return FLAG_TIPS[[a, b].sort().join('|')] || ''; }
     let gameLocked = false;
     let selectedVoice = null;
      let calmMode = localStorage.getItem('detetive_calm_mode') === 'true';
@@ -638,6 +669,14 @@ document.addEventListener('DOMContentLoaded', () => {
         s.mastery = Math.round(Math.max(0, Math.min(100, acc * 55 + Math.min(s.streak || 0, 6) / 6 * 45)));
 
         savePlayerProgress(p);
+        // resumo da sessão
+        if (isCorrect) {
+            session.correct++;
+            if (masteryBefore < 85 && s.mastery >= 85) session.mastered++;
+        } else {
+            session.wrong++;
+            session.missed[code] = (session.missed[code] || 0) + 1;
+        }
         if (isCorrect) trackDailyCorrect(masteryBefore < 85 && s.mastery >= 85);
         checkAchievements();
     }
@@ -891,6 +930,8 @@ document.addEventListener('DOMContentLoaded', () => {
     // --- FLUXO PRINCIPAL ---
     function startGame(conf) {
         gameConfig = conf;
+        session = { correct: 0, wrong: 0, mastered: 0, missed: {} };
+        document.getElementById('learn-summary').classList.add('hidden');
         showScreen('game');
         screens.game.classList.remove('game-over-view');
         elements.options.classList.remove('hidden');
@@ -1033,8 +1074,12 @@ document.addEventListener('DOMContentLoaded', () => {
                 document.getElementById('constructive-img-right').src = `assets/flags/${correctAnswer.codigo}.png`;
                 document.getElementById('constructive-name-right').textContent = correctAnswer.nome;
 
+                const tip = flagTip(correctAnswer.codigo, val);
+                const tipEl = document.getElementById('constructive-text');
+                if (tipEl) tipEl.textContent = tip || 'Repare na diferença entre as duas:';
+
                 document.getElementById('constructive-feedback-modal').classList.remove('hidden');
-                elements.feedback.textContent = `Atenção à diferença!`;
+                elements.feedback.textContent = tip ? '💡 Dica pra não errar de novo' : 'Atenção à diferença!';
             } else if (gameConfig.mode === 'ContinentePorPais') {
                 elements.feedback.textContent = `Ops! Era ${correctAnswer.continente}.`;
             } else {
@@ -1187,8 +1232,26 @@ document.addEventListener('DOMContentLoaded', () => {
         elements.feedback.textContent = win ? `Pontuação Final: ${gameState.score}` : `Tente de novo! Pontos: ${gameState.score}`;
         elements.feedback.style.color = win ? '#32CD32' : '#DC143C';
 
+        renderLearnSummary();
         speakText(win ? `Incrível ${currentUser}! Você venceu.` : `Bom jogo ${currentUser}. Tente novamente.`);
         saveGlobalScore(gameState.score);
+    }
+
+    function renderLearnSummary() {
+        const box = document.getElementById('learn-summary');
+        if (!box) return;
+        const tot = session.correct + session.wrong;
+        const missed = Object.entries(session.missed)
+            .sort((a, b) => b[1] - a[1]).slice(0, 3)
+            .map(([code]) => (albumItem(code) || {}).nome).filter(Boolean);
+        box.innerHTML = `
+            <h3>O que rolou nesta partida</h3>
+            <div class="ls-row">
+                <span><b>${session.correct}</b>/${tot} acertos</span>
+                ${session.mastered ? `<span class="ls-good"><b>${session.mastered}</b> ${session.mastered === 1 ? 'bandeira dominada' : 'bandeiras dominadas'} 🏅</span>` : ''}
+            </div>
+            ${missed.length ? `<p class="ls-review">Revisar depois: <b>${missed.join(' · ')}</b></p>` : (tot ? '<p class="ls-review">Sem erros nessa! 👏</p>' : '')}`;
+        box.classList.toggle('hidden', tot === 0);
     }
 
     function showScreen(key) {

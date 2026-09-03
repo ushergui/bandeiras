@@ -1936,3 +1936,20 @@
   font-size: .88rem; line-height: 1.35; color: var(--text-white);
 }
 .packs-help-list b { color: var(--accent-gold, #fbbf24); }
+
+/* =====================================================
+   FASE 24 (§13) — resumo de aprendizado + dica ao errar
+   ===================================================== */
+.learn-summary {
+  max-width: 460px; margin: 4px auto 0; padding: 12px 16px;
+  border-radius: 14px; background: rgba(255,255,255,.06);
+  border: 1px solid rgba(255,255,255,.12); text-align: center;
+}
+.learn-summary.hidden { display: none; }
+.learn-summary h3 { margin: 0 0 8px; font-size: .95rem; color: var(--text-white); }
+.ls-row { display: flex; flex-wrap: wrap; justify-content: center; gap: 8px 16px; font-size: .9rem; color: rgba(255,255,255,.85); }
+.ls-row b { color: #fff; font-size: 1.05rem; }
+.ls-good b, .ls-good { color: #4ade80; }
+.ls-review { margin: 8px 0 0; font-size: .84rem; color: var(--text-muted); }
+.ls-review b { color: #fca5a5; }
+#game-screen.game:not(.game-over-view) .learn-summary { display: none; }

@@ -17,7 +17,17 @@ import os, re, json, subprocess, sys
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 os.chdir(ROOT)
 
+# voz de referência que o OmniVoice clona. Troque aqui se gerar uma nova
+# (ex.: uma amostra do ElevenLabs salva em assets/audio/ref_voz.mp3)
 REF = "assets/audio/bandeiras/brasil.mp3"
+if os.path.exists("assets/audio/ref_voz.mp3"):
+    REF = "assets/audio/ref_voz.mp3"
+
+FFMPEG = "ffmpeg"
+for cand in (r"C:\FFmpeg\bin\ffmpeg.exe", r"C:\ffmpeg\bin\ffmpeg.exe"):
+    if os.path.exists(cand):
+        FFMPEG = cand
+        break
 
 
 def _read_js_object(path, var):
@@ -85,7 +95,7 @@ def gerar(model, sf, torch, tarefas):
         try:
             audio = model.generate(text=texto, ref_audio=REF)
             sf.write(wav, audio[0], 24000)
-            subprocess.run(["ffmpeg", "-y", "-i", wav, "-codec:a", "libmp3lame", "-q:a", "4", mp3],
+            subprocess.run([FFMPEG, "-y", "-i", wav, "-codec:a", "libmp3lame", "-q:a", "4", mp3],
                            check=True, capture_output=True)
             os.remove(wav)
             novos += 1
