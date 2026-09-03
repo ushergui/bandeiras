@@ -17,17 +17,17 @@
     <link rel="icon" href="assets/icons/favicon-32.png" sizes="32x32" type="image/png">
     <link rel="apple-touch-icon" href="assets/icons/apple-touch-icon.png">
 
-    <link rel="stylesheet" href="style.css?v=20260903n">
-    <link rel="stylesheet" href="css/app-shell.css?v=20260903n">
-    <link rel="stylesheet" href="css/screens.css?v=20260903n">
+    <link rel="stylesheet" href="style.css?v=20260903o">
+    <link rel="stylesheet" href="css/app-shell.css?v=20260903o">
+    <link rel="stylesheet" href="css/screens.css?v=20260903o">
     <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800;900&display=swap" rel="stylesheet">
     <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
     <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
-    <script src="countries.js?v=20260903n"></script>
-    <script src="collections.js?v=20260903n"></script>
-    <script src="curiosities.js?v=20260903n"></script>
-    <script src="curiosities_br.js?v=20260903n"></script>
-    <script src="js/sfx.js?v=20260903n"></script>
+    <script src="countries.js?v=20260903o"></script>
+    <script src="collections.js?v=20260903o"></script>
+    <script src="curiosities.js?v=20260903o"></script>
+    <script src="curiosities_br.js?v=20260903o"></script>
+    <script src="js/sfx.js?v=20260903o"></script>
 </head>
 
 <body>
@@ -212,11 +212,14 @@
                         <span class="album-overall"><b id="album-progress">0%</b> completo · <span id="album-count">0/0</span></span>
                     </div>
                 </div>
-                <button id="open-pack-btn" class="album-pack-btn">
-                    <span class="apb-gift">🎁</span>
-                    <span class="apb-txt">Abrir pacote</span>
-                    <span class="apb-count" id="packs-count">0</span>
-                </button>
+                <div class="album-pack-wrap">
+                    <button id="open-pack-btn" class="album-pack-btn">
+                        <span class="apb-gift">🎁</span>
+                        <span class="apb-txt">Abrir pacote</span>
+                        <span class="apb-count" id="packs-count">0</span>
+                    </button>
+                    <button id="packs-help-btn" class="packs-help" aria-label="Como ganhar pacotes">?</button>
+                </div>
             </header>
 
             <div class="album-overall-bar"><span id="album-overall-fill"></span></div>
@@ -570,6 +573,22 @@
         </div>
     </div>
 
+    <div id="packs-help-modal" class="modal-backdrop hidden">
+        <div class="modal-content" style="max-width: 380px;">
+            <h2 style="margin:0 0 6px;">🎁 Como ganhar pacotes</h2>
+            <ul class="packs-help-list">
+                <li><b>3 pacotes grátis</b> todo dia às 6h da manhã</li>
+                <li>Acertar <b>10</b> bandeiras no dia · e mais um aos <b>25</b></li>
+                <li><b>Dominar</b> uma bandeira nova (até 3 por dia)</li>
+                <li>Fazer uma <b>sequência de 15</b> acertos</li>
+                <li>Terminar a <b>Jornada</b> · completar a <b>Memória</b></li>
+                <li>Fazer <b>1 troca</b> por dia</li>
+                <li>Login <b>7 dias seguidos</b> → +3 · depois +1 por dia</li>
+            </ul>
+            <button id="packs-help-close" class="btn-primary">Entendi</button>
+        </div>
+    </div>
+
     <div id="fig-zoom" class="fig-zoom hidden">
         <button id="fig-zoom-close" class="fig-zoom-x" aria-label="Fechar">✕</button>
         <div class="fig-zoom-stage">
@@ -615,7 +634,7 @@
         </div>
     </div>
 
-    <script src="script.js?v=20260903n"></script>
+    <script src="script.js?v=20260903o"></script>
 </body>
 
 </html>

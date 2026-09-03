@@ -1882,3 +1882,57 @@
   color: #dbeafe; font-weight: 800; font-size: .8rem;
 }
 .fig-zoom-info { max-height: 78vh; overflow-y: auto; }
+
+/* =====================================================
+   FASE 23 — figurinha nunca alarga, pacote centrado,
+   placeholder da senha, botão "?" dos pacotes
+   ===================================================== */
+
+/* ---- senha: placeholder colado na borda ---- */
+#auth-form input[type="text"],
+#auth-form input[type="password"] {
+  padding: 14px 16px;
+}
+
+/* ---- pacote: centraliza as 3 figurinhas (nada de 4º espaço) ---- */
+.opened-stickers-grid {
+  display: flex; flex-wrap: wrap; justify-content: center; align-items: flex-start;
+  gap: 12px; margin: 14px auto; max-width: 380px;
+}
+.opened-stickers-grid .pack-card { flex: 0 1 108px; }
+@media (max-width: 400px) { .opened-stickers-grid .pack-card { flex-basis: 92px; } }
+
+/* ---- a figurinha NUNCA muda de largura: nome quebra / encolhe ---- */
+.album-grid { grid-template-columns: repeat(auto-fill, minmax(94px, 1fr)); }
+.album-grid, .tmp-grid, .tm-slots { }
+.tm-slots { grid-template-columns: repeat(7, minmax(0, 1fr)); }
+.tmp-grid { grid-template-columns: repeat(auto-fill, minmax(92px, 1fr)); }
+
+.fig-card .fig, .fig-foot { min-width: 0; max-width: 100%; }
+.fig-name {
+  white-space: normal;
+  overflow-wrap: break-word; word-break: normal; hyphens: auto;
+  display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2;
+  overflow: hidden; text-overflow: ellipsis;
+  width: 100%;
+}
+.fig-zoom-card .fig-name { -webkit-line-clamp: 3; }
+
+/* ---- "Ir para o álbum": respiro nas laterais ---- */
+#close-pack-button { padding: 12px 26px; }
+
+/* ---- botão "?" ao lado de "Abrir pacote" ---- */
+.album-pack-wrap { display: flex; align-items: center; gap: 6px; }
+.packs-help {
+  flex-shrink: 0; width: 30px; height: 30px; min-height: 0; border-radius: 50%;
+  background: rgba(255,255,255,.1); border: 1px solid rgba(255,255,255,.25);
+  color: #fff; font-weight: 900; font-size: .95rem; line-height: 1;
+  display: grid; place-items: center;
+}
+.packs-help:hover { background: rgba(255,255,255,.2); }
+.packs-help-list {
+  text-align: left; margin: 10px 0 16px; padding-left: 20px;
+  display: flex; flex-direction: column; gap: 7px;
+  font-size: .88rem; line-height: 1.35; color: var(--text-white);
+}
+.packs-help-list b { color: var(--accent-gold, #fbbf24); }

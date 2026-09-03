@@ -1936,6 +1936,7 @@ document.addEventListener('DOMContentLoaded', () => {
         if (playBtn) playBtn.addEventListener('click', () => { playAudio(saiba.audio); });
 
         box.classList.remove('hidden');
+        requestAnimationFrame(() => fitFigNames(cardEl));
         if (window.SFX) window.SFX.play('tap');
     }
 
@@ -1956,6 +1957,18 @@ document.addEventListener('DOMContentLoaded', () => {
     function closeFigZoom() {
         const box = document.getElementById('fig-zoom');
         if (box) box.classList.add('hidden');
+    }
+
+    // encolhe o nome da figurinha até caber (a figurinha NUNCA muda de largura)
+    function fitFigNames(root) {
+        (root || document).querySelectorAll('.fig-name').forEach(t => {
+            t.style.fontSize = '';
+            let size = parseFloat(getComputedStyle(t).fontSize), guard = 0;
+            while (t.scrollHeight > t.clientHeight + 1 && size > 5.5 && guard++ < 16) {
+                size -= 0.6;
+                t.style.fontSize = size + 'px';
+            }
+        });
     }
 
     function animatePageTurn() {
@@ -2040,6 +2053,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 openFigZoom(card.dataset.code);
             });
         });
+        requestAnimationFrame(() => fitFigNames(grid));
 
         const st = continentStats(currentContinent);
         const set = (id, v) => { const el = document.getElementById(id); if (el) el.textContent = v; };
@@ -2174,6 +2188,15 @@ document.addEventListener('DOMContentLoaded', () => {
     document.getElementById('open-trades-btn').addEventListener('click', openTrades);
     document.getElementById('trades-back').addEventListener('click', () => showScreen('album'));
 
+    (function wirePacksHelp() {
+        const btn = document.getElementById('packs-help-btn');
+        const modal = document.getElementById('packs-help-modal');
+        if (!btn || !modal) return;
+        btn.addEventListener('click', () => modal.classList.remove('hidden'));
+        modal.addEventListener('click', e => { if (e.target === modal) modal.classList.add('hidden'); });
+        document.getElementById('packs-help-close').addEventListener('click', () => modal.classList.add('hidden'));
+    })();
+
     (function wireFigZoom() {
         const box = document.getElementById('fig-zoom');
         if (!box) return;
@@ -2283,6 +2306,7 @@ document.addEventListener('DOMContentLoaded', () => {
             const c = countries.find(x => x.codigo === code);
             return c ? `<div class="tm-mini">${figCardHTML(c, weakestRar(code), 'nano')}</div>` : '<span class="tm-mini empty"></span>';
         }).join('');
+        requestAnimationFrame(() => fitFigNames(box));
     }
 
     // ---- modal flutuante pra escolher as repetidas ----
@@ -2318,6 +2342,7 @@ document.addEventListener('DOMContentLoaded', () => {
         document.getElementById('tmp-selcount').textContent = machineDeposit.length;
         const conf = document.getElementById('tmp-confirm');
         if (conf) conf.disabled = machineDeposit.length !== MACHINE_COST;
+        requestAnimationFrame(() => fitFigNames(grid));
     }
 
     // toque: +1; se já está no máximo dessa figurinha, volta a 0
@@ -2548,6 +2573,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
             buildDecideList(results);
             if (buttons.closePack) buttons.closePack.classList.remove('hidden');
+            requestAnimationFrame(() => fitFigNames(elements.openedStickers));
         }, 650);
     }
 
