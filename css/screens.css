@@ -1930,12 +1930,33 @@
   display: grid; place-items: center;
 }
 .packs-help:hover { background: rgba(255,255,255,.2); }
-.packs-help-list {
-  text-align: left; margin: 10px 0 16px; padding-left: 20px;
-  display: flex; flex-direction: column; gap: 7px;
-  font-size: .88rem; line-height: 1.35; color: var(--text-white);
+/* ---- modal "Metas de hoje" (checklist) ---- */
+.packs-help-card { max-width: 400px; text-align: left; }
+.packs-help-card h2 { margin: 0 0 4px; font-size: 1.2rem; }
+.packs-help-sub { margin: 0 0 12px; font-size: .82rem; color: var(--text-muted); }
+.packs-help-list { display: flex; flex-direction: column; gap: 6px; margin: 0 0 16px; }
+.ph-row {
+  display: flex; align-items: center; gap: 10px;
+  padding: 8px 10px; border-radius: 10px;
+  background: rgba(255,255,255,.04); border: 1px solid rgba(255,255,255,.08);
+  font-size: .86rem; line-height: 1.25; color: var(--text-white);
 }
-.packs-help-list b { color: var(--accent-gold, #fbbf24); }
+.ph-row.done { background: rgba(74,222,128,.12); border-color: rgba(74,222,128,.35); }
+.ph-check {
+  flex-shrink: 0; width: 20px; height: 20px; border-radius: 6px;
+  display: grid; place-items: center; font-weight: 900; font-size: .8rem;
+  background: rgba(255,255,255,.08); border: 1px solid rgba(255,255,255,.18); color: transparent;
+}
+.ph-row.done .ph-check { background: #22c55e; border-color: #22c55e; color: #06281c; }
+.ph-label { flex: 1; }
+.ph-label b { color: var(--accent-gold, #fbbf24); }
+.ph-row.done .ph-label b { color: #86efac; }
+.ph-prog {
+  flex-shrink: 0; font: 800 .74rem/1 ui-monospace, monospace;
+  color: var(--text-muted); background: rgba(0,0,0,.3); padding: 2px 6px; border-radius: 6px;
+}
+.ph-row.done .ph-prog { color: #86efac; }
+#packs-help-close { display: block; width: 100%; text-align: center; letter-spacing: 0; padding: 13px 16px; }
 
 /* =====================================================
    FASE 24 (§13) — resumo de aprendizado + dica ao errar

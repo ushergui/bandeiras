@@ -572,6 +572,8 @@ document.addEventListener('DOMContentLoaded', () => {
                 setTimeout(() => showToast(`Você ganhou ${DAILY_FREE_PACKS} pacotes de hoje! 🎁 Abra no Álbum.`, 'success'), 800);
             }
             _cache.packsCount = count;
+            _cache.freePacksDay = today;
+            registerLoginStreak(name); // idempotente — garante _cache.loginStreak
         } catch(e) {
             console.warn('Erro ao carregar packs:', e);
             _cache.packsCount = 0;
@@ -622,7 +624,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const key = `dg_streak_${name}`;
         const s = Store._get(key, { last: null, count: 0 });
         const today = packDayKey();
-        if (s.last === today) return;
+        if (s.last === today) { _cache.loginStreak = s.count; return; }
         const yesterday = packDayKey(Date.now() - 24 * 3600 * 1000);
         s.count = (s.last === yesterday) ? s.count + 1 : 1;
         s.last = today;
@@ -2251,11 +2253,44 @@ document.addEventListener('DOMContentLoaded', () => {
     document.getElementById('open-trades-btn').addEventListener('click', openTrades);
     document.getElementById('trades-back').addEventListener('click', () => showScreen('album'));
 
+    function renderPacksHelp() {
+        const list = document.getElementById('packs-help-list');
+        if (!list) return;
+        const dp = _cache.dailyProgress || loadDailyProgress(currentUser);
+        const b = dp.bonus || {};
+        const streak = _cache.loginStreak || 0;
+        const ac = dp.acertos || 0;
+        const mast = dp.masteredToday || 0;
+
+        const rows = [
+            { done: _cache.freePacksDay === packDayKey(), label: '<b>3 pacotes grátis</b> às 6h da manhã', prog: '' },
+            { done: !!b.acertos10 || ac >= 10, label: 'Acertar <b>10</b> bandeiras no dia', prog: `${Math.min(ac, 10)}/10` },
+            { done: !!b.acertos25 || ac >= 25, label: 'Acertar <b>25</b> bandeiras no dia', prog: `${Math.min(ac, 25)}/25` },
+            { done: mast >= 3, label: '<b>Dominar</b> bandeiras novas', prog: `${Math.min(mast, 3)}/3` },
+            { done: !!b.streak15, label: '<b>Sequência de 15</b> acertos numa partida', prog: '' },
+            { done: !!b.jornada, label: 'Terminar um nível da <b>Jornada</b>', prog: '' },
+            { done: !!b.memoria, label: 'Completar o <b>Jogo da Memória</b>', prog: '' },
+            { done: !!b.troca, label: 'Fazer <b>1 troca</b> de figurinha', prog: '' },
+            {
+                done: streak >= 7, label: streak >= 7
+                    ? `Login em dia — <b>${streak} dias seguidos</b> (+1 pacote/dia)`
+                    : '<b>Login 7 dias seguidos</b> → +3 pacotes',
+                prog: streak < 7 ? `${streak}/7` : ''
+            },
+        ];
+        list.innerHTML = rows.map(r => `
+            <div class="ph-row${r.done ? ' done' : ''}">
+                <span class="ph-check">${r.done ? '✓' : ''}</span>
+                <span class="ph-label">${r.label}</span>
+                ${r.prog ? `<span class="ph-prog">${r.prog}</span>` : ''}
+            </div>`).join('');
+    }
+
     (function wirePacksHelp() {
         const btn = document.getElementById('packs-help-btn');
         const modal = document.getElementById('packs-help-modal');
         if (!btn || !modal) return;
-        btn.addEventListener('click', () => modal.classList.remove('hidden'));
+        btn.addEventListener('click', () => { renderPacksHelp(); modal.classList.remove('hidden'); });
         modal.addEventListener('click', e => { if (e.target === modal) modal.classList.add('hidden'); });
         document.getElementById('packs-help-close').addEventListener('click', () => modal.classList.add('hidden'));
     })();
