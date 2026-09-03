@@ -711,6 +711,44 @@ document.addEventListener('DOMContentLoaded', () => {
         return shuffle(wList)[0];
     }
 
+    // fila de revisão: o que você errou volta ~3 rodadas depois, na mesma partida
+    function queueReview(code) {
+        if (!gameState.review) gameState.review = [];
+        if (!gameState.review.some(r => r.code === code)) {
+            gameState.review.push({ code, dueRound: (gameState.roundNum || 0) + 3 });
+        }
+    }
+    function pickRoundCountry(pool) {
+        if (!pool || !pool.length) return null;
+        const rn = gameState.roundNum || 0;
+        const due = (gameState.review || []).find(r => r.dueRound <= rn && pool.some(c => c.codigo === r.code));
+        if (due) {
+            gameState.review = gameState.review.filter(r => r !== due);
+            return pool.find(c => c.codigo === due.code);
+        }
+        return (gameConfig.type === 'Jornada') ? getWeightedCountry(pool) : shuffle([...pool])[0];
+    }
+
+    // 3 opções erradas — nos níveis 4-5, garante 1-2 bandeiras que confundem de propósito
+    function wrongOptions(base, n) {
+        n = n || 3;
+        const wrong = base.filter(c => c.codigo !== correctAnswer.codigo);
+        const hard = wrong.filter(c => c.continente === correctAnswer.continente);
+        const out = [];
+        if ((gameState.currentLevel || 1) >= 4) {
+            const conf = Object.keys(FLAG_TIPS)
+                .filter(k => k.split('|').includes(correctAnswer.codigo))
+                .flatMap(k => k.split('|')).filter(c => c !== correctAnswer.codigo);
+            shuffle(conf).slice(0, n - 1).forEach(cd => {
+                const c = base.find(x => x.codigo === cd);
+                if (c) out.push(c);
+            });
+        }
+        const fill = shuffle((hard.length >= n ? hard : wrong).filter(c => !out.some(o => o.codigo === c.codigo)));
+        while (out.length < n && fill.length) out.push(fill.shift());
+        return out;
+    }
+
     // --- JOGO ---
     const gameModes = {
         'BandeiraPorPais': {
@@ -732,7 +770,7 @@ document.addEventListener('DOMContentLoaded', () => {
             setup: () => {
                 const all = [...new Set(countries.map(c => c.continente))];
                 let sel = gameState.availableCountries;
-                correctAnswer = gameConfig.type === 'Jornada' ? getWeightedCountry(sel) : shuffle([...sel])[0];
+                correctAnswer = pickRoundCountry(sel);
                 if (!correctAnswer) { handleLevelComplete(); return; }
 
                 elements.instruction.textContent = `Qual o continente ${correctAnswer.artigo} ${correctAnswer.nome}?`;
@@ -748,7 +786,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 elements.memoryGame.classList.add('hidden');
                 const pool = gameState.availableCountries;
                 if (pool.length === 0) { handleLevelComplete(); return; }
-                correctAnswer = (gameConfig.type === 'Jornada') ? getWeightedCountry(pool) : shuffle([...pool])[0];
+                correctAnswer = pickRoundCountry(pool);
 
                 elements.instruction.textContent = 'De qual país é esta bandeira?';
                 const media = document.getElementById('question-media');
@@ -757,9 +795,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     media.classList.remove('hidden');
                 }
 
-                let wrong = countries.filter(c => c.codigo !== correctAnswer.codigo);
-                let hard = wrong.filter(c => c.continente === correctAnswer.continente);
-                let opts = [correctAnswer, ...shuffle(hard.length >= 3 ? hard : wrong).slice(0, 3)];
+                const opts = [correctAnswer, ...wrongOptions(countries, 3)];
                 displayNameOptions(shuffle(opts));
             }
         },
@@ -769,16 +805,14 @@ document.addEventListener('DOMContentLoaded', () => {
                 elements.memoryGame.classList.add('hidden');
                 const pool = gameState.availableCountries;
                 if (pool.length === 0) { handleLevelComplete(); return; }
-                correctAnswer = (gameConfig.type === 'Jornada') ? getWeightedCountry(pool) : shuffle([...pool])[0];
+                correctAnswer = pickRoundCountry(pool);
 
                 elements.instruction.textContent = `Toque no contorno ${correctAnswer.artigo} ${correctAnswer.nome}`;
                 playAudio(`mapa/${correctAnswer.codigo}`);
                 const media = document.getElementById('question-media');
                 if (media) { media.innerHTML = `<img src="${itemImg(correctAnswer)}" alt="bandeira">`; media.classList.remove('hidden'); }
 
-                const wrong = countries.filter(c => c.codigo !== correctAnswer.codigo);
-                const hard = wrong.filter(c => c.continente === correctAnswer.continente);
-                const opts = shuffle([correctAnswer, ...shuffle(hard.length >= 3 ? hard : wrong).slice(0, 3)]);
+                const opts = shuffle([correctAnswer, ...wrongOptions(countries, 3)]);
                 elements.options.classList.remove('hidden');
                 elements.options.innerHTML = '';
                 elements.options.className = 'options-container shape-options';
@@ -817,7 +851,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
         const pool = gameState.availableCountries;
         if (pool.length === 0) { handleLevelComplete(); return; }
-        correctAnswer = (gameConfig.type === 'Jornada') ? getWeightedCountry(pool) : shuffle([...pool])[0];
+        correctAnswer = pickRoundCountry(pool);
 
         const display = correctAnswer.nome.toUpperCase();
         forcaState = { display, plain: stripAccent(display), guessed: new Set(), wrong: 0 };
@@ -904,8 +938,9 @@ document.addEventListener('DOMContentLoaded', () => {
                 renderForca();
                 elements.feedback.textContent = `Era ${correctAnswer.artigo} ${correctAnswer.nome}.`;
                 elements.feedback.style.color = '#FF6347';
+                queueReview(correctAnswer.codigo);
             }
-            gameState.availableCountries = gameState.availableCountries.filter(c => c.codigo !== correctAnswer.codigo);
+            if (solved) gameState.availableCountries = gameState.availableCountries.filter(c => c.codigo !== correctAnswer.codigo);
             buttons.next.classList.remove('hidden'); buttons.facts.classList.remove('hidden');
             updateStats(); updateProgressBar();
             if (gameState.chances === 0 && gameConfig.lives !== 'infinite') { setTimeout(() => gameOver(false), 1200); return; }
@@ -920,11 +955,9 @@ document.addEventListener('DOMContentLoaded', () => {
         let pool = gameState.availableCountries;
         if (pool.length === 0) { handleLevelComplete(); return; }
 
-        correctAnswer = (gameConfig.type === 'Jornada' && !random) ? getWeightedCountry(pool) : shuffle([...pool])[0];
+        correctAnswer = random ? shuffle([...pool])[0] : pickRoundCountry(pool);
         const base = gameState._base || countries;
-        let wrong = base.filter(c => c.codigo !== correctAnswer.codigo);
-        let hard = wrong.filter(c => c.continente === correctAnswer.continente);
-        let opts = [correctAnswer, ...shuffle(hard.length >= 3 ? hard : wrong).slice(0, 3)];
+        const opts = [correctAnswer, ...wrongOptions(base, 3)];
 
         cb(correctAnswer); displayFlagOptions(shuffle(opts), false);
     }
@@ -991,7 +1024,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 score: 0, streak: 0,
                 chances: gameConfig.lives === 'infinite' ? '♾️' : gameConfig.lives,
                 currentLevel: sl, availableCountries: pool, totalQuestionsInLevel: pool.length,
-                attemptsThisRound: 0, _base: base
+                attemptsThisRound: 0, _base: base, roundNum: 0, review: []
             };
         }
         updateStats(); updateProgressBar(); nextRound();
@@ -1000,6 +1033,7 @@ document.addEventListener('DOMContentLoaded', () => {
     function nextRound() {
         if (gameState.chances === 0 && gameConfig.lives !== 'infinite') { gameOver(false); return; }
 
+        gameState.roundNum = (gameState.roundNum || 0) + 1;
         buttons.facts.classList.add('hidden'); buttons.next.classList.add('hidden');
         elements.feedback.textContent = '';
         elements.feedback.className = 'feedback';
@@ -1059,6 +1093,7 @@ document.addEventListener('DOMContentLoaded', () => {
             playSound('wrong'); el.classList.add('wrong', 'disabled'); gameState.streak = 0;
             if (gameConfig.lives !== 'infinite') gameState.chances--;
             gameState.attemptsThisRound++;
+            if (correctAnswer && correctAnswer.codigo) queueReview(correctAnswer.codigo);
 
             if (type === 'shape') {
                 document.querySelectorAll('.shape-option').forEach(o => {
