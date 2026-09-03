@@ -1776,3 +1776,109 @@
 .shape-option.correct img { opacity: 1; filter: none; }
 .shape-option.wrong { border-color: #ef4444; background: rgba(239,68,68,.14); }
 .shape-option.disabled { opacity: .5; pointer-events: none; }
+
+/* =====================================================
+   FASE 22 — Forca (layout + boneco), logo hub, memória,
+   Mapa (botões sobre shapes), "Saber mais" no zoom
+   ===================================================== */
+
+/* ---- FORCA: forca à ESQUERDA das letras ---- */
+.forca { gap: 12px; }
+.forca-hint {
+  margin: 0; text-align: center; font-size: .9rem; font-weight: 800;
+  color: var(--text-white); max-width: 92vw;
+}
+.forca-main {
+  display: flex; align-items: flex-start; justify-content: center; gap: 18px;
+  width: 100%; max-width: 560px;
+}
+.forca-gallows-col { display: flex; flex-direction: column; align-items: center; gap: 4px; flex-shrink: 0; }
+.forca-svg { width: 128px; height: 148px; }
+.forca-svg .fp { opacity: 0; transition: opacity .3s ease; }
+.forca-svg[data-wrong="1"] .fp1,
+.forca-svg[data-wrong="2"] .fp1, .forca-svg[data-wrong="2"] .fp2,
+.forca-svg[data-wrong="3"] .fp1, .forca-svg[data-wrong="3"] .fp2, .forca-svg[data-wrong="3"] .fp3,
+.forca-svg[data-wrong="4"] .fp1, .forca-svg[data-wrong="4"] .fp2, .forca-svg[data-wrong="4"] .fp3, .forca-svg[data-wrong="4"] .fp4,
+.forca-svg[data-wrong="5"] .fp1, .forca-svg[data-wrong="5"] .fp2, .forca-svg[data-wrong="5"] .fp3, .forca-svg[data-wrong="5"] .fp4, .forca-svg[data-wrong="5"] .fp5,
+.forca-svg[data-wrong="6"] .fp { opacity: 1; }
+.forca-svg[data-wrong="6"] .forca-body { stroke: #f87171; }
+.forca-wrong { font-size: .92rem; font-weight: 900; color: #fca5a5; }
+
+.forca-right { flex: 1; display: flex; flex-direction: column; align-items: center; gap: 14px; min-width: 0; }
+
+.forca-word { display: flex; flex-wrap: wrap; justify-content: center; gap: 6px 5px; }
+.fw-slot {
+  min-width: 26px; height: 38px; padding: 0 3px;
+  border-bottom: 4px solid rgba(255,255,255,.4);
+  display: grid; place-items: center;
+  font: 900 1.5rem/1 "Nunito", sans-serif; color: #fff;
+}
+.fw-slot.filled { border-color: var(--accent-green, #4ade80); animation: fwIn .25s ease; }
+@keyframes fwIn { from { transform: translateY(-6px); opacity: 0; } }
+.fw-space { width: 16px; }
+
+.forca-keys { display: grid; grid-template-columns: repeat(9, 1fr); gap: 6px; width: 100%; }
+.fk {
+  min-height: 0; height: 38px; border-radius: 9px; padding: 0;
+  font: 900 1.1rem/1 "Nunito", sans-serif;
+  background: rgba(255,255,255,.1); border: 1px solid rgba(255,255,255,.16); color: #fff;
+}
+.fk.hit { background: color-mix(in srgb, var(--accent-green,#22c55e) 45%, #0b1524); border-color: #22c55e; }
+.fk.miss { background: rgba(239,68,68,.16); border-color: rgba(239,68,68,.4); color: #fca5a5; opacity: .45; }
+.fk:disabled { opacity: 1; }
+.fk.miss:disabled { opacity: .45; }
+
+@media (max-width: 560px) {
+  .forca-main { flex-direction: column; align-items: center; gap: 10px; }
+  .forca-svg { width: 116px; height: 134px; }
+  .forca-keys { grid-template-columns: repeat(9, 1fr); }
+}
+@media (max-width: 380px) {
+  .forca-keys { grid-template-columns: repeat(7, 1fr); }
+  .fk { height: 34px; font-size: 1rem; }
+  .fw-slot { min-width: 22px; height: 32px; font-size: 1.25rem; }
+}
+
+/* ---- logo horizontal no hub: chip claro pra ler ---- */
+.hub-logo-wide {
+  display: none;
+}
+@media (min-width: 768px) {
+  .hub-logo-wide {
+    display: block; height: 46px; width: auto; margin: 0 auto 4px;
+    padding: 6px 16px; border-radius: 14px;
+    background: rgba(255,255,255,.94);
+    box-shadow: 0 3px 12px rgba(0,0,0,.35);
+  }
+}
+
+/* ---- memória: quebra de texto certinha ---- */
+.memory-text {
+  font-size: clamp(0.52rem, 2.7vw, 0.85rem);
+  line-height: 1.12;
+  overflow-wrap: break-word;
+  word-break: normal;
+  hyphens: auto;
+  width: 100%;
+}
+
+/* ---- Mapa: não deixar os controles em cima dos shapes ---- */
+#game-content-area { overflow-y: auto; padding-bottom: 6px; }
+.options-container.shape-options .shape-option { aspect-ratio: 3 / 2; padding: 9px; }
+.game .game-controls { position: relative; z-index: 3; }
+
+/* ---- "Saber mais" no zoom da figurinha ---- */
+.fz-more-btn {
+  margin-top: 10px; min-height: 0; padding: 8px 16px; border-radius: 10px;
+  background: rgba(255,255,255,.12); border: 1px solid rgba(255,255,255,.2);
+  color: #fff; font-weight: 800; font-size: .82rem;
+}
+.fz-more { margin-top: 10px; text-align: left; }
+.fz-more.hidden { display: none; }
+.fz-more p { font-size: .86rem; line-height: 1.4; color: rgba(255,255,255,.88); }
+.fz-play {
+  margin-top: 6px; min-height: 0; padding: 7px 14px; border-radius: 9px;
+  background: rgba(59,130,246,.22); border: 1px solid rgba(59,130,246,.4);
+  color: #dbeafe; font-weight: 800; font-size: .8rem;
+}
+.fig-zoom-info { max-height: 78vh; overflow-y: auto; }

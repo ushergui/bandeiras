@@ -682,7 +682,7 @@ document.addEventListener('DOMContentLoaded', () => {
         'PaisPorCapital': {
             title: "Qual o País?",
             setup: () => prepareStandardLogic((c) => {
-                elements.instruction.textContent = `Qual país tem a capital ${c.capital}?`;
+                elements.instruction.textContent = `De qual país é a capital ${c.capital}?`;
                 playAudio(`capitais/${c.capital}`);
             }, 'flag', true)
         },
@@ -731,6 +731,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 correctAnswer = (gameConfig.type === 'Jornada') ? getWeightedCountry(pool) : shuffle([...pool])[0];
 
                 elements.instruction.textContent = `Toque no contorno ${correctAnswer.artigo} ${correctAnswer.nome}`;
+                playAudio(`mapa/${correctAnswer.codigo}`);
                 const media = document.getElementById('question-media');
                 if (media) { media.innerHTML = `<img src="${itemImg(correctAnswer)}" alt="bandeira">`; media.classList.remove('hidden'); }
 
@@ -780,15 +781,24 @@ document.addEventListener('DOMContentLoaded', () => {
         const display = correctAnswer.nome.toUpperCase();
         forcaState = { display, plain: stripAccent(display), guessed: new Set(), wrong: 0 };
         elements.instruction.textContent = 'Adivinhe o país letra por letra';
+        const nLetras = display.replace(/\s/g, '').length;
         document.getElementById('forca-hint').textContent =
-            `${correctAnswer.continente} · ${display.replace(/\s/g, '').length} letras`;
+            `O continente é ${correctAnswer.continente}. Tem ${nLetras} letras.`;
+        playAudio('testes/forca_intro');
         renderForca();
     }
 
     function renderForca() {
         const s = forcaState;
         const svg = document.getElementById('forca-svg');
-        if (svg) svg.dataset.wrong = s.wrong;
+        if (svg) {
+            svg.dataset.wrong = s.wrong;
+            svg.querySelectorAll('.fp').forEach(el => {
+                const cls = [...el.classList].find(c => /^fp[1-6]$/.test(c));
+                const part = cls ? +cls.slice(2) : 9;
+                el.style.opacity = part <= s.wrong ? '1' : '0';
+            });
+        }
         document.getElementById('forca-wrong').textContent = `❌ ${s.wrong}/${FORCA_MAX}`;
 
         const wordEl = document.getElementById('forca-word');
@@ -841,6 +851,10 @@ document.addEventListener('DOMContentLoaded', () => {
                 if (gameState.streak === 15) grantBonusPack('streak15', 1, 'Sequência de 15!');
                 elements.feedback.textContent = `Boa! ${correctAnswer.nome} (+${pts} pts)`;
                 elements.feedback.style.color = '#32CD32';
+                if (!correctAnswer._kind) setTimeout(() => playAudio(`nomes_paises/${correctAnswer.nome}`), 250);
+                if (!calmMode && typeof confetti !== 'undefined') {
+                    confetti({ particleCount: 110, spread: 78, startVelocity: 38, origin: { y: 0.45 } });
+                }
             } else {
                 playSound('wrong'); gameState.streak = 0;
                 if (gameConfig.lives !== 'infinite') gameState.chances--;
@@ -950,7 +964,7 @@ document.addEventListener('DOMContentLoaded', () => {
         roundStartAt = Date.now();
 
         const replay = document.getElementById('replay-audio-btn');
-        if (replay) replay.hidden = ['Memoria', 'NomePorBandeira', 'Forca', 'Mapa'].includes(gameConfig.mode);
+        if (replay) replay.hidden = ['Memoria', 'NomePorBandeira'].includes(gameConfig.mode);
         const media = document.getElementById('question-media');
         const keepMedia = ['NomePorBandeira', 'Mapa'].includes(gameConfig.mode);
         if (media && !keepMedia) { media.classList.add('hidden'); media.innerHTML = ''; }
@@ -1080,6 +1094,18 @@ document.addEventListener('DOMContentLoaded', () => {
                 </div>
             `;
             el.addEventListener('click', flipCard); elements.memoryGrid.appendChild(el);
+        });
+
+        // ajusta a fonte dos nomes pra caber sem quebrar feio
+        requestAnimationFrame(() => {
+            elements.memoryGrid.querySelectorAll('.memory-text').forEach(t => {
+                let size = parseFloat(getComputedStyle(t).fontSize);
+                let guard = 0;
+                while ((t.scrollHeight > t.clientHeight + 1 || t.scrollWidth > t.clientWidth + 1) && size > 6 && guard++ < 12) {
+                    size -= 0.7;
+                    t.style.fontSize = size + 'px';
+                }
+            });
         });
     }
 
@@ -1888,14 +1914,44 @@ document.addEventListener('DOMContentLoaded', () => {
         const rarTxt = colada
             ? (colada === 'base' ? (c.fixedShiny ? '✨ Figurinha brilhante' : 'Figurinha comum') : (RARITY_LABELS[colada] || {}).text)
             : '🔒 Ainda não colada';
+
+        // "Saber mais": história da bandeira / paisagem / curiosidade do país
+        const saiba = figZoomSaibaMais(c);
+
         info.innerHTML = `
             <h3>${c.nome}</h3>
             <span class="fz-code">${stickerCode(code)}</span>
             <p>${where}</p>
-            <p class="fz-rar">${rarTxt}${pilha.length ? ` · ${pilha.length} na pilha` : ''}</p>`;
+            <p class="fz-rar">${rarTxt}${pilha.length ? ` · ${pilha.length} na pilha` : ''}</p>
+            ${saiba.text ? `<button class="fz-more-btn" type="button">Saber mais ✨</button>
+              <div class="fz-more hidden"><p>${saiba.text}</p>
+              ${saiba.audio ? `<button class="fz-play" type="button">🔊 Ouvir</button>` : ''}</div>` : ''}`;
+
+        const moreBtn = info.querySelector('.fz-more-btn');
+        if (moreBtn) moreBtn.addEventListener('click', () => {
+            info.querySelector('.fz-more').classList.toggle('hidden');
+            moreBtn.classList.add('hidden');
+        });
+        const playBtn = info.querySelector('.fz-play');
+        if (playBtn) playBtn.addEventListener('click', () => { playAudio(saiba.audio); });
 
         box.classList.remove('hidden');
         if (window.SFX) window.SFX.play('tap');
+    }
+
+    function figZoomSaibaMais(c) {
+        const BR = window.CURIOSITIES_BR || { bandeiras: {}, paisagens: {} };
+        if (c._kind === 'flag') {
+            const uf = (c.uf || c.codigo.replace('uf-', '')).toUpperCase();
+            return { text: BR.bandeiras[uf] || '', audio: `br/bandeira_${uf.toLowerCase()}` };
+        }
+        if (c._kind === 'img') {
+            const uf = (c.uf || c.codigo.replace('cap-', '')).toUpperCase();
+            return { text: BR.paisagens[uf] || '', audio: `br/paisagem_${uf.toLowerCase()}` };
+        }
+        const all = (typeof curiosities !== 'undefined') ? curiosities : {};
+        const facts = all[c.codigo];
+        return { text: facts && facts.length ? facts[Math.floor(Math.random() * facts.length)] : '', audio: '' };
     }
     function closeFigZoom() {
         const box = document.getElementById('fig-zoom');
@@ -2634,7 +2690,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const MODE_META = {
         BandeiraPorPais:   { icon: '🏳️', label: 'Qual a Bandeira?' },
         NomePorBandeira:   { icon: '🔎', label: 'De que País é?' },
-        PaisPorCapital:    { icon: '🏛️', label: 'Qual o País?' },
+        PaisPorCapital:    { icon: '🏛️', label: 'De qual país é esta capital?' },
         ContinentePorPais: { icon: '🌎', label: 'Qual o Continente?' },
         Mapa:              { icon: '🗺️', label: 'Que Formato é?' },
         Forca:             { icon: '🪢', label: 'A Lendária Forca' },

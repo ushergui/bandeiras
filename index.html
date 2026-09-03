@@ -17,16 +17,17 @@
     <link rel="icon" href="assets/icons/favicon-32.png" sizes="32x32" type="image/png">
     <link rel="apple-touch-icon" href="assets/icons/apple-touch-icon.png">
 
-    <link rel="stylesheet" href="style.css?v=20260903k">
-    <link rel="stylesheet" href="css/app-shell.css?v=20260903k">
-    <link rel="stylesheet" href="css/screens.css?v=20260903k">
+    <link rel="stylesheet" href="style.css?v=20260903n">
+    <link rel="stylesheet" href="css/app-shell.css?v=20260903n">
+    <link rel="stylesheet" href="css/screens.css?v=20260903n">
     <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800;900&display=swap" rel="stylesheet">
     <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
     <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
-    <script src="countries.js?v=20260903k"></script>
-    <script src="collections.js?v=20260903k"></script>
-    <script src="curiosities.js?v=20260903k"></script>
-    <script src="js/sfx.js?v=20260903k"></script>
+    <script src="countries.js?v=20260903n"></script>
+    <script src="collections.js?v=20260903n"></script>
+    <script src="curiosities.js?v=20260903n"></script>
+    <script src="curiosities_br.js?v=20260903n"></script>
+    <script src="js/sfx.js?v=20260903n"></script>
 </head>
 
 <body>
@@ -109,7 +110,7 @@
                         <span class="mb-icon">🔎</span><span>De que País é?</span>
                     </button>
                     <button class="mode-button" data-gamemode="PaisPorCapital">
-                        <span class="mb-icon">🏛️</span><span>Qual o País?</span>
+                        <span class="mb-icon">🏛️</span><span>De que País é a Capital?</span>
                     </button>
                     <button class="mode-button" data-gamemode="ContinentePorPais">
                         <span class="mb-icon">🌎</span><span>Qual o Continente?</span>
@@ -320,28 +321,39 @@
                 </div>
 
                 <div id="forca-container" class="forca hidden">
-                    <div class="forca-top">
-                        <svg id="forca-svg" class="forca-svg" viewBox="0 0 120 130" data-wrong="0">
-                            <g class="forca-gallows" stroke="currentColor" stroke-width="4" stroke-linecap="round" fill="none">
-                                <line x1="10" y1="124" x2="70" y2="124"/><line x1="30" y1="124" x2="30" y2="8"/>
-                                <line x1="30" y1="8" x2="82" y2="8"/><line x1="82" y1="8" x2="82" y2="22"/>
-                            </g>
-                            <g class="forca-body" stroke="currentColor" stroke-width="4" stroke-linecap="round" fill="none">
-                                <circle class="fp fp1" cx="82" cy="34" r="12"/>
-                                <line class="fp fp2" x1="82" y1="46" x2="82" y2="82"/>
-                                <line class="fp fp3" x1="82" y1="56" x2="66" y2="70"/>
-                                <line class="fp fp4" x1="82" y1="56" x2="98" y2="70"/>
-                                <line class="fp fp5" x1="82" y1="82" x2="68" y2="102"/>
-                                <line class="fp fp6" x1="82" y1="82" x2="96" y2="102"/>
-                            </g>
-                        </svg>
-                        <div class="forca-meta">
-                            <span id="forca-hint" class="forca-hint"></span>
+                    <p id="forca-hint" class="forca-hint"></p>
+                    <div class="forca-main">
+                        <div class="forca-gallows-col">
+                            <svg id="forca-svg" class="forca-svg" viewBox="0 0 130 150" data-wrong="0">
+                                <defs>
+                                    <linearGradient id="fcWood" x1="0" y1="0" x2="1" y2="1">
+                                        <stop offset="0" stop-color="#a9743f"/><stop offset="1" stop-color="#7c4a22"/>
+                                    </linearGradient>
+                                </defs>
+                                <g class="forca-gallows" fill="url(#fcWood)" stroke="#5c351a" stroke-width="2">
+                                    <rect x="8" y="138" width="70" height="9" rx="4"/>
+                                    <rect x="22" y="10" width="10" height="132" rx="5"/>
+                                    <rect x="22" y="8" width="70" height="10" rx="5"/>
+                                    <path d="M27 30 L44 13 L44 24 L38 30 Z"/>
+                                    <rect x="86" y="14" width="4" height="20" rx="2" fill="#6b7280" stroke="none"/>
+                                </g>
+                                <g class="forca-body" fill="none" stroke="#e7c9a8" stroke-width="6" stroke-linecap="round">
+                                    <circle class="fp fp1" cx="88" cy="46" r="13" fill="#f0d9bf" stroke="#c99b6b" stroke-width="3"/>
+                                    <path class="fp fp1" d="M83 44 h2 M91 44 h2 M84 53 q4 3 8 0" stroke="#8a5a2c" stroke-width="2" fill="none"/>
+                                    <line class="fp fp2" x1="88" y1="59" x2="88" y2="98"/>
+                                    <line class="fp fp3" x1="88" y1="70" x2="71" y2="86"/>
+                                    <line class="fp fp4" x1="88" y1="70" x2="105" y2="86"/>
+                                    <line class="fp fp5" x1="88" y1="98" x2="74" y2="120"/>
+                                    <line class="fp fp6" x1="88" y1="98" x2="102" y2="120"/>
+                                </g>
+                            </svg>
                             <span id="forca-wrong" class="forca-wrong"></span>
                         </div>
+                        <div class="forca-right">
+                            <div id="forca-word" class="forca-word"></div>
+                            <div id="forca-keys" class="forca-keys"></div>
+                        </div>
                     </div>
-                    <div id="forca-word" class="forca-word"></div>
-                    <div id="forca-keys" class="forca-keys"></div>
                 </div>
             </div>
 
@@ -603,7 +615,7 @@
         </div>
     </div>
 
-    <script src="script.js?v=20260903k"></script>
+    <script src="script.js?v=20260903n"></script>
 </body>
 
 </html>
