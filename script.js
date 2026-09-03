@@ -428,6 +428,7 @@ document.addEventListener('DOMContentLoaded', () => {
         changeProfile: document.getElementById('change-profile-btn'),
         next: document.getElementById('next-button'),
         facts: document.getElementById('facts-button'),
+        hint: document.getElementById('hint-button'),
         backToMenu: document.getElementById('back-to-menu-button'),
         playAgain: document.getElementById('play-again-button'),
         levelUpContinue: document.getElementById('level-up-continue-button'),
@@ -729,6 +730,48 @@ document.addEventListener('DOMContentLoaded', () => {
         return (gameConfig.type === 'Jornada') ? getWeightedCountry(pool) : shuffle([...pool])[0];
     }
 
+    // ─── DICA (custa 3 pontos) ───────────────────────────
+    const HINT_MODES = ['BandeiraPorPais', 'NomePorBandeira', 'PaisPorCapital', 'Mapa', 'ContinentePorPais', 'Forca'];
+    const HINT_COST = 3, HINT_MAX = 2;
+
+    function useHint() {
+        if (gameLocked || !correctAnswer) return;
+        if ((gameState.hintsUsed || 0) >= HINT_MAX) return;
+
+        let ok = false;
+        if (gameConfig.mode === 'Forca') {
+            // revela uma letra ainda não tentada
+            const missing = [...new Set(forcaState.plain.split(''))]
+                .filter(ch => ch !== ' ' && !forcaState.guessed.has(ch));
+            if (missing.length) {
+                forcaState.guessed.add(shuffle(missing)[0]);
+                renderForca();
+                ok = true;
+                const solved = [...forcaState.plain].every(ch => ch === ' ' || forcaState.guessed.has(ch));
+                if (solved) forcaGuess(missing[0]); // fecha a rodada se a dica completou
+            }
+        } else {
+            // elimina uma opção errada
+            const isText = gameConfig.mode === 'ContinentePorPais';
+            const cands = [...document.querySelectorAll('#options-container .flag-option, #options-container .text-option')]
+                .filter(el => !el.classList.contains('disabled') && !el.classList.contains('hinted')
+                    && (isText ? el.dataset.continente !== correctAnswer.continente
+                        : el.dataset.codigo !== correctAnswer.codigo));
+            if (cands.length) {
+                const pick = shuffle(cands)[0];
+                pick.classList.add('disabled', 'hinted');
+                ok = true;
+            }
+        }
+
+        if (!ok) return;
+        gameState.score = Math.max(0, gameState.score - HINT_COST);
+        gameState.hintsUsed = (gameState.hintsUsed || 0) + 1;
+        if (window.SFX) window.SFX.play('tick');
+        updateStats();
+        if (gameState.hintsUsed >= HINT_MAX) buttons.hint.classList.add('hidden');
+    }
+
     // 3 opções erradas — nos níveis 4-5, garante 1-2 bandeiras que confundem de propósito
     function wrongOptions(base, n) {
         n = n || 3;
@@ -941,6 +984,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 queueReview(correctAnswer.codigo);
             }
             if (solved) gameState.availableCountries = gameState.availableCountries.filter(c => c.codigo !== correctAnswer.codigo);
+            buttons.hint.classList.add('hidden');
             buttons.next.classList.remove('hidden'); buttons.facts.classList.remove('hidden');
             updateStats(); updateProgressBar();
             if (gameState.chances === 0 && gameConfig.lives !== 'infinite') { setTimeout(() => gameOver(false), 1200); return; }
@@ -1034,7 +1078,9 @@ document.addEventListener('DOMContentLoaded', () => {
         if (gameState.chances === 0 && gameConfig.lives !== 'infinite') { gameOver(false); return; }
 
         gameState.roundNum = (gameState.roundNum || 0) + 1;
+        gameState.hintsUsed = 0;
         buttons.facts.classList.add('hidden'); buttons.next.classList.add('hidden');
+        buttons.hint.classList.toggle('hidden', !HINT_MODES.includes(gameConfig.mode));
         elements.feedback.textContent = '';
         elements.feedback.className = 'feedback';
         gameLocked = false; gameState.attemptsThisRound = 0;
@@ -1069,6 +1115,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
         // registra a resposta para o país da rodada (algoritmo de aprendizado)
         if (correctAnswer && correctAnswer.codigo) updateCountryStats(correctAnswer.codigo, isCor, responseMs);
+        buttons.hint.classList.add('hidden');
 
         if (isCor) {
             playSound('win');
@@ -1257,6 +1304,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     function gameOver(win) {
         gameLocked = true; buttons.next.classList.add('hidden'); buttons.facts.classList.add('hidden');
+        buttons.hint.classList.add('hidden');
         buttons.backToMenu.textContent = 'Sair';
         buttons.playAgain.classList.remove('hidden');
         elements.options.classList.add('hidden');
@@ -1699,6 +1747,7 @@ document.addEventListener('DOMContentLoaded', () => {
     if(buttons.playAgain) buttons.playAgain.addEventListener('click', () => startGame(gameConfig));
     if(buttons.levelUpContinue) buttons.levelUpContinue.addEventListener('click', () => { modals.levelUp.classList.add('hidden'); startGame(gameConfig); });
     if(buttons.next) buttons.next.addEventListener('click', nextRound);
+    if(buttons.hint) buttons.hint.addEventListener('click', useHint);
     if(buttons.facts) buttons.facts.addEventListener('click', () => {
     if (correctAnswer && correctAnswer.codigo) {
         showRandomFactForCountry(correctAnswer.codigo, correctAnswer.nome);

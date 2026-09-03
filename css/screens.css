@@ -1974,3 +1974,23 @@
 .ls-review { margin: 8px 0 0; font-size: .84rem; color: var(--text-muted); }
 .ls-review b { color: #fca5a5; }
 #game-screen.game:not(.game-over-view) .learn-summary { display: none; }
+
+/* =====================================================
+   FASE 27 (§13) — botão de Dica
+   ===================================================== */
+#hint-button {
+  background: rgba(251, 191, 36, 0.16) !important;
+  border: 1px solid rgba(251, 191, 36, 0.45) !important;
+  color: #fde68a !important; font-weight: 800;
+}
+#hint-button small { opacity: .8; font-weight: 900; }
+#hint-button:hover { background: rgba(251, 191, 36, 0.26) !important; }
+#hint-button.hidden { display: none; }
+
+.flag-option.hinted, .text-option.hinted { position: relative; }
+.flag-option.hinted::after, .text-option.hinted::after {
+  content: "✕"; position: absolute; inset: 0; z-index: 3;
+  display: grid; place-items: center;
+  font-size: 2rem; font-weight: 900; color: #fca5a5;
+  background: rgba(15, 27, 45, 0.55); border-radius: inherit;
+}
