@@ -73,6 +73,10 @@
         </div>
 
         <div id="main-menu" class="screen hub hidden">
+            <a id="dev-prompts-link" href="http://localhost:5002/" target="_blank" rel="noopener"
+               style="display:none;position:fixed;left:8px;bottom:8px;z-index:200;font:11px/1 system-ui;
+               background:#1b2540;color:#f0a94a;border:1px solid #f0a94a;border-radius:6px;padding:5px 9px;
+               text-decoration:none;opacity:.75">🎴 Estúdio de prompts</a>
             <img class="hub-logo-wide" src="assets/img/logo-horizontal.png" alt="Detetive Global">
             <header class="hub-header">
                 <div class="hub-user">
@@ -650,6 +654,12 @@
     </div>
 
     <script src="script.js?v=20260903u"></script>
+    <script>
+      // link p/ o estudio de prompts -- so aparece rodando localmente (dev). Remover antes de publicar.
+      if (/^(localhost|127\.0\.0\.1)$/.test(location.hostname)) {
+        var _d = document.getElementById('dev-prompts-link'); if (_d) _d.style.display = 'block';
+      }
+    </script>
 </body>
 
 </html>

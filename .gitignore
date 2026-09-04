@@ -38,3 +38,8 @@ kenney-*/
 
 # imagens fonte geradas por IA (versoes de trabalho ja em assets/img)
 imagens-geradas/
+
+# estudio de voz (ferramenta local, nao publicar)
+tools/vozes/
+tools/_studio_out/
+tools/_prompts_progress.json

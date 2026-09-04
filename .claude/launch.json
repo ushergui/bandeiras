@@ -1,0 +1,23 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "detetive-global",
+      "runtimeExecutable": "python",
+      "runtimeArgs": ["-m", "http.server", "8000"],
+      "port": 8000
+    },
+    {
+      "name": "prompts-studio",
+      "runtimeExecutable": "venv\\Scripts\\python.exe",
+      "runtimeArgs": ["tools/prompts_studio.py"],
+      "port": 5002
+    },
+    {
+      "name": "voz-studio",
+      "runtimeExecutable": "venv\\Scripts\\python.exe",
+      "runtimeArgs": ["tools/voz_studio.py"],
+      "port": 5001
+    }
+  ]
+}
