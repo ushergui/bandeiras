@@ -86,23 +86,29 @@ def subject_for(sec, it):
         return "%s, plated appetisingly, three-quarter view, a thin wisp of steam" % it["en"]
     if sec == "lendas":
         kit = (FIG["lendas"].get("kits") or {}).get(it["code"], it["pais"] + " national-team colours")
+        flagdesc = (FIG["lendas"].get("flags") or {}).get(it["code"], "the real national flag of " + it["pais"])
         if it.get("gk"):
             jersey = "a goalkeeper jersey with an era-appropriate %s cut" % it["era"]
         else:
             jersey = ("the %s national-team home jersey in the style of a %s kit "
                       "(era-appropriate cut and fabric, %s, simple period crest, no modern sponsor logos)"
                       % (it["pais"], it["era"], kit))
-        return ("a bold flat vector travel-poster portrait of the footballer %s of %s. "
-                "Make the face and build a recognisable, faithful stylised likeness of the real %s: %s. "
-                "Shown from the chest up in a confident heroic three-quarter pose, wearing %s, "
-                "with the number %s clearly on the shirt. "
-                "Behind him the ENTIRE background is the real national flag of %s, drawn flat and accurately: "
-                "exact official colours, exact stripe directions and proportions, and every emblem, sun, star or "
-                "coat of arms in its true real position and size. Do NOT move, recentre, mirror or resize any part "
-                "of the flag to fit the composition. The player is in front and may cover part of the flag -- that "
-                "is fine -- but every visible portion must match the real flag exactly. No waving, no folds. "
-                "Sticker-album illustration style, not photorealistic; iconic and readable as a small card."
-                % (it["nome"], it["pais"], it["nome"], it["fis"], jersey, it["num"], it["pais"]))
+        return (
+            "a bold flat vector travel-poster portrait of the footballer %s of %s. "
+            "Make the face and build a recognisable, faithful stylised likeness of the real %s: %s. "
+            "Shown from the chest up in a confident heroic three-quarter pose, wearing %s, "
+            "with the number %s clearly on the shirt.\n"
+            "BACKGROUND -- read carefully. The backdrop is the real national flag of %s, painted as one perfectly "
+            "flat rectangle that fills the WHOLE frame, edge to edge (it is the wall behind him, not an object beside him). "
+            "The flag's exact layout is: %s. "
+            "Build the image in two layers: BOTTOM layer = that flag, drawn once, centred on the frame, never moved, "
+            "never mirrored, never rescaled, never rearranged; TOP layer = the player, painted over it. "
+            "Wherever the player's body overlaps the flag, the flag is simply hidden behind him at that spot -- that is "
+            "correct and expected. Do NOT slide, shift, duplicate, shrink or nudge any stripe, sun, star, crescent, "
+            "circle or coat of arms so that it peeks out beside the player. If the player's head or torso fully covers "
+            "the central emblem, leave it fully covered. The flag has no waves, no folds, no shadows.\n"
+            "Sticker-album illustration style, not photorealistic; iconic and readable as a small card."
+            % (it["nome"], it["pais"], it["nome"], it["fis"], jersey, it["num"], it["pais"], flagdesc))
     return ""
 
 
