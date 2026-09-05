@@ -266,6 +266,9 @@ PAGE = r"""<!doctype html><html lang="pt-BR"><head><meta charset="utf-8">
  .bar .t{flex:1;height:8px;border-radius:999px;background:var(--sf2);overflow:hidden}
  .bar .t span{display:block;height:100%;background:var(--good)}
  .bar .n{font-weight:800;font-size:.82rem;color:var(--mut);white-space:nowrap}
+ .pct{display:flex;align-items:baseline;gap:10px;margin:6px 0 2px}
+ .pct b{font-size:2rem;font-weight:900;color:var(--good);line-height:1}
+ .pct .g{font-size:.8rem;font-weight:800;color:var(--mut)}
  .note{margin:10px 0;padding:10px 13px;border-radius:9px;background:color-mix(in srgb,var(--acc) 9%,var(--sf));border:1px solid color-mix(in srgb,var(--acc) 22%,var(--line));font-size:.82rem}
  input[type=search]{width:100%;max-width:340px;padding:9px 12px;border-radius:9px;border:1px solid var(--line);background:var(--sf);color:var(--ink);font:inherit;margin:8px 0}
  .chk{font-size:.82rem;font-weight:800;color:var(--mut);margin-left:12px}
@@ -292,6 +295,7 @@ PAGE = r"""<!doctype html><html lang="pt-BR"><head><meta charset="utf-8">
 <header><div class="hd"><h1>Prompts das Figurinhas <span style="font-size:.7rem;color:var(--mut);font-weight:600">· estúdio local</span></h1>
  <div class="pills" id="pills"></div></div></header>
 <div class="wrap">
+ <div class="pct"><b id="pctbig">0%</b><span class="g" id="pctall"></span></div>
  <div class="bar"><div class="t"><span id="bf"></span></div><div class="n" id="bn">0 / 0</div></div>
  <div><input type="search" id="q" placeholder="filtrar..."><label class="chk"><input type="checkbox" id="hd"> ocultar prontas</label></div>
  <div class="note" id="note"></div>
@@ -320,7 +324,11 @@ function pills(){
 function render(){
  const s=DATA.secoes[cur];$('#note').textContent=NOTE[cur]||'';
  const dn=done(cur),tot=s.itens.length,dc=s.itens.filter(it=>dn.has(it.key)).length;
- $('#bf').style.width=Math.round(dc/tot*100)+'%';$('#bn').textContent=dc+' / '+tot+' prontas';
+ const pct=Math.round(dc/tot*100);
+ $('#bf').style.width=pct+'%';$('#bn').textContent=dc+' / '+tot+' prontas';
+ $('#pctbig').textContent=pct+'%';
+ let gt=0,gd=0;ORDER.forEach(id=>{const s=DATA.secoes[id];gt+=s.itens.length;gd+=s.itens.filter(it=>done(id).has(it.key)).length;});
+ $('#pctall').textContent='· '+s.nome+'  |  álbum todo: '+Math.round(gd/gt*100)+'% ('+gd+'/'+gt+')';
  let list=s.itens.filter(it=>{
   if(hideDone&&dn.has(it.key))return false;
   if(!q)return true;const h=(it.titulo+' '+it.sub+' '+it.pais+' '+it.cur).toLowerCase();return h.includes(q);
