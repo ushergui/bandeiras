@@ -364,8 +364,11 @@ function wire(s,it){
    const fd=new FormData();fd.append('sec',cur);fd.append('key',it.key);fd.append('file',inp.files[0]);
    toast('enviando...');
    const r=await fetch('/api/upload',{method:'POST',body:fd}).then(x=>x.json());
-   if(r.ok){(DATA.images[cur]=DATA.images[cur]||{})[it.key]=r.url;done(cur).add(it.key);DATA.progress[cur]=[...done(cur)];toast('imagem salva');pills();render();}
-   else toast(r.erro||'erro');
+   if(r.ok){
+    (DATA.images[cur]=DATA.images[cur]||{})[it.key]=r.url;
+    const s=new Set(DATA.progress[cur]||[]);s.add(it.key);DATA.progress[cur]=[...s];
+    toast('imagem salva e marcada como pronta');pills();render();
+   } else toast(r.erro||'erro');
   };inp.click();
  };
  const rm=el.querySelector('[data-a=rm]');
