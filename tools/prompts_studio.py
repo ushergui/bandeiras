@@ -73,9 +73,44 @@ BASE_LEN = "\n".join([
     "The only lettering allowed is the number on the player's shirt. Deliver 1200x800 PNG.",
     "--- SUBJECT: ",
 ])
+BASE_GEMINI = "\n".join([
+    "Highly detailed semi-realistic digital painting in a polished, cinematic illustration style -- roughly 75% photorealistic.",
+    "Think refined concept-art / cover portrait: the rendering should read as convincingly real in skin, light and fabric,",
+    "while keeping a subtle hand-painted, illustrated quality so it is clearly NOT a photograph. Use soft realistic lighting",
+    "with a gentle cinematic key light and soft shadows, realistic subsurface skin shading, fine skin texture (subtle pores,",
+    "faint imperfections, natural blush), individually rendered hair strands, and soft specular highlights. Linework: minimal",
+    "and very subtle -- no thick uniform ink outlines, no hard cel-shading, no flat comic look. Rich, natural, saturated",
+    "colour with smooth painterly gradients. Stylised realism, painterly not photographic. NOT a flat vector, NOT a sticker,",
+    "NOT a cartoon, NOT a hard-inked comic, NOT a 3D render, NOT a real photograph. No border, no watermark, no caption text.",
+    "The only lettering allowed is the number on the player's shirt. Deliver 1200x800 PNG.",
+    "--- SUBJECT: ",
+])
+
+# reforco: o escudo tem que ser o brasao REAL da federacao (vale nos dois estilos)
+CREST = ("The crest on the shirt must be the REAL %s football-federation badge -- accurate shape, colours and central "
+         "emblem, only simplified to suit the era, never a generic, blank or invented badge -- and no modern sponsor logos")
+
+# instrucao de fundo (bandeira em duas camadas) reaproveitada nos dois estilos
+def _flag_block(pais, flagdesc):
+    return (
+        "BACKGROUND -- read carefully. The backdrop is the real national flag of %s, painted as one perfectly flat "
+        "rectangle that fills the WHOLE frame, edge to edge (it is the wall behind him, not an object beside him). "
+        "Use the TRUE flag colours and layout: %s. "
+        "Build the image in two layers: BOTTOM layer = that flag, drawn once, centred on the frame, never moved, never "
+        "mirrored, never rescaled, never rearranged; TOP layer = the player, painted over it. Wherever the player's body "
+        "overlaps the flag, the flag is simply hidden behind him at that spot -- that is correct and expected. Do NOT "
+        "slide, shift, duplicate, shrink or nudge any stripe, cross, sun, star, crescent, circle or crest so that it "
+        "peeks out beside the player. If the player fully covers the central emblem, leave it fully covered. "
+        "The flag has no waves, no folds, no shadows." % (pais, flagdesc))
 
 
-def subject_for(sec, it):
+def _lenda_bits(it):
+    kit = (FIG["lendas"].get("kits") or {}).get(it["code"], it["pais"] + " national-team colours")
+    flagdesc = (FIG["lendas"].get("flags") or {}).get(it["code"], "the real national flag of " + it["pais"])
+    return kit, flagdesc
+
+
+def subject_gpt(sec, it):
     if sec == "animais":
         return "the %s, in a friendly alert pose, a hint of its natural habitat behind it" % it["en"]
     if sec == "frutas":
@@ -85,35 +120,49 @@ def subject_for(sec, it):
     if sec == "comidas":
         return "%s, plated appetisingly, three-quarter view, a thin wisp of steam" % it["en"]
     if sec == "lendas":
-        kit = (FIG["lendas"].get("kits") or {}).get(it["code"], it["pais"] + " national-team colours")
-        flagdesc = (FIG["lendas"].get("flags") or {}).get(it["code"], "the real national flag of " + it["pais"])
+        kit, flagdesc = _lenda_bits(it)
+        crest = CREST % it["pais"]
         if it.get("gk"):
-            jersey = "a goalkeeper jersey with an era-appropriate %s cut" % it["era"]
+            jersey = "a goalkeeper jersey with an era-appropriate %s cut; %s" % (it["era"], crest)
         else:
-            jersey = ("the %s national-team home jersey in the style of a %s kit "
-                      "(era-appropriate cut and fabric, %s, simple period crest, no modern sponsor logos)"
-                      % (it["pais"], it["era"], kit))
+            jersey = ("the %s national-team home jersey in the style of a %s kit (era-appropriate cut and fabric, %s; %s)"
+                      % (it["pais"], it["era"], kit, crest))
         return (
             "a bold flat vector travel-poster portrait of the footballer %s of %s. "
             "Make the face and build a recognisable, faithful stylised likeness of the real %s: %s. "
             "Shown from the chest up in a confident heroic three-quarter pose, wearing %s, "
-            "with the number %s clearly on the shirt.\n"
-            "BACKGROUND -- read carefully. The backdrop is the real national flag of %s, painted as one perfectly "
-            "flat rectangle that fills the WHOLE frame, edge to edge (it is the wall behind him, not an object beside him). "
-            "The flag's exact layout is: %s. "
-            "Build the image in two layers: BOTTOM layer = that flag, drawn once, centred on the frame, never moved, "
-            "never mirrored, never rescaled, never rearranged; TOP layer = the player, painted over it. "
-            "Wherever the player's body overlaps the flag, the flag is simply hidden behind him at that spot -- that is "
-            "correct and expected. Do NOT slide, shift, duplicate, shrink or nudge any stripe, sun, star, crescent, "
-            "circle or coat of arms so that it peeks out beside the player. If the player's head or torso fully covers "
-            "the central emblem, leave it fully covered. The flag has no waves, no folds, no shadows.\n"
+            "with the number %s clearly on the shirt.\n%s\n"
             "Sticker-album illustration style, not photorealistic; iconic and readable as a small card."
-            % (it["nome"], it["pais"], it["nome"], it["fis"], jersey, it["num"], it["pais"], flagdesc))
+            % (it["nome"], it["pais"], it["nome"], it["fis"], jersey, it["num"], _flag_block(it["pais"], flagdesc)))
     return ""
 
 
+def subject_gemini(it):
+    kit, flagdesc = _lenda_bits(it)
+    crest = CREST % it["pais"]
+    if it.get("gk"):
+        jersey = ("the %s goalkeeper jersey in a %s cut (era-appropriate fabric with visible texture and stitching; %s), "
+                  "with the number %s clearly on the shirt" % (it["pais"], it["era"], crest, it["num"]))
+    else:
+        jersey = ("the %s national-team home jersey in a %s cut (era-appropriate fabric with visible mesh texture and "
+                  "stitching, %s; %s), with the number %s clearly on the shirt"
+                  % (it["pais"], it["era"], kit, crest, it["num"]))
+    return (
+        "a heroic three-quarter-view portrait of the footballer %s of %s, shown from the chest up in a confident, athletic "
+        "pose, head turned slightly to the side with an intense focused gaze. Make the face a detailed, highly recognisable, "
+        "faithful likeness of the real %s: %s. Render the face with photographic-level detail and correct proportions -- "
+        "defined features, realistic eyes and skin -- while preserving the painterly illustration finish. He wears %s.\n%s\n"
+        "Semi-realistic painterly sports-poster portrait, detailed and cinematic, reading as ~75%% realism between a "
+        "photograph and an illustration."
+        % (it["nome"], it["pais"], it["nome"], it["fis"], jersey, _flag_block(it["pais"], flagdesc)))
+
+
 def prompt_for(sec, it):
-    return (BASE_LEN if sec == "lendas" else BASE) + subject_for(sec, it)
+    return (BASE_LEN if sec == "lendas" else BASE) + subject_gpt(sec, it)
+
+
+def prompt_gemini(it):
+    return BASE_GEMINI + subject_gemini(it)
 
 
 # --------- itens enriquecidos p/ a tela ---------
@@ -132,6 +181,7 @@ def build_items():
                 "pais": PAISES.get(it.get("code"), (it.get("code") or "").upper()) if it.get("code") else "",
                 "sub": "",
                 "prompt": prompt_for(sec, it) if s["tipo"] != "moeda" else "",
+                "prompt_gemini": prompt_gemini(it) if sec == "lendas" else "",
                 "busca": it.get("busca", ""),
             }
             if sec == "comidas":
@@ -140,6 +190,7 @@ def build_items():
                 row["titulo"] = row["pais"]; row["sub"] = it["nome"]
             elif sec == "lendas":
                 row["titulo"] = it["nome"]
+                row["pais"] = it["pais"]
                 row["sub"] = "%s · camisa nº %s%s" % (it["pais"], it["num"], " (goleiro)" if it.get("gk") else "")
             arr.append(row)
         arr.sort(key=lambda r: (r.get("pais") or "", r["titulo"]) if sec in ("comidas", "moedas", "lendas")
@@ -336,7 +387,10 @@ function render(){
  $('#grid').innerHTML=list.map(it=>card(s,it)).join('');
  list.forEach(it=>wire(s,it));
 }
-function flag(c){if(!/^[a-z]{2}$/i.test(c||''))return '';c=c.toUpperCase();return String.fromCodePoint(0x1F1E6+c.charCodeAt(0)-65)+String.fromCodePoint(0x1F1E6+c.charCodeAt(1)-65);}
+function flag(c){
+ if(c==='sct')return '🏴󠁧󠁢󠁳󠁣󠁴󠁿';
+ if(c==='wls')return '🏴󠁧󠁢󠁷󠁬󠁳󠁿';
+ if(!/^[a-z]{2}$/i.test(c||''))return '';c=c.toUpperCase();return String.fromCodePoint(0x1F1E6+c.charCodeAt(0)-65)+String.fromCodePoint(0x1F1E6+c.charCodeAt(1)-65);}
 function card(s,it){
  const dn=done(cur).has(it.key),url=img(cur,it.key);
  const hl=(it.prompt||'').replace(/&/g,'&amp;').replace(/</g,'&lt;');
@@ -349,7 +403,8 @@ function card(s,it){
   ${it.prompt?`<pre>${hl}</pre>`:''}
   ${it.cur?`<div class="cur">${it.cur}</div>`:''}
   <div class="act">
-   ${it.prompt?`<button class="b p" data-a="copy">Copiar prompt</button>`:''}
+   ${it.prompt?`<button class="b p" data-a="copy">${it.prompt_gemini?'Copiar (ChatGPT)':'Copiar prompt'}</button>`:''}
+   ${it.prompt_gemini?`<button class="b p" data-a="copyg">Copiar (Gemini)</button>`:''}
    ${it.busca?`<a class="b p" target="_blank" href="https://commons.wikimedia.org/w/index.php?search=${encodeURIComponent(it.busca)}&title=Special:MediaSearch&type=image">Buscar no Wikimedia ↗</a>`:''}
    <button class="b" data-a="up">${url?'Trocar imagem':'Upload da imagem'}</button>
    ${it.cur?`<button class="b" data-a="ccur">Copiar curiosidade</button>`:''}
@@ -363,7 +418,9 @@ function wire(s,it){
   const set=done(cur);nd?set.add(it.key):set.delete(it.key);DATA.progress[cur]=[...set];pills();render();
  };
  const cp=el.querySelector('[data-a=copy]');
- if(cp)cp.onclick=()=>navigator.clipboard.writeText(it.prompt).then(()=>{cp.textContent='Copiado!';cp.classList.add('g');setTimeout(()=>{cp.textContent='Copiar prompt';cp.classList.remove('g');},1100);});
+ if(cp){const lbl=cp.textContent;cp.onclick=()=>navigator.clipboard.writeText(it.prompt).then(()=>{cp.textContent='Copiado!';cp.classList.add('g');setTimeout(()=>{cp.textContent=lbl;cp.classList.remove('g');},1100);});}
+ const cg=el.querySelector('[data-a=copyg]');
+ if(cg)cg.onclick=()=>navigator.clipboard.writeText(it.prompt_gemini).then(()=>{cg.textContent='Copiado!';cg.classList.add('g');setTimeout(()=>{cg.textContent='Copiar (Gemini)';cg.classList.remove('g');},1100);});
  const cc=el.querySelector('[data-a=ccur]');
  if(cc)cc.onclick=()=>navigator.clipboard.writeText(it.cur).then(()=>{cc.textContent='Copiado!';setTimeout(()=>cc.textContent='Copiar curiosidade',1000);});
  el.querySelector('[data-a=up]').onclick=()=>{
