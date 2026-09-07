@@ -587,7 +587,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // --- ECONOMIA DE PACOTES ---
     const DAILY_FREE_PACKS = 3;
-    const PACK_STICKERS = 3;
+    const PACK_STICKERS = 4;
 
     // "dia do pacote": vira às 06:00. Antes das 6h ainda conta como o dia anterior.
     function packDayKey(d) {
@@ -2043,11 +2043,49 @@ document.addEventListener('DOMContentLoaded', () => {
     }
     // figurinhas "brilhantes fixas" por seção (casadas pelo fim do código)
     const FIG_SHINY = {
-        lendas: ['pele', 'maradona', 'messi', 'cristiano-ronaldo', 'zidane', 'ronaldo',
-            'beckenbauer', 'di-stefano', 'lev-yashin', 'garrincha'],
-        clubes: ['real-madrid', 'barcelona', 'flamengo', 'boca-juniors', 'manchester-united',
-            'liverpool', 'bayern-munique', 'bayern-de-munique', 'milan', 'juventus', 'ajax'],
-        frutas: [],
+        // 40 craques mais conhecidos mundialmente (por slugName do nome)
+        lendas: [
+            'pele', 'garrincha', 'ronaldo', 'ronaldinho-gaucho', 'romario', 'rivaldo', 'neymar', 'cafu',
+            'diego-maradona', 'lionel-messi', 'alfredo-di-stefano',
+            'franz-beckenbauer', 'gerd-muller', 'lothar-matthaus',
+            'paolo-maldini', 'roberto-baggio', 'paolo-rossi',
+            'zinedine-zidane', 'michel-platini', 'kylian-mbappe',
+            'johan-cruyff', 'marco-van-basten', 'ruud-gullit',
+            'eusebio', 'cristiano-ronaldo',
+            'bobby-charlton',
+            'andres-iniesta', 'xavi-hernandez',
+            'ferenc-puskas', 'lev-yashin', 'hristo-stoichkov', 'gheorghe-hagi',
+            'luka-modric', 'andriy-shevchenko', 'zlatan-ibrahimovic', 'robert-lewandowski',
+            'erling-haaland', 'george-weah', 'didier-drogba', 'mohamed-salah',
+        ],
+        // 7 frutas
+        frutas: ['abacaxi', 'banana', 'uva', 'morango', 'melancia', 'coco', 'acai'],
+        // todo clube que já ganhou pelo menos um torneio continental de clubes
+        // (UEFA Champions/European Cup, Libertadores, AFC/CAF/CONCACAF/OFC Champions)
+        clubes: [
+            // UEFA
+            'real-madrid', 'milan', 'bayern', 'liverpool', 'barcelona', 'ajax', 'inter',
+            'man-united', 'juventus', 'benfica', 'porto', 'chelsea', 'nottingham-forest',
+            'celtic', 'feyenoord', 'aston-villa', 'psv', 'steaua', 'estrela-vermelha',
+            'marseille', 'dortmund', 'man-city', 'psg',
+            // CONMEBOL (Libertadores)
+            'independiente', 'boca-juniors', 'penarol', 'river-plate', 'estudiantes', 'olimpia',
+            'nacional-uru', 'sao-paulo', 'gremio', 'santos', 'atletico-nacional', 'cruzeiro',
+            'internacional', 'palmeiras', 'flamengo', 'racing', 'argentinos-juniors', 'colo-colo',
+            'velez', 'corinthians', 'atletico-mineiro', 'san-lorenzo', 'ldu-quito', 'botafogo',
+            'fluminense',
+            // AFC
+            'al-hilal', 'al-ittihad', 'al-nassr', 'urawa-reds', 'pohang-steelers', 'jeonbuk',
+            'kashima-antlers', 'gamba-osaka', 'ulsan-hd', 'al-sadd', 'esteghlal', 'al-ain',
+            // CAF
+            'al-ahly', 'zamalek', 'esperance', 'wydad', 'raja', 'tp-mazembe', 'mamelodi-sundowns',
+            'enyimba', 'asec-mimosas', 'js-kabylie', 'etoile-sahel', 'orlando-pirates',
+            // CONCACAF
+            'club-america', 'cruz-azul', 'chivas', 'monterrey', 'tigres', 'la-galaxy',
+            'dc-united', 'seattle-sounders',
+            // OFC
+            'auckland-city', 'team-wellington', 'hekari-united',
+        ],
     };
     // fundo de continente (assets/img/bg) pelo país do craque/clube
     const _CONT_SIG = {

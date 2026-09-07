@@ -64,8 +64,10 @@ const BR_PAISAGENS = {
     TO: 'Palácio Araguaia',
 };
 
-// estados com brilho fixo (os "grandões" — como os países principais)
-const BR_SHINY = ['SP', 'RJ', 'MG', 'RS', 'BA', 'PR', 'DF'];
+// brilhantes: 1 por região do Brasil (N / NE / CO / SE / S).
+// Estados e Capitais NÃO repetem o mesmo estado.
+const BR_SHINY_ESTADOS  = ['PA', 'BA', 'GO', 'MG', 'RS']; // Norte, Nordeste, C-Oeste, Sudeste, Sul
+const BR_SHINY_CAPITAIS = ['AM', 'PE', 'DF', 'RJ', 'SC']; // outros 5, um por região
 
 // capitais cuja paisagem ainda não foi gerada (todas prontas)
 const CAPITAIS_PENDENTES = [];
@@ -84,7 +86,7 @@ const COLLECTIONS = {
             nome: e.nome,
             sub: e.uf,
             src: 'assets/stickers/bra/' + e.uf.toLowerCase() + '.png',
-            fixedShiny: BR_SHINY.includes(e.uf),
+            fixedShiny: BR_SHINY_ESTADOS.includes(e.uf),
             // usado pelo modo "Qual a Bandeira?"
             artigo: 'de', capital: e.capital, uf: e.uf,
         })),
@@ -102,7 +104,7 @@ const COLLECTIONS = {
             nome: BR_PAISAGENS[e.uf] || e.capital,
             sub: e.capital + ' · ' + e.uf,
             src: 'assets/stickers/capitais/' + e.uf.toLowerCase() + '.jpg',
-            fixedShiny: BR_SHINY.includes(e.uf),
+            fixedShiny: BR_SHINY_CAPITAIS.includes(e.uf),
             pendente: CAPITAIS_PENDENTES.includes(e.uf),
             uf: e.uf,
         })),

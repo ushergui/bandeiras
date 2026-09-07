@@ -2013,13 +2013,14 @@
   padding: 14px 16px;
 }
 
-/* ---- pacote: centraliza as 3 figurinhas (nada de 4º espaço) ---- */
+/* ---- pacote: centraliza as figurinhas (4 por pacote; vira 2x2 no celular) ---- */
 .opened-stickers-grid {
   display: flex; flex-wrap: wrap; justify-content: center; align-items: flex-start;
-  gap: 12px; margin: 14px auto; max-width: 380px;
+  gap: 12px; margin: 14px auto; max-width: 500px;
 }
 .opened-stickers-grid .pack-card { flex: 0 1 108px; }
-@media (max-width: 400px) { .opened-stickers-grid .pack-card { flex-basis: 92px; } }
+@media (max-width: 460px) { .opened-stickers-grid { max-width: 250px; } }
+@media (max-width: 400px) { .opened-stickers-grid .pack-card { flex-basis: 100px; } }
 
 /* ---- a figurinha NUNCA muda de largura: nome quebra / encolhe ---- */
 .album-grid { grid-template-columns: repeat(auto-fill, minmax(94px, 1fr)); }
