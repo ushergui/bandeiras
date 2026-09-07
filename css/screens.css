@@ -1652,13 +1652,14 @@
 .fig-card.is-crest .fig-flagwrap { width: 78%; margin: 4px auto 5px; }
 .fig-card.is-crest.missing .fig-flagwrap { display: none; }
 
-/* lenda = retrato vertical */
-.fig-card.is-portrait .fig-flag { aspect-ratio: 4 / 5; object-fit: cover; }
-.fig-card.is-portrait .fig-flagwrap { width: 74%; }
+/* lenda = cena do craque + bandeira: a arte é 3:2, mostra ela quase inteira
+   (zoom "afastado") em vez de recortar num retrato apertado */
+.fig-card.is-portrait .fig-flag { aspect-ratio: 3 / 2; object-fit: cover; }
+.fig-card.is-portrait .fig-flagwrap { width: 94%; margin: 3px auto 5px; }
 
-/* zoom mostra escudo/retrato inteiro também */
+/* zoom mostra escudo/cena inteira também */
 .fig-zoom-card .fig-card.is-crest .fig-flag { padding: 10px; }
-.fig-zoom-card .fig-card.is-portrait .fig-flagwrap { width: 70%; }
+.fig-zoom-card .fig-card.is-portrait .fig-flagwrap { width: 88%; }
 
 /* nas seções BRA/CAP a numeração da aba fica com a sigla certa (só visual) */
 .continent-tab .ct-name { text-align: center; }
@@ -1937,8 +1938,21 @@
 }
 .fig-zoom-card .fig-name { -webkit-line-clamp: 3; }
 
-/* ---- "Ir para o álbum": respiro nas laterais ---- */
+/* ---- ações no fim do pacote: "Abrir mais" + "Ir para o álbum" ---- */
 #close-pack-button { padding: 12px 26px; }
+.pack-end-actions {
+  display: flex; gap: 10px; justify-content: center; flex-wrap: wrap;
+  margin-top: 12px;
+}
+.pack-end-actions.hidden { display: none; }
+.pack-end-actions .btn-primary { margin: 0; }
+.pack-end-more {
+  padding: 12px 22px; border-radius: 12px; font-weight: 800; font-size: .92rem;
+  background: rgba(255,255,255,.1); color: var(--text-white);
+  border: 1px solid rgba(255,255,255,.18); cursor: pointer;
+}
+.pack-end-more:hover:not(:disabled) { background: rgba(255,255,255,.16); }
+.pack-end-more:disabled { opacity: .4; cursor: default; }
 
 /* ---- botão "?" ao lado de "Abrir pacote" ---- */
 .album-pack-wrap { display: flex; align-items: center; gap: 6px; }

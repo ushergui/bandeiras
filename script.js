@@ -440,6 +440,7 @@ document.addEventListener('DOMContentLoaded', () => {
         showAlbum: document.getElementById('show-album-button'),
         openPack: document.getElementById('open-pack-btn'),
         closePack: document.getElementById('close-pack-button'),
+        openMore: document.getElementById('pack-open-more'),
         levelBack: document.getElementById('level-back-btn'),
         // Multiplayer Buttons
         btnHostParty: document.getElementById('btn-host-party'),
@@ -2842,10 +2843,12 @@ document.addEventListener('DOMContentLoaded', () => {
         elements.packAnimationContainer.classList.remove('hidden', 'opening');
         const pw = elements.packAnimationContainer.querySelector('.pack-wrapper');
         if (pw) { pw.classList.remove('tearing'); pw.style.setProperty('--tear', '0'); }
-        if (buttons.closePack) buttons.closePack.classList.add('hidden');
+        const endActions = document.getElementById('pack-end-actions');
+        if (endActions) endActions.classList.add('hidden');
         modals.pack.classList.remove('hidden');
     }
     if (buttons.openPack) buttons.openPack.addEventListener('click', openPackModal);
+    if (buttons.openMore) buttons.openMore.addEventListener('click', openPackModal);
 
     // sorteia o pacote e joga tudo na PILHA (o jogador decide o que colar depois)
     function drawPack() {
@@ -2912,7 +2915,13 @@ document.addEventListener('DOMContentLoaded', () => {
             }
 
             buildDecideList(results);
-            if (buttons.closePack) buttons.closePack.classList.remove('hidden');
+            const endActions = document.getElementById('pack-end-actions');
+            if (endActions) endActions.classList.remove('hidden');
+            if (buttons.openMore) {
+                const left = getPacksCount();
+                buttons.openMore.disabled = left <= 0;
+                buttons.openMore.textContent = left > 0 ? `🎁 Abrir mais (${left})` : 'Sem pacotes';
+            }
             requestAnimationFrame(() => fitFigNames(elements.openedStickers));
         }, 650);
     }
