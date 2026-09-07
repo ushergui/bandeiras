@@ -252,7 +252,9 @@ create or replace function public._pilha_remove_one(p jsonb, rar text) returns j
 $$;
 
 -- aceitar uma troca (mural aberto: qualquer um; direto: só o to_user)
-create or replace function public.accept_trade(p_trade uuid)
+--  p_fulfill: [{codigo,rarity}] — figurinhas concretas que o aceitante escolheu
+--  para os pedidos "curinga" (sem codigo) do request, na ordem em que aparecem.
+create or replace function public.accept_trade(p_trade uuid, p_fulfill jsonb default '[]'::jsonb)
 returns jsonb language plpgsql security definer set search_path = public as $$
 declare
   tr        public.trades;
@@ -260,9 +262,10 @@ declare
   partner   uuid;
   item      jsonb;
   cod       text;
-  s_from    public.stickers;
-  s_to      public.stickers;
+  s_rec     public.stickers;
   give_rar  text;
+  req_codes text[] := '{}';
+  wild_i    int := 0;
 begin
   select * into tr from public.trades where id = p_trade for update;
   if not found then return jsonb_build_object('error','Troca não existe mais.'); end if;
@@ -275,39 +278,48 @@ begin
   end if;
   partner := tr.from_user;
 
-  -- confere: quem ofertou ainda tem TUDO de `offer` na pilha;
-  --          quem aceita ainda tem TUDO de `request` na pilha
-  for item in select * from jsonb_array_elements(tr.offer) loop
-    cod := item->>'codigo';
-    select * into s_from from public.stickers where user_id = partner and codigo = cod;
-    if not found or jsonb_array_length(s_from.pilha) < 1 then
-      return jsonb_build_object('error','Quem ofertou já não tem "'||cod||'".');
+  -- resolve o request: item com codigo usa ele; curinga puxa do p_fulfill
+  for item in select * from jsonb_array_elements(tr.request) loop
+    if (item->>'codigo') is not null then
+      req_codes := req_codes || (item->>'codigo');
+    else
+      cod := (p_fulfill -> wild_i) ->> 'codigo';
+      wild_i := wild_i + 1;
+      if cod is null then return jsonb_build_object('error','Faltou escolher a figurinha da troca.'); end if;
+      req_codes := req_codes || cod;
     end if;
   end loop;
-  for item in select * from jsonb_array_elements(tr.request) loop
+
+  -- confere: quem ofertou ainda tem TUDO de `offer`; o aceitante tem os req_codes
+  for item in select * from jsonb_array_elements(tr.offer) loop
     cod := item->>'codigo';
-    select * into s_to from public.stickers where user_id = me and codigo = cod;
-    if not found or jsonb_array_length(s_to.pilha) < 1 then
-      return jsonb_build_object('error','Você já não tem "'||cod||'" pra dar.');
+    select * into s_rec from public.stickers where user_id = partner and codigo = cod;
+    if not found or jsonb_array_length(s_rec.pilha) < 1 then
+      return jsonb_build_object('error','Quem ofertou já não tem uma das figurinhas.');
+    end if;
+  end loop;
+  foreach cod in array req_codes loop
+    select * into s_rec from public.stickers where user_id = me and codigo = cod;
+    if not found or jsonb_array_length(s_rec.pilha) < 1 then
+      return jsonb_build_object('error','Você não tem "'||cod||'" repetida pra dar.');
     end if;
   end loop;
 
   -- move `offer`: partner -> me  (dá a cópia mais fraca de cada codigo)
   for item in select * from jsonb_array_elements(tr.offer) loop
     cod := item->>'codigo';
-    select * into s_from from public.stickers where user_id = partner and codigo = cod for update;
-    give_rar := public._pilha_weakest(s_from.pilha);
+    select * into s_rec from public.stickers where user_id = partner and codigo = cod for update;
+    give_rar := public._pilha_weakest(s_rec.pilha);
     update public.stickers set pilha = public._pilha_remove_one(pilha, give_rar)
       where user_id = partner and codigo = cod;
     insert into public.stickers (user_id, codigo, pilha) values (me, cod, jsonb_build_array(give_rar))
     on conflict (user_id, codigo) do update set pilha = public.stickers.pilha || jsonb_build_array(give_rar);
   end loop;
 
-  -- move `request`: me -> partner
-  for item in select * from jsonb_array_elements(tr.request) loop
-    cod := item->>'codigo';
-    select * into s_to from public.stickers where user_id = me and codigo = cod for update;
-    give_rar := public._pilha_weakest(s_to.pilha);
+  -- move os req_codes: me -> partner
+  foreach cod in array req_codes loop
+    select * into s_rec from public.stickers where user_id = me and codigo = cod for update;
+    give_rar := public._pilha_weakest(s_rec.pilha);
     update public.stickers set pilha = public._pilha_remove_one(pilha, give_rar)
       where user_id = me and codigo = cod;
     insert into public.stickers (user_id, codigo, pilha) values (partner, cod, jsonb_build_array(give_rar))
@@ -339,6 +351,17 @@ begin
   if not found then return jsonb_build_object('error','Não deu pra recusar.'); end if;
   return jsonb_build_object('ok', true);
 end $$;
+
+-- ---------------------------------------------------------------------------
+--  Grants — deixa o supabase-js enxergar as tabelas mesmo se "Automatically
+--  expose new tables" estiver desligado. O RLS acima é quem protege as linhas.
+-- ---------------------------------------------------------------------------
+grant usage on schema public to anon, authenticated;
+grant select, insert, update, delete on all tables in schema public to authenticated;
+grant select on public.ranking, public.ranking_best to anon;
+grant execute on all functions in schema public to authenticated;
+alter default privileges in schema public
+  grant select, insert, update, delete on tables to authenticated;
 
 -- ---------------------------------------------------------------------------
 --  Realtime: publicar a tabela trades

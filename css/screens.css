@@ -1829,6 +1829,29 @@
 .otc-opt.on { border-color: var(--accent-green, #22c55e); background: rgba(34,197,94,.14); }
 #otc-send { width: 100%; margin-top: 14px; }
 
+.otc-want-modes { display: flex; gap: 5px; margin-bottom: 8px; }
+.otc-wm {
+  flex: 1; min-height: 0; padding: 8px 4px; border-radius: 9px; font-size: .74rem; font-weight: 800;
+  background: rgba(255,255,255,.06); border: 1px solid rgba(255,255,255,.14); color: var(--text-white);
+}
+.otc-wm.active { background: color-mix(in srgb, var(--accent-blue, #60a5fa) 26%, transparent); border-color: var(--accent-blue, #60a5fa); }
+.otc-sec-chips { display: flex; flex-wrap: wrap; gap: 5px; margin-bottom: 8px; max-height: 22vh; overflow-y: auto; }
+.otc-sec-chips.hidden { display: none; }
+.otc-sc {
+  min-height: 0; padding: 6px 9px; border-radius: 999px; font-size: .72rem; font-weight: 700;
+  background: rgba(255,255,255,.06); border: 1px solid rgba(255,255,255,.14); color: var(--text-white);
+}
+.otc-sc.on { background: color-mix(in srgb, var(--accent-green, #22c55e) 22%, transparent); border-color: var(--accent-green, #22c55e); }
+.otc-sc:disabled { opacity: .35; }
+.otc-sc b { color: var(--accent-gold, #fbbf24); }
+.otc-summary { font-size: .8rem; font-weight: 800; color: var(--accent-green, #4ade80); margin: 4px 0 0; min-height: 1em; }
+
+.ot-mini.ot-wild { justify-content: center; }
+.ot-mini.ot-wild .ot-wild-ic {
+  width: 44px; height: 30px; display: grid; place-items: center; font-size: 1.1rem;
+  background: rgba(255,255,255,.08); border: 1px dashed rgba(255,255,255,.4); border-radius: 4px;
+}
+
 @media (max-width: 460px) {
   .fig-card.nano .fig-sub, .tm-mini .fig-sub { display: none; }
 }

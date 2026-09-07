@@ -357,9 +357,11 @@
       const { data, error } = await sb.from('trades').insert(row).select().single();
       return error ? { error: error.message } : { ok: true, trade: data };
     },
-    async accept(id) { const { data, error } = await sb.rpc('accept_trade', { p_trade: id });
+    async accept(id, fulfill) {
+      const { data, error } = await sb.rpc('accept_trade', { p_trade: id, p_fulfill: fulfill || [] });
       if (error) return { error: error.message }; if (data && data.error) return data;
-      await pullAll(); return { ok: true }; },
+      await pullAll(); return { ok: true };
+    },
     async cancel(id) { const { data } = await sb.rpc('cancel_trade', { p_trade: id }); return data || {}; },
     async reject(id) { const { data } = await sb.rpc('reject_trade', { p_trade: id }); return data || {}; },
     subscribe(cb) {

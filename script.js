@@ -2748,8 +2748,23 @@ document.addEventListener('DOMContentLoaded', () => {
         const img = c ? itemImg(c) : '';
         return `<span class="ot-mini"><img src="${img}" alt="" onerror="this.style.display='none'"><b>${nome}</b></span>`;
     }
+    function otItemHTML(x) {
+        if (x && x.any) return `<span class="ot-mini ot-wild"><span class="ot-wild-ic">🎲</span><b>qualquer<br>que falta</b></span>`;
+        if (x && x.sec) {
+            const m = CONTINENT_META[x.sec] || {};
+            return `<span class="ot-mini ot-wild"><span class="ot-wild-ic">${m.emoji || '📚'}</span><b>qualquer<br>${x.sec}</b></span>`;
+        }
+        return otMiniCard(x.codigo);
+    }
     function otItemsHTML(arr) {
-        return (arr || []).map(x => otMiniCard(x.codigo)).join('<span class="ot-plus">+</span>');
+        return (arr || []).map(otItemHTML).join('<span class="ot-plus">+</span>');
+    }
+    // as figurinhas repetidas minhas que atendem um pedido (wildcard ou específico)
+    function eligibleForRequest(x) {
+        let pool = loadStickers().filter(s => depositable(s) > 0).map(s => albumItem(s.codigo)).filter(Boolean);
+        if (x && x.codigo) return pool.filter(c => c.codigo === x.codigo);
+        if (x && x.sec) return pool.filter(c => c.continente === x.sec);
+        return pool; // any
     }
 
     async function otRefresh() {
@@ -2770,10 +2785,14 @@ document.addEventListener('DOMContentLoaded', () => {
         if (tab === 'mural') renderOtMural(); else renderOtMine();
     }
 
+    let _otTrades = [];
+    const otTrade = (id) => _otTrades.find(t => t.id === id);
+
     async function renderOtMural() {
         const box = document.getElementById('ot-mural-list');
         box.innerHTML = '<p class="ot-empty">Carregando…</p>';
         const list = await OnlineTrades.mural();
+        _otTrades = list.slice();
         if (!list.length) { box.innerHTML = '<p class="ot-empty">Nenhuma oferta no mural agora. Crie a sua!</p>'; return; }
         box.innerHTML = list.map(t => `
             <div class="ot-card" data-id="${t.id}">
@@ -2792,6 +2811,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const box = document.getElementById('ot-mine-list');
         box.innerHTML = '<p class="ot-empty">Carregando…</p>';
         const list = await OnlineTrades.mine();
+        _otTrades = _otTrades.filter(t => !list.some(x => x.id === t.id)).concat(list);
         if (!list.length) { box.innerHTML = '<p class="ot-empty">Você ainda não tem trocas.</p>'; return; }
         const rot = { aberta: '⏳ aberta', aceita: '✅ aceita', recusada: '❌ recusada', cancelada: '🚫 cancelada', expirada: '⌛ expirada' };
         box.innerHTML = list.map(t => {
@@ -2819,55 +2839,159 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     async function otDoAccept(id, btn) {
+        const t = otTrade(id);
+        const req = (t && t.request) || [];
+        const wildcards = req.filter(x => !x.codigo);
+        if (wildcards.length) {
+            const fulfill = await pickFulfillment(wildcards);
+            if (!fulfill) return;              // cancelou
+            return finishAccept(id, btn, fulfill);
+        }
+        return finishAccept(id, btn, []);
+    }
+    async function finishAccept(id, btn, fulfill) {
         btn.disabled = true; btn.textContent = 'Trocando…';
-        const r = await OnlineTrades.accept(id);
-        if (r.error) { showToast(r.error, 'error'); btn.disabled = false; btn.textContent = 'Topar troca'; return; }
+        const r = await OnlineTrades.accept(id, fulfill);
+        if (r.error) { showToast(r.error, 'error'); btn.disabled = false; btn.textContent = 'Topar'; return; }
         showToast('Troca feita! 🤝', 'success');
         _cache.stickers = await API.getStickers(currentUser);
         otRefresh(); refreshHub();
     }
 
+    // pergunta ao aceitante qual figurinha concreta dá pra cada pedido curinga
+    function pickFulfillment(wildcards) {
+        return new Promise((resolve) => {
+            const chosen = [];
+            let step = 0;
+            const modal = document.getElementById('ot-compose-modal');
+            const title = document.getElementById('otc-title');
+            const grid = document.getElementById('otc-want');
+            // reaproveita o modal: esconde tudo menos o grid
+            ['otc-to-field'].forEach(i => { const e = document.getElementById(i); if (e) e.hidden = true; });
+            document.getElementById('otc-give').innerHTML = '';
+            document.querySelector('.otc-want-modes').style.display = 'none';
+            document.getElementById('otc-want-secao').classList.add('hidden');
+            document.getElementById('otc-want-summary').textContent = '';
+            document.getElementById('otc-send').style.display = 'none';
+            grid.classList.remove('hidden');
+
+            function renderStep() {
+                const w = wildcards[step];
+                title.textContent = `O que você dá? (${step + 1}/${wildcards.length})`;
+                const pool = eligibleForRequest(w).sort((a, b) => a.nome.localeCompare(b.nome, 'pt'));
+                grid.innerHTML = pool.length
+                    ? pool.map(c => `<button class="otc-opt" data-code="${c.codigo}">${otMiniCard(c.codigo)}</button>`).join('')
+                    : '<p class="ot-empty">Você não tem repetida que sirva. Não dá pra topar essa.</p>';
+                grid.querySelectorAll('.otc-opt').forEach(b => b.onclick = () => {
+                    chosen.push({ codigo: b.dataset.code, rarity: 'base' });
+                    step++;
+                    if (step >= wildcards.length) { cleanup(); resolve(chosen); }
+                    else renderStep();
+                });
+            }
+            function cleanup() {
+                modal.classList.add('hidden');
+                document.querySelector('.otc-want-modes').style.display = '';
+                document.getElementById('otc-send').style.display = '';
+                document.getElementById('otc-close').onclick = null;
+            }
+            document.getElementById('otc-close').onclick = () => { cleanup(); resolve(null); };
+            renderStep();
+            modal.classList.remove('hidden');
+        });
+    }
+
     document.querySelectorAll('.ot-tab').forEach(b => b.addEventListener('click', () => setOtTab(b.dataset.ot)));
 
     // ---- compor oferta ----
+    // otcWant = { codigo } (específica) | { sec } (qualquer de um livro) | { any:true }
     const otcModal = document.getElementById('ot-compose-modal');
-    let otcGive = null, otcWant = null, otcKind = 'mural';
+    let otcGive = null, otcWant = { any: true }, otcKind = 'mural', otcWantMode = 'qualquer', otcWantSec = null;
 
-    function otcRefreshSend() {
-        const need = otcKind === 'direto' ? document.getElementById('otc-to').value.trim() : true;
-        document.getElementById('otc-send').disabled = !(otcGive && otcWant && need);
+    function secLabel(book) {
+        const m = CONTINENT_META[book] || {};
+        return `${m.flag ? '🇧🇷' : (m.emoji || '')} ${book}`.trim();
     }
+    function otcWantText() {
+        if (otcWantMode === 'any') return 'qualquer figurinha que você não tem';
+        if (otcWantMode === 'secao') return otcWantSec ? `qualquer de "${otcWantSec}" que você não tem` : '';
+        const c = otcWant && otcWant.codigo && albumItem(otcWant.codigo);
+        return c ? c.nome : '';
+    }
+    function otcRefreshSend() {
+        document.getElementById('otc-want-summary').textContent = otcWantText() ? '→ ' + otcWantText() : '';
+        const need = otcKind === 'direto' ? document.getElementById('otc-to').value.trim() : true;
+        const wantOk = otcWantMode === 'qualquer'
+            || (otcWantMode === 'secao' && otcWantSec)
+            || (otcWantMode === 'especifica' && otcWant && otcWant.codigo);
+        document.getElementById('otc-send').disabled = !(otcGive && wantOk && need);
+    }
+
+    function setWantMode(mode) {
+        otcWantMode = mode;
+        document.querySelectorAll('.otc-wm').forEach(b => b.classList.toggle('active', b.dataset.wm === (mode === 'qualquer' ? 'qualquer' : mode)));
+        const chips = document.getElementById('otc-want-secao');
+        const grid = document.getElementById('otc-want');
+        chips.classList.toggle('hidden', mode !== 'secao' && mode !== 'especifica');
+        grid.classList.toggle('hidden', mode !== 'especifica');
+        if (mode === 'qualquer') { otcWant = { any: true }; }
+        if (mode === 'secao') { otcWant = otcWantSec ? { sec: otcWantSec } : null; }
+        if (mode === 'especifica') { otcWant = null; renderWantGrid(); }
+        otcRefreshSend();
+    }
+    function renderSecChips() {
+        const chips = document.getElementById('otc-want-secao');
+        chips.innerHTML = CONTINENTS_ORDER.map(book => {
+            const n = ALBUM_ITEMS.filter(c => c.continente === book && !isColada(c.codigo)).length;
+            return `<button class="otc-sc${book === otcWantSec ? ' on' : ''}" data-book="${book}" ${n ? '' : 'disabled'}>${secLabel(book)} <b>${n}</b></button>`;
+        }).join('');
+        chips.querySelectorAll('.otc-sc').forEach(b => b.onclick = () => {
+            otcWantSec = b.dataset.book;
+            chips.querySelectorAll('.otc-sc').forEach(x => x.classList.toggle('on', x === b));
+            if (otcWantMode === 'secao') otcWant = { sec: otcWantSec };
+            if (otcWantMode === 'especifica') renderWantGrid();
+            otcRefreshSend();
+        });
+    }
+    function renderWantGrid() {
+        const grid = document.getElementById('otc-want');
+        let falta = ALBUM_ITEMS.filter(c => !isColada(c.codigo));
+        if (otcWantSec) falta = falta.filter(c => c.continente === otcWantSec);
+        falta = falta.sort((a, b) => a.nome.localeCompare(b.nome, 'pt')).slice(0, 300);
+        grid.innerHTML = falta.length
+            ? falta.map(c => `<button class="otc-opt" data-code="${c.codigo}">${otMiniCard(c.codigo)}</button>`).join('')
+            : '<p class="ot-empty">Escolha um livro acima.</p>';
+        grid.querySelectorAll('.otc-opt').forEach(b => b.onclick = () => {
+            otcWant = { codigo: b.dataset.code };
+            grid.querySelectorAll('.otc-opt').forEach(x => x.classList.toggle('on', x === b));
+            otcRefreshSend();
+        });
+    }
+
     function openCompose(kind) {
-        otcKind = kind; otcGive = otcWant = null;
+        otcKind = kind; otcGive = null; otcWantMode = 'qualquer'; otcWant = { any: true }; otcWantSec = null;
         document.getElementById('otc-title').textContent = kind === 'direto' ? 'Oferecer pra alguém' : 'Criar oferta no mural';
         document.getElementById('otc-to-field').hidden = kind !== 'direto';
         document.getElementById('otc-to').value = '';
-        // "você dá" = repetidas suas (pilha > sobra pra colar)
+        // "você dá" = repetidas suas
         const give = document.getElementById('otc-give');
         const reps = loadStickers().filter(s => depositable(s) > 0)
             .map(s => albumItem(s.codigo)).filter(Boolean).sort((a, b) => a.nome.localeCompare(b.nome, 'pt'));
         give.innerHTML = reps.length ? reps.map(c => `<button class="otc-opt" data-code="${c.codigo}">${otMiniCard(c.codigo)}</button>`).join('')
             : '<p class="ot-empty">Você não tem repetidas de sobra.</p>';
-        // "você quer" = as que faltam colar
-        const want = document.getElementById('otc-want');
-        const falta = ALBUM_ITEMS.filter(c => !isColada(c.codigo)).sort((a, b) => a.nome.localeCompare(b.nome, 'pt')).slice(0, 400);
-        want.innerHTML = falta.map(c => `<button class="otc-opt" data-code="${c.codigo}">${otMiniCard(c.codigo)}</button>`).join('');
         give.querySelectorAll('.otc-opt').forEach(b => b.onclick = () => {
             otcGive = b.dataset.code;
             give.querySelectorAll('.otc-opt').forEach(x => x.classList.toggle('on', x === b));
             otcRefreshSend();
         });
-        want.querySelectorAll('.otc-opt').forEach(b => b.onclick = () => {
-            otcWant = b.dataset.code;
-            want.querySelectorAll('.otc-opt').forEach(x => x.classList.toggle('on', x === b));
-            otcRefreshSend();
-        });
-        otcRefreshSend();
+        renderSecChips();
+        setWantMode('qualquer');
         otcModal.classList.remove('hidden');
     }
     document.getElementById('ot-new').addEventListener('click', () => openCompose('mural'));
     const otNewDirect = document.getElementById('ot-new-direct');
     if (otNewDirect) otNewDirect.addEventListener('click', () => openCompose('direto'));
+    document.querySelectorAll('.otc-wm').forEach(b => b.addEventListener('click', () => setWantMode(b.dataset.wm)));
     document.getElementById('otc-close').addEventListener('click', () => otcModal.classList.add('hidden'));
     otcModal.addEventListener('click', e => { if (e.target === otcModal) otcModal.classList.add('hidden'); });
     document.getElementById('otc-to').addEventListener('input', otcRefreshSend);
@@ -2880,7 +3004,7 @@ document.addEventListener('DOMContentLoaded', () => {
             if (!toUser) { showToast('Usuário não encontrado.', 'error'); btn.disabled = false; btn.textContent = 'Enviar oferta'; return; }
         }
         const offer = [{ codigo: otcGive, rarity: 'base' }];
-        const request = [{ codigo: otcWant, rarity: 'base' }];
+        const request = [otcWant];
         const r = await OnlineTrades.create(otcKind, toUser, offer, request);
         btn.textContent = otcKind === 'direto' ? 'Enviar oferta' : 'Publicar oferta';
         if (r.error) { showToast(r.error, 'error'); btn.disabled = false; return; }

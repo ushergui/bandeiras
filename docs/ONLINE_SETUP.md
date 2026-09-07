@@ -10,10 +10,20 @@ gratuito.
 
 1. Entre em <https://supabase.com> → **Start your project** → login com GitHub.
 2. **New project**:
-   - Name: `detetive-global`
-   - Database Password: gere uma forte e **guarde** (não vai precisar no jogo, mas
-     é a senha do banco).
-   - Region: `South America (São Paulo)`.
+   - **Organization**: a sua (FREE).
+   - **GitHub (optional)**: deixe **em branco** (a gente cola o schema na mão).
+   - **Project name**: qualquer coisa (ex.: `Bandeiras`).
+   - **Database password**: use a que ele gerou, clique **Copy** e **guarde**
+     (não precisa no jogo — é a senha do Postgres).
+   - **Region**: `South America (São Paulo)`.
+   - **Security**:
+     - ✅ **Enable Data API** — deixe **marcado** (é a API REST que o jogo usa).
+     - ✅ **Automatically expose new tables** — pode deixar **marcado**; o schema
+       já liga RLS em todas as tabelas, então não vaza nada. (Se preferir
+       desmarcar, tudo bem também — o schema tem `grant`s que cobrem isso.)
+     - ⬜ **Enable automatic RLS** — pode deixar **desmarcado**; o schema já
+       ativa RLS em cada tabela explicitamente.
+   - **Advanced → Postgres Type**: `Postgres (DEFAULT)`. Não use OrioleDB (alpha).
    - **Create new project** (demora ~2 min pra provisionar).
 
 ## 2. Rodar o esquema do banco
