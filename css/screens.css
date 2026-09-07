@@ -1653,13 +1653,29 @@
 .fig-card.is-crest.missing .fig-flagwrap { display: none; }
 
 /* lenda = cena do craque + bandeira: a arte é 3:2, mostra ela quase inteira
-   (zoom "afastado") em vez de recortar num retrato apertado */
-.fig-card.is-portrait .fig-flag { aspect-ratio: 3 / 2; object-fit: cover; }
-.fig-card.is-portrait .fig-flagwrap { width: 94%; margin: 3px auto 5px; }
+   (zoom "afastado") em vez de recortar num retrato apertado; o fundo do
+   continente aparece como moldura em volta */
+.fig-card.is-portrait .fig-flag {
+  aspect-ratio: 3 / 2; object-fit: cover;
+  border-radius: 6px; border-width: 2px;
+}
+.fig-card.is-portrait .fig-flagwrap { width: 86%; margin: 6px auto 6px; }
 
 /* zoom mostra escudo/cena inteira também */
 .fig-zoom-card .fig-card.is-crest .fig-flag { padding: 10px; }
 .fig-zoom-card .fig-card.is-portrait .fig-flagwrap { width: 88%; }
+
+/* fundo do card = foto do continente do craque/clube (só quando não é legend) */
+.fig-card.has-bgimg .fig-bg {
+  background:
+    linear-gradient(165deg, rgba(9,15,28,.28), rgba(9,15,28,.62) 55%, rgba(9,15,28,.9) 100%),
+    var(--fig-bg-img, none) center / cover no-repeat;
+}
+.fig-card.has-bgimg .fig-bg.dim {
+  background:
+    linear-gradient(160deg, rgba(9,15,28,.8), rgba(9,15,28,.93) 82%),
+    var(--fig-bg-img, none) center / cover no-repeat;
+}
 
 /* nas seções BRA/CAP a numeração da aba fica com a sigla certa (só visual) */
 .continent-tab .ct-name { text-align: center; }

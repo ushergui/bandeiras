@@ -2049,15 +2049,27 @@ document.addEventListener('DOMContentLoaded', () => {
             'liverpool', 'bayern-munique', 'bayern-de-munique', 'milan', 'juventus', 'ajax'],
         frutas: [],
     };
+    // fundo de continente (assets/img/bg) pelo país do craque/clube
+    const _CONT_SIG = {
+        'América do Sul': 'ams', 'América do Norte': 'amn', 'América Central': 'amc',
+        'Europa': 'eur', 'Ásia': 'asi', 'África': 'afr', 'Oceania': 'oce',
+    };
+    function bgForCode(code) {
+        // caminho ABSOLUTO: usado em url() de custom property (resolve pela raiz, não pelo /css/)
+        if (['sct', 'wls', 'cy'].includes(code)) return '/assets/img/bg/eur.jpg';
+        const p = countries.find(x => x.codigo === code);
+        const s = p && _CONT_SIG[p.continente];
+        return s ? `/assets/img/bg/${s}.jpg` : '';
+    }
     // seção -> como montar cada figurinha sintética
     const FIG_SECTIONS = [
         { key: 'frutas', book: 'Frutas', dir: 'frutas', pre: 'fru',
           file: it => it.slug, name: it => it.n, sub: () => '' },
         { key: 'lendas', book: 'Lendas do futebol', dir: 'lendas', pre: 'len',
           file: it => it.code + '-' + slugName(it.nome), name: it => it.nome,
-          sub: it => `${it.pais}${it.num ? ' · #' + it.num : ''}` },
+          sub: it => `${it.pais}${it.num ? ' · #' + it.num : ''}`, bg: it => bgForCode(it.code) },
         { key: 'clubes', book: 'Clubes', dir: 'clubes', pre: 'clu',
-          file: it => it.slug, name: it => it.nome, sub: it => it.liga || '' },
+          file: it => it.slug, name: it => it.nome, sub: it => it.liga || '', bg: it => bgForCode(it.code) },
     ];
     if (window.FIG_DATA) {
         FIG_SECTIONS.forEach(sc => {
@@ -2073,6 +2085,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     fixedShiny: shinySet.has(f) || shinySet.has(slugName(sc.name(it))),
                     _img: `assets/stickers/${sc.dir}/${f}.webp`,
                     _kind: 'fig', _sec: sc.key, _sub: sc.sub(it), _cur: it.cur || '',
+                    _bg: sc.bg ? sc.bg(it) : '',
                 });
             });
         });
@@ -2082,6 +2095,9 @@ document.addEventListener('DOMContentLoaded', () => {
     const ALBUM_ITEMS = [...countries, ...COLLECTION_ITEMS];
     function albumItem(code) { return ALBUM_ITEMS.find(x => x.codigo === code); }
     function itemImg(c) { return (c && c._img) || `assets/flags/${c.codigo}.png`; }
+    // fundo de continente no card (foto), quando a figurinha tem _bg
+    function figBgClass(c) { return (c && c._bg) ? ' has-bgimg' : ''; }
+    function applyFigBg(el, c) { if (c && c._bg) el.style.setProperty('--fig-bg-img', `url('${c._bg}')`); }
     // classe extra do card conforme o formato da imagem da seção
     function figKindClass(c) {
         if (!c) return '';
@@ -2205,7 +2221,8 @@ document.addEventListener('DOMContentLoaded', () => {
             cardEl.innerHTML = figCardHTML(c, colada);
         } else {
             const acc = (CONTINENT_META[c.continente] || {}).accent || '#60a5fa';
-            cardEl.innerHTML = `<div class="fig-card missing ${c._img ? 'is-collection' : ''} ${figKindClass(c)}" style="--acc:${acc}">
+            const bgv = c._bg ? `;--fig-bg-img:url('${c._bg}')` : '';
+            cardEl.innerHTML = `<div class="fig-card missing ${c._img ? 'is-collection' : ''} ${figKindClass(c)}${figBgClass(c)}" style="--acc:${acc}${bgv}">
                 <div class="fig"><span class="fig-bg dim"></span>${itemShape(c, 'big')}
                 <div class="fig-foot"><span class="fig-name">${c.nome}</span></div></div></div>`;
         }
@@ -2307,13 +2324,14 @@ document.addEventListener('DOMContentLoaded', () => {
             const item = document.createElement('div');
 
             item.style.setProperty('--acc', meta.accent);
+            applyFigBg(item, c);
 
             const subline = c._sub ? `<span class="fig-sub">${c._sub}</span>` : '';
             const foot = `<div class="fig-foot"><span class="fig-name">${c.nome}</span>${subline}<span class="fig-code">${code}</span></div>`;
 
             if (!colada) {
                 const canGlue = pilha.length > 0;
-                item.className = 'album-card fig-card missing' + (canGlue ? ' has-pilha' : '') + (c._img ? ' is-collection' : '') + (figKindClass(c) ? ' ' + figKindClass(c) : '');
+                item.className = 'album-card fig-card missing' + (canGlue ? ' has-pilha' : '') + (c._img ? ' is-collection' : '') + (figKindClass(c) ? ' ' + figKindClass(c) : '') + figBgClass(c);
                 item.innerHTML = `
                     <div class="fig">
                         <span class="fig-bg dim"></span>
@@ -2327,7 +2345,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 const better = bestPilha(c.codigo);
                 const canUp = better && RARITY_ORDER.indexOf(better) > RARITY_ORDER.indexOf(colada);
                 item.className = `album-card fig-card collected rarity-${colada}`
-                    + (shiny ? ' shiny' : '') + (legend ? ' legend' : '') + (c._img ? ' is-collection' : '') + (figKindClass(c) ? ' ' + figKindClass(c) : '');
+                    + (shiny ? ' shiny' : '') + (legend ? ' legend' : '') + (c._img ? ' is-collection' : '') + (figKindClass(c) ? ' ' + figKindClass(c) : '') + (legend ? '' : figBgClass(c));
                 const badge = pilha.length ? `<span class="fig-count" title="Na pilha">×${pilha.length}</span>` : '';
                 const up = canUp ? `<button class="fig-up" data-glue="${c.codigo}" data-rar="${better}" title="Colar a versão ${better}">⬆</button>` : '';
                 item.innerHTML = `
@@ -2624,8 +2642,9 @@ document.addEventListener('DOMContentLoaded', () => {
         const shiny = !!c.fixedShiny && !legend;
         const acc = (CONTINENT_META[c.continente] || {}).accent || '#60a5fa';
         const cls = 'fig-card ' + (legend ? 'legend rarity-' + rarity : (shiny ? 'shiny rarity-base' : 'rarity-base'))
-            + (c._img ? ' is-collection' : '') + (figKindClass(c) ? ' ' + figKindClass(c) : '') + (extra ? ' ' + extra : '');
-        return `<div class="${cls}" style="--acc:${acc}">
+            + (c._img ? ' is-collection' : '') + (figKindClass(c) ? ' ' + figKindClass(c) : '') + (legend ? '' : figBgClass(c)) + (extra ? ' ' + extra : '');
+        const bgv = (!legend && c._bg) ? `;--fig-bg-img:url('${c._bg}')` : '';
+        return `<div class="${cls}" style="--acc:${acc}${bgv}">
             <div class="fig">
                 <span class="fig-bg"></span>
                 ${itemShape(c)}
@@ -2893,9 +2912,11 @@ document.addEventListener('DOMContentLoaded', () => {
                 const shiny = !!r.country.fixedShiny && !legend;
                 card.className = `pack-card fig-card rarity-${r.rarity}` + (r.isNew ? ' is-new' : '')
                     + (shiny ? ' shiny' : '') + (legend ? ' legend' : '')
-                    + (r.country._img ? ' is-collection' : '') + (figKindClass(r.country) ? ' ' + figKindClass(r.country) : '');
+                    + (r.country._img ? ' is-collection' : '') + (figKindClass(r.country) ? ' ' + figKindClass(r.country) : '')
+                    + (legend ? '' : figBgClass(r.country));
                 card.style.animationDelay = `${i * 0.14}s`;
                 card.style.setProperty('--acc', (CONTINENT_META[r.country.continente] || {}).accent || '#60a5fa');
+                if (!legend) applyFigBg(card, r.country);
                 card.innerHTML = `
                     <div class="fig">
                         <span class="fig-bg"></span>
