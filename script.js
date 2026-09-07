@@ -2661,6 +2661,13 @@ document.addEventListener('DOMContentLoaded', () => {
         }
         if (modals.tmPicker) modals.tmPicker.classList.add('hidden');
         renderMachine();
+
+        const ot = window.DG_ONLINE && window.OnlineTrades;
+        document.getElementById('online-trades').classList.toggle('hidden', !ot);
+        document.getElementById('trades-local-hint').classList.toggle('hidden', !!ot);
+        document.getElementById('trades-accounts').classList.toggle('hidden', !!ot);
+        if (ot) { otRefresh(); showScreen('trades'); return; }
+
         const wrap = document.getElementById('trades-accounts');
         wrap.innerHTML = '';
         const others = Trades.others(currentUser);
@@ -2727,6 +2734,156 @@ document.addEventListener('DOMContentLoaded', () => {
 
     document.getElementById('open-trades-btn').addEventListener('click', openTrades);
     document.getElementById('trades-back').addEventListener('click', () => showScreen('album'));
+
+    // ═══════════════ TROCAS ONLINE (mural + direto) ═══════════════
+    let otTab = 'mural', otUnsub = null;
+
+    function otMiniCard(codigo) {
+        const c = albumItem(codigo);
+        const nome = c ? c.nome : codigo;
+        const img = c ? itemImg(c) : '';
+        return `<span class="ot-mini"><img src="${img}" alt="" onerror="this.style.display='none'"><b>${nome}</b></span>`;
+    }
+    function otItemsHTML(arr) {
+        return (arr || []).map(x => otMiniCard(x.codigo)).join('<span class="ot-plus">+</span>');
+    }
+
+    async function otRefresh() {
+        setOtTab(otTab);
+        if (otUnsub) { otUnsub(); otUnsub = null; }
+        otUnsub = OnlineTrades.subscribe(() => { otRefresh(); refreshHub(); });
+        const mine = await OnlineTrades.mine();
+        const abertas = mine.filter(t => t.status === 'aberta');
+        const badge = document.getElementById('ot-mine-badge');
+        if (badge) { badge.textContent = abertas.length; badge.hidden = !abertas.length; }
+    }
+
+    function setOtTab(tab) {
+        otTab = tab;
+        document.querySelectorAll('.ot-tab').forEach(b => b.classList.toggle('active', b.dataset.ot === tab));
+        document.getElementById('ot-mural').classList.toggle('hidden', tab !== 'mural');
+        document.getElementById('ot-minhas').classList.toggle('hidden', tab !== 'minhas');
+        if (tab === 'mural') renderOtMural(); else renderOtMine();
+    }
+
+    async function renderOtMural() {
+        const box = document.getElementById('ot-mural-list');
+        box.innerHTML = '<p class="ot-empty">Carregando…</p>';
+        const list = await OnlineTrades.mural();
+        if (!list.length) { box.innerHTML = '<p class="ot-empty">Nenhuma oferta no mural agora. Crie a sua!</p>'; return; }
+        box.innerHTML = list.map(t => `
+            <div class="ot-card" data-id="${t.id}">
+                <div class="ot-card-head"><span class="ot-who">${t.from_username}</span></div>
+                <div class="ot-swap">
+                    <div class="ot-side"><span class="ot-side-lbl">dá</span>${otItemsHTML(t.offer)}</div>
+                    <span class="ot-arrow">⇄</span>
+                    <div class="ot-side"><span class="ot-side-lbl">quer</span>${otItemsHTML(t.request)}</div>
+                </div>
+                <button class="ot-accept" data-id="${t.id}">Topar troca</button>
+            </div>`).join('');
+        box.querySelectorAll('.ot-accept').forEach(b => b.onclick = () => otDoAccept(b.dataset.id, b));
+    }
+
+    async function renderOtMine() {
+        const box = document.getElementById('ot-mine-list');
+        box.innerHTML = '<p class="ot-empty">Carregando…</p>';
+        const list = await OnlineTrades.mine();
+        if (!list.length) { box.innerHTML = '<p class="ot-empty">Você ainda não tem trocas.</p>'; return; }
+        const rot = { aberta: '⏳ aberta', aceita: '✅ aceita', recusada: '❌ recusada', cancelada: '🚫 cancelada', expirada: '⌛ expirada' };
+        box.innerHTML = list.map(t => {
+            const sou = OnlineTrades.myName();
+            const ehMinha = t.from_username === sou;
+            const alvo = ehMinha ? (t.to_username || 'mural') : t.from_username;
+            const podeAceitar = !ehMinha && t.status === 'aberta';
+            const podeCancelar = ehMinha && t.status === 'aberta';
+            const podeRecusar = !ehMinha && t.status === 'aberta' && t.kind === 'direto';
+            return `<div class="ot-card" data-id="${t.id}">
+                <div class="ot-card-head"><span class="ot-who">${ehMinha ? 'você → ' + alvo : alvo + ' → você'}</span><span class="ot-status">${rot[t.status] || t.status}</span></div>
+                <div class="ot-swap">
+                    <div class="ot-side"><span class="ot-side-lbl">${ehMinha ? 'você dá' : alvo + ' dá'}</span>${otItemsHTML(t.offer)}</div>
+                    <span class="ot-arrow">⇄</span>
+                    <div class="ot-side"><span class="ot-side-lbl">${ehMinha ? 'você quer' : 'você dá'}</span>${otItemsHTML(t.request)}</div>
+                </div>
+                ${podeAceitar ? `<button class="ot-accept" data-id="${t.id}">Topar</button>` : ''}
+                ${podeRecusar ? `<button class="ot-reject" data-id="${t.id}">Recusar</button>` : ''}
+                ${podeCancelar ? `<button class="ot-cancel" data-id="${t.id}">Cancelar</button>` : ''}
+            </div>`;
+        }).join('');
+        box.querySelectorAll('.ot-accept').forEach(b => b.onclick = () => otDoAccept(b.dataset.id, b));
+        box.querySelectorAll('.ot-reject').forEach(b => b.onclick = async () => { await OnlineTrades.reject(b.dataset.id); otRefresh(); });
+        box.querySelectorAll('.ot-cancel').forEach(b => b.onclick = async () => { await OnlineTrades.cancel(b.dataset.id); otRefresh(); });
+    }
+
+    async function otDoAccept(id, btn) {
+        btn.disabled = true; btn.textContent = 'Trocando…';
+        const r = await OnlineTrades.accept(id);
+        if (r.error) { showToast(r.error, 'error'); btn.disabled = false; btn.textContent = 'Topar troca'; return; }
+        showToast('Troca feita! 🤝', 'success');
+        _cache.stickers = await API.getStickers(currentUser);
+        otRefresh(); refreshHub();
+    }
+
+    document.querySelectorAll('.ot-tab').forEach(b => b.addEventListener('click', () => setOtTab(b.dataset.ot)));
+
+    // ---- compor oferta ----
+    const otcModal = document.getElementById('ot-compose-modal');
+    let otcGive = null, otcWant = null, otcKind = 'mural';
+
+    function otcRefreshSend() {
+        const need = otcKind === 'direto' ? document.getElementById('otc-to').value.trim() : true;
+        document.getElementById('otc-send').disabled = !(otcGive && otcWant && need);
+    }
+    function openCompose(kind) {
+        otcKind = kind; otcGive = otcWant = null;
+        document.getElementById('otc-title').textContent = kind === 'direto' ? 'Oferecer pra alguém' : 'Criar oferta no mural';
+        document.getElementById('otc-to-field').hidden = kind !== 'direto';
+        document.getElementById('otc-to').value = '';
+        // "você dá" = repetidas suas (pilha > sobra pra colar)
+        const give = document.getElementById('otc-give');
+        const reps = loadStickers().filter(s => depositable(s) > 0)
+            .map(s => albumItem(s.codigo)).filter(Boolean).sort((a, b) => a.nome.localeCompare(b.nome, 'pt'));
+        give.innerHTML = reps.length ? reps.map(c => `<button class="otc-opt" data-code="${c.codigo}">${otMiniCard(c.codigo)}</button>`).join('')
+            : '<p class="ot-empty">Você não tem repetidas de sobra.</p>';
+        // "você quer" = as que faltam colar
+        const want = document.getElementById('otc-want');
+        const falta = ALBUM_ITEMS.filter(c => !isColada(c.codigo)).sort((a, b) => a.nome.localeCompare(b.nome, 'pt')).slice(0, 400);
+        want.innerHTML = falta.map(c => `<button class="otc-opt" data-code="${c.codigo}">${otMiniCard(c.codigo)}</button>`).join('');
+        give.querySelectorAll('.otc-opt').forEach(b => b.onclick = () => {
+            otcGive = b.dataset.code;
+            give.querySelectorAll('.otc-opt').forEach(x => x.classList.toggle('on', x === b));
+            otcRefreshSend();
+        });
+        want.querySelectorAll('.otc-opt').forEach(b => b.onclick = () => {
+            otcWant = b.dataset.code;
+            want.querySelectorAll('.otc-opt').forEach(x => x.classList.toggle('on', x === b));
+            otcRefreshSend();
+        });
+        otcRefreshSend();
+        otcModal.classList.remove('hidden');
+    }
+    document.getElementById('ot-new').addEventListener('click', () => openCompose('mural'));
+    const otNewDirect = document.getElementById('ot-new-direct');
+    if (otNewDirect) otNewDirect.addEventListener('click', () => openCompose('direto'));
+    document.getElementById('otc-close').addEventListener('click', () => otcModal.classList.add('hidden'));
+    otcModal.addEventListener('click', e => { if (e.target === otcModal) otcModal.classList.add('hidden'); });
+    document.getElementById('otc-to').addEventListener('input', otcRefreshSend);
+    document.getElementById('otc-send').addEventListener('click', async () => {
+        const btn = document.getElementById('otc-send');
+        btn.disabled = true; btn.textContent = 'Enviando…';
+        let toUser = null;
+        if (otcKind === 'direto') {
+            toUser = await OnlineTrades.findUser(document.getElementById('otc-to').value);
+            if (!toUser) { showToast('Usuário não encontrado.', 'error'); btn.disabled = false; btn.textContent = 'Enviar oferta'; return; }
+        }
+        const offer = [{ codigo: otcGive, rarity: 'base' }];
+        const request = [{ codigo: otcWant, rarity: 'base' }];
+        const r = await OnlineTrades.create(otcKind, toUser, offer, request);
+        btn.textContent = otcKind === 'direto' ? 'Enviar oferta' : 'Publicar oferta';
+        if (r.error) { showToast(r.error, 'error'); btn.disabled = false; return; }
+        showToast(otcKind === 'direto' ? 'Oferta enviada! 📨' : 'Oferta no mural! 📌', 'success');
+        otcModal.classList.add('hidden');
+        otRefresh();
+    });
 
     function renderPacksHelp() {
         const list = document.getElementById('packs-help-list');
