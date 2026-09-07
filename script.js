@@ -21,7 +21,9 @@ const Store = {
     _rankingKey: 'ranking_global',
 };
 
-const API = {
+// impl LOCAL (fallback). js/data-online.js sobrescreve window.API/window.Auth
+// quando o modo online está configurado (js/config.js).
+window.API = {
     async getProfiles() {
         const list = Store._get(Store._profilesKey, []);
         return list.map(p => ({
@@ -82,7 +84,7 @@ const API = {
 // AUTENTICAÇÃO — usuário + senha ("modo local")
 // Troca só esta implementação quando o Supabase existir.
 // ═══════════════════════════════════════════════════════
-const Auth = {
+window.Auth = {
     async _hash(password, salt) {
         const bytes = new TextEncoder().encode(`${salt}:${password}`);
         const buf = await crypto.subtle.digest('SHA-256', bytes);
@@ -135,6 +137,10 @@ const Auth = {
         localStorage.removeItem('currentUser');
         localStorage.removeItem('detetive_avatar');
     },
+    // stubs (modo online implementa de verdade)
+    onReady: () => Promise.resolve(),
+    isOnline: () => true,
+    currentName: () => localStorage.getItem('currentUser') || null,
 };
 
 // ═══════════════════════════════════════════════════════
@@ -599,17 +605,18 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     function loadDailyProgress(name) {
-        const raw = Store._get(`dg_daily_${name}`, null);
+        const raw = window.DG_ONLINE ? API._sync.daily(packDayKey()) : Store._get(`dg_daily_${name}`, null);
         if (!raw || raw.day !== packDayKey()) {
             return { day: packDayKey(), acertos: 0, bonus: {}, masteredToday: 0, modes: {} };
         }
         if (!raw.modes) raw.modes = {};
+        if (!raw.bonus) raw.bonus = {};
         return raw;
     }
     function saveDailyProgress() {
-        if (currentUser && _cache.dailyProgress) {
-            Store._set(`dg_daily_${currentUser}`, _cache.dailyProgress);
-        }
+        if (!currentUser || !_cache.dailyProgress) return;
+        if (window.DG_ONLINE) API.saveDaily(currentUser, _cache.dailyProgress.day, _cache.dailyProgress);
+        else Store._set(`dg_daily_${currentUser}`, _cache.dailyProgress);
     }
 
     // concede um pacote-bônus uma única vez por dia (id) — devolve true se concedeu
@@ -634,13 +641,13 @@ document.addEventListener('DOMContentLoaded', () => {
     }
     function registerLoginStreak(name) {
         const key = `dg_streak_${name}`;
-        const s = Store._get(key, { last: null, count: 0 });
+        const s = window.DG_ONLINE ? API._sync.streak() : Store._get(key, { last: null, count: 0 });
         const today = packDayKey();
         if (s.last === today) { _cache.loginStreak = s.count; return; }
         const yesterday = packDayKey(Date.now() - 24 * 3600 * 1000);
         s.count = (s.last === yesterday) ? s.count + 1 : 1;
         s.last = today;
-        Store._set(key, s);
+        if (window.DG_ONLINE) API.saveStreak(name, s); else Store._set(key, s);
         _cache.loginStreak = s.count;
         const rw = streakReward(s.count);
         if (rw.qty) setTimeout(() => grantBonusPack('streak' + s.count, rw.qty, rw.msg), 1400);
@@ -1555,9 +1562,10 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     function checkAchievements() {
-        const p = loadPlayerProgress(); 
-        const u = JSON.parse(localStorage.getItem(`detetive_achievements_${currentUser}`)) || [];
-        
+        const p = loadPlayerProgress();
+        const u = window.DG_ONLINE ? API._sync.ach()
+            : (JSON.parse(localStorage.getItem(`detetive_achievements_${currentUser}`)) || []);
+
         const achs = [
             { id: '1', t: 'Primeiro Passo', desc: 'Acertou sua primeira bandeira! (+1 Pacote)', packs: 1, c: x => Object.values(x).some(v => v.acertos > 0) },
             { id: '10', t: 'Explorador', desc: 'Acertou 10 bandeiras diferentes! (+1 Pacote)', packs: 1, c: x => Object.values(x).filter(v => v.acertos > 0).length >= 10 },
@@ -1573,7 +1581,8 @@ document.addEventListener('DOMContentLoaded', () => {
                 if (window.SFX) window.SFX.play('achievement');
                 dispararConfetes();
                 u.push(a.id);
-                localStorage.setItem(`detetive_achievements_${currentUser}`, JSON.stringify(u));
+                if (window.DG_ONLINE) API.addAchievement(a.id);
+                else localStorage.setItem(`detetive_achievements_${currentUser}`, JSON.stringify(u));
                 if (a.packs > 0 && typeof addPacks === 'function') addPacks(a.packs);
             }
         });
@@ -1860,10 +1869,12 @@ document.addEventListener('DOMContentLoaded', () => {
     // Passaporte e Ranking
     let rankFilter = 'Todos';
     let rankPeriod = 'sempre';
-    function renderRanking(filter, period) {
+    async function renderRanking(filter, period) {
         rankFilter = filter || 'Todos';
         if (period) rankPeriod = period;
-        const raw = JSON.parse(localStorage.getItem('ranking_global')) || [];
+        let raw = [];
+        try { raw = await API.getRanking(rankFilter); } catch (e) {}
+        if (!raw || !raw.length) raw = JSON.parse(localStorage.getItem('ranking_global')) || [];
         const modes = [...new Set(raw.map(r => r.mode).filter(Boolean))];
 
         // chips de filtro (modo + período)
@@ -3752,14 +3763,33 @@ document.addEventListener('DOMContentLoaded', () => {
     // ─── BOOTSTRAP ───────────────────────────────────────
     initAvatarPicker();
     setAuthMode('login');
-    renderAuthAccounts();
 
-    if (currentUser && Auth.list().some(a => a.name === currentUser)) {
-        selectProfile(currentUser, Auth.avatarOf(currentUser));
-    } else {
-        Auth.logout();
-        currentUser = null;
-        showScreen('profile');
+    (Auth.onReady ? Auth.onReady() : Promise.resolve()).then(() => {
+        renderAuthAccounts();
+        updateOfflineBanner();
+        const online = window.DG_ONLINE;
+        const who = online ? (Auth.currentName && Auth.currentName())
+            : (currentUser && Auth.list().some(a => a.name === currentUser) ? currentUser : null);
+        if (who) {
+            selectProfile(who, Auth.avatarOf(who));
+        } else {
+            if (!online) { Auth.logout(); currentUser = null; }
+            showScreen('profile');
+        }
+    });
+
+    window.addEventListener('online', updateOfflineBanner);
+    window.addEventListener('offline', updateOfflineBanner);
+    function updateOfflineBanner() {
+        const on = !Auth.isOnline || Auth.isOnline();
+        let b = document.getElementById('offline-banner');
+        if (on) { if (b) b.remove(); return; }
+        if (!b) {
+            b = document.createElement('div');
+            b.id = 'offline-banner';
+            b.textContent = '📴 Sem internet — jogando offline. Sincroniza ao voltar.';
+            document.body.appendChild(b);
+        }
     }
 });
 

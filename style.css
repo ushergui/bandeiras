@@ -506,6 +506,15 @@ align-items: center;
 }
 .toast.toast-fact b { color: #e9d5ff; }
 
+#offline-banner {
+    position: fixed; left: 0; right: 0; bottom: 0; z-index: 300;
+    background: #7c2d12; color: #fed7aa; text-align: center;
+    font: 700 .8rem/1.4 "Nunito", system-ui, sans-serif; padding: 7px 12px;
+    border-top: 1px solid #ea580c;
+    padding-bottom: calc(7px + env(safe-area-inset-bottom, 0px));
+}
+body.has-nav #offline-banner { bottom: 62px; }
+
 @keyframes toastSlideIn {
     from { opacity: 0; transform: translateY(-16px) scale(0.95); }
     to   { opacity: 1; transform: translateY(0) scale(1); }

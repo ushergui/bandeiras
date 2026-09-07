@@ -5,7 +5,7 @@
    - /assets/** (bandeiras, formas, áudios, ícones): cache-first
    - CDNs (fontes, confetti, peerjs): stale-while-revalidate
 */
-const VERSION = 'v2-2026-09-02';
+const VERSION = 'v3-2026-09-08';
 const SHELL_CACHE = `shell-${VERSION}`;
 const ASSET_CACHE = `assets-${VERSION}`;
 const RUNTIME_CACHE = `runtime-${VERSION}`;
@@ -15,9 +15,17 @@ const SHELL_ASSETS = [
   '/index.html',
   '/style.css',
   '/css/app-shell.css',
+  '/css/screens.css',
   '/script.js',
   '/countries.js',
+  '/collections.js',
+  '/figurinhas_data.js',
   '/curiosities.js',
+  '/curiosities_br.js',
+  '/js/sfx.js',
+  '/js/config.js',
+  '/js/vendor/supabase.min.js',
+  '/js/data-online.js',
   '/favicon.svg',
   '/manifest.webmanifest',
   '/assets/icons/icon-192.png',
