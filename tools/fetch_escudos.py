@@ -84,10 +84,18 @@ def download(url, dest):
         os.replace(tmp, dest)
 
 
+_BAD = re.compile(r"\b(women|wom|wfc|ladies|fem|feminin|basket|hand|volley|"
+                  r"futsal|youth|academy|u-?\d\d|reserv|ii\b|b team)\b", re.I)
+
+
 def best_match(teams, want_country):
     if not teams:
         return None
-    soccer = [t for t in teams if (t.get("strSport") or "").lower() == "soccer"] or teams
+    soccer = [t for t in teams if (t.get("strSport") or "").lower() == "soccer"]
+    if not soccer:
+        soccer = [t for t in teams if not (t.get("strSport") or "")] or teams
+    main = [t for t in soccer if not _BAD.search(t.get("strTeam") or "")]
+    soccer = main or soccer
     if want_country:
         exact = [t for t in soccer if (t.get("strCountry") or "") == want_country]
         if exact:
