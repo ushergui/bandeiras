@@ -1623,18 +1623,21 @@ document.addEventListener('DOMContentLoaded', () => {
         const accts = Auth.list();
         if (!accts.length) { wrap.innerHTML = ''; wrap.classList.add('hidden'); return; }
         wrap.classList.remove('hidden');
-        wrap.innerHTML = '<p class="auth-accounts-label">Contas neste aparelho</p>';
+        wrap.innerHTML = `<p class="auth-accounts-label">${window.DG_ONLINE ? 'Entrar de novo como' : 'Contas neste aparelho'}</p>`;
         const row = document.createElement('div');
         row.className = 'auth-accounts-row';
         accts.forEach(a => {
             const chip = document.createElement('button');
             chip.type = 'button';
             chip.className = 'auth-account-chip';
-            chip.innerHTML = `<span class="aa-avatar">${a.avatar}</span><span class="aa-name"></span><span class="aa-remove" title="Remover deste aparelho">✕</span>`;
+            chip.innerHTML = `<span class="aa-avatar">${a.avatar}</span><span class="aa-name"></span><span class="aa-remove" title="Esquecer">✕</span>`;
             chip.querySelector('.aa-name').textContent = a.name;
             chip.addEventListener('click', (e) => {
                 if (e.target.classList.contains('aa-remove')) {
-                    if (confirm(`Remover "${a.name}" deste aparelho? O progresso salvo aqui será apagado.`)) {
+                    const msg = window.DG_ONLINE
+                        ? `Esquecer "${a.name}" deste aparelho? (a conta na nuvem continua)`
+                        : `Remover "${a.name}" deste aparelho? O progresso salvo aqui será apagado.`;
+                    if (confirm(msg)) {
                         Auth.removeAccount(a.name);
                         API.deleteProfile(a.name);
                         renderAuthAccounts();
@@ -1715,6 +1718,7 @@ document.addEventListener('DOMContentLoaded', () => {
     // Botão "Sair" (no menu principal) → volta para o login
     buttons.changeProfile.addEventListener('click', () => {
         Auth.logout();
+        localStorage.removeItem('currentUser');
         currentUser = null;
         _cache.progress = null;
         _cache.stickers = null;
