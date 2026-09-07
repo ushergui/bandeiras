@@ -180,7 +180,7 @@ def build_items():
                 "code": it.get("code"),
                 "pais": PAISES.get(it.get("code"), (it.get("code") or "").upper()) if it.get("code") else "",
                 "sub": "",
-                "prompt": prompt_for(sec, it) if s["tipo"] != "moeda" else "",
+                "prompt": prompt_for(sec, it) if s["tipo"] not in ("moeda", "img") else "",
                 "prompt_gemini": prompt_gemini(it) if sec == "lendas" else "",
                 "busca": it.get("busca", ""),
             }
@@ -188,6 +188,10 @@ def build_items():
                 row["titulo"] = row["pais"]; row["sub"] = it["nome"]
             elif sec == "moedas":
                 row["titulo"] = row["pais"]; row["sub"] = it["nome"]
+            elif s["tipo"] == "img":
+                row["titulo"] = it["nome"]
+                row["sub"] = it.get("liga", "")
+                row["busca"] = it["nome"] + " football club crest logo"
             elif sec == "lendas":
                 row["titulo"] = it["nome"]
                 row["pais"] = it["pais"]
@@ -360,7 +364,8 @@ const NOTE={animais:"Figurinha por animal, ordem alfabética, sem bandeira no ca
  frutas:"Figurinha por fruta.",legumes:"Figurinha por legume/hortaliça.",
  comidas:"Uma comida por país (prato escolhido por nós).",
  lendas:"Craques por país. Prompt já tem nome + físico + uniforme da época + número + fundo com a bandeira.",
- moedas:"NÃO gera com IA — baixa a imagem real pelo Wikimedia. Dá pra fazer upload aqui também."};
+ moedas:"NÃO gera com IA — baixa a imagem real pelo Wikimedia. Dá pra fazer upload aqui também.",
+ clubes:"Escudos baixados por script: venv\\Scripts\\python.exe tools\\fetch_escudos.py . O que faltar, use o botão de busca ou faça upload."};
 function toast(m){const t=$('#toast');t.textContent=m;t.classList.add('on');clearTimeout(t._);t._=setTimeout(()=>t.classList.remove('on'),1600);}
 function done(sec){return new Set(DATA.progress[sec]||[]);}
 function img(sec,k){return (DATA.images[sec]||{})[k];}

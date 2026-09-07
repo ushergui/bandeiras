@@ -1111,6 +1111,65 @@ const FIG_DATA = {
       { code: "au", nome: "Dólar australiano", busca: "Australia one dollar coin kangaroos", cur: "Foi a primeira moeda de circulação feita de polímero no mundo, em 1988." },
       { code: "nz", nome: "Dólar neozelandês", busca: "New Zealand one dollar coin kiwi", cur: "A moeda de 1 dólar traz o kiwi; por isso a moeda é apelidada de 'kiwi'." }
     ]
+  },
+
+  // ======================================================================
+  clubes: {
+    tipo: "img", nome: "Clubes", emoji: "🛡️", sigla: "CLU",
+    // escudo baixado por tools/fetch_escudos.py -> assets/stickers/clubes/<slug>.png
+    // busca = termo pro TheSportsDB quando o nome nao casa direto
+    itens: [
+      { code: "br", slug: "flamengo", nome: "Flamengo", liga: "Brasil · Série A", cur: "Maior torcida do Brasil; tricampeão da Libertadores (1981, 2019, 2022) e campeão mundial em 1981." },
+      { code: "br", slug: "palmeiras", nome: "Palmeiras", liga: "Brasil · Série A", cur: "Recordista de títulos brasileiros; campeão do mundo em 1951 (Copa Rio) e bicampeão da Libertadores em 2020 e 2021." },
+      { code: "br", slug: "corinthians", nome: "Corinthians", liga: "Brasil · Série A", cur: "Campeão mundial em 2000 e 2012; a 'Fiel' é uma das maiores torcidas do planeta." },
+      { code: "br", slug: "sao-paulo", nome: "São Paulo", busca: "Sao Paulo", liga: "Brasil · Série A", cur: "Tricampeão da Libertadores e tricampeão mundial (1992, 1993, 2005)." },
+      { code: "br", slug: "fluminense", nome: "Fluminense", liga: "Brasil · Série A", cur: "Clube mais antigo do Rio ainda em atividade (1902); campeão da Libertadores em 2023." },
+      { code: "br", slug: "botafogo", nome: "Botafogo", liga: "Brasil · Série A", cur: "O clube de Garrincha e Nílton Santos; campeão da Libertadores e do Brasileirão em 2024." },
+      { code: "br", slug: "vasco", nome: "Vasco da Gama", liga: "Brasil · Série A", cur: "Pioneiro na luta contra o racismo no futebol brasileiro nos anos 1920; campeão da Libertadores em 1998." },
+      { code: "br", slug: "gremio", nome: "Grêmio", busca: "Gremio", liga: "Brasil · Série A", cur: "Bicampeão da Libertadores (1983, 1995) e campeão mundial em 1983; revelou Ronaldinho Gaúcho." },
+      { code: "br", slug: "internacional", nome: "Internacional", liga: "Brasil · Série A", cur: "Bicampeão da Libertadores (2006, 2010) e campeão do mundo em 2006." },
+      { code: "br", slug: "atletico-mineiro", nome: "Atlético Mineiro", busca: "Atletico Mineiro", liga: "Brasil · Série A", cur: "Campeão da Libertadores em 2013 com Ronaldinho Gaúcho; o 'Galo'." },
+      { code: "br", slug: "cruzeiro", nome: "Cruzeiro", liga: "Brasil · Série A", cur: "Bicampeão da Libertadores (1976, 1997); a 'Raposa' revelou Ronaldo Fenômeno." },
+      { code: "br", slug: "santos", nome: "Santos", liga: "Brasil · Série A", cur: "O clube de Pelé; bicampeão mundial e da Libertadores em 1962 e 1963, e de novo em 2011." },
+      { code: "br", slug: "athletico-pr", nome: "Athletico Paranaense", busca: "Club Athletico Paranaense", liga: "Brasil · Série A", cur: "Campeão da Copa Sul-Americana em 2018 e 2021; o 'Furacão' de Curitiba." },
+      { code: "br", slug: "bahia", nome: "Bahia", busca: "EC Bahia", liga: "Brasil · Série A", cur: "Primeiro campeão brasileiro da história, em 1959; o 'Esquadrão de Aço'." },
+      { code: "br", slug: "fortaleza", nome: "Fortaleza", busca: "Fortaleza EC", liga: "Brasil · Série A", cur: "Vice-campeão da Copa Sul-Americana em 2023; ascensão meteórica no Nordeste." },
+      { code: "br", slug: "ceara", nome: "Ceará", busca: "Ceara SC", liga: "Brasil · Série A", cur: "O 'Vozão'; disputa o Clássico-Rei com o Fortaleza." },
+      { code: "br", slug: "sport", nome: "Sport Recife", busca: "Sport Club do Recife", liga: "Brasil · Série A", cur: "Campeão brasileiro de 1987; o 'Leão da Ilha do Retiro'." },
+      { code: "br", slug: "vitoria", nome: "Vitória", busca: "EC Vitoria", liga: "Brasil · Série A", cur: "O 'Leão da Barra'; revelou Bebeto, Dida e Vampeta." },
+      { code: "br", slug: "coritiba", nome: "Coritiba", liga: "Brasil · Série B", cur: "Primeiro clube do Paraná (1909); recordista mundial de vitórias seguidas (24, em 2011)." },
+      { code: "br", slug: "goias", nome: "Goiás", busca: "Goias EC", liga: "Brasil · Série B", cur: "Maior clube do Centro-Oeste; o 'Esmeraldino' de Goiânia." },
+      { code: "br", slug: "atletico-go", nome: "Atlético Goianiense", busca: "Atletico Goianiense", liga: "Brasil · Série B", cur: "O 'Dragão'; disputa o Derby goiano com Goiás e Vila Nova." },
+      { code: "br", slug: "cuiaba", nome: "Cuiabá", busca: "Cuiaba EC", liga: "Brasil · Série B", cur: "Fundado em 2001; levou Mato Grosso à Série A pela primeira vez, em 2021." },
+      { code: "br", slug: "bragantino", nome: "Red Bull Bragantino", busca: "Bragantino", liga: "Brasil · Série A", cur: "O antigo Bragantino de Bragança Paulista, comprado pela Red Bull em 2019." },
+      { code: "br", slug: "america-mg", nome: "América Mineiro", busca: "America Mineiro", liga: "Brasil · Série B", cur: "O 'Coelho'; terceira força de Belo Horizonte." },
+      { code: "br", slug: "juventude", nome: "Juventude", busca: "EC Juventude", liga: "Brasil · Série A", cur: "De Caxias do Sul; campeão da Copa do Brasil de 1999." },
+      { code: "br", slug: "chapecoense", nome: "Chapecoense", liga: "Brasil · Série B", cur: "A tragédia aérea de 2016 comoveu o mundo; o clube foi reconstruído." },
+      { code: "br", slug: "paysandu", nome: "Paysandu", busca: "Paysandu SC", liga: "Brasil · Série B", cur: "O 'Papão'; disputa o Re-Pa com o Remo, clássico mais antigo da Amazônia." },
+      { code: "br", slug: "remo", nome: "Remo", busca: "Clube do Remo", liga: "Brasil · Série B", cur: "O 'Leão Azul' de Belém do Pará." },
+      { code: "br", slug: "ponte-preta", nome: "Ponte Preta", liga: "Brasil · Série C", cur: "Clube mais antigo de São Paulo (1900); a 'Macaca' de Campinas." },
+      { code: "br", slug: "guarani", nome: "Guarani", busca: "Guarani FC", liga: "Brasil · Série C", cur: "Único campeão brasileiro do interior paulista, em 1978; o 'Bugre'." },
+      { code: "br", slug: "portuguesa", nome: "Portuguesa", busca: "Portuguesa de Desportos", liga: "Brasil · Série C", cur: "A 'Lusa' do Canindé; revelou Dener, talento perdido do futebol brasileiro." },
+      { code: "br", slug: "nautico", nome: "Náutico", busca: "Nautico Capibaribe", liga: "Brasil · Série C", cur: "O 'Timbu'; um dos três grandes de Pernambuco." },
+      { code: "br", slug: "santa-cruz", nome: "Santa Cruz", busca: "Santa Cruz FC", liga: "Brasil · Série D", cur: "O 'Cobra Coral'; uma das maiores torcidas do Nordeste." },
+      { code: "br", slug: "avai", nome: "Avaí", busca: "Avai FC", liga: "Brasil · Série B", cur: "O 'Leão da Ilha' de Florianópolis; rival do Figueirense." },
+      { code: "br", slug: "figueirense", nome: "Figueirense", busca: "Figueirense FC", liga: "Brasil · Série C", cur: "O 'Furacão do Estreito'; clássico da capital catarinense com o Avaí." },
+      { code: "br", slug: "criciuma", nome: "Criciúma", busca: "Criciuma EC", liga: "Brasil · Série A", cur: "Campeão da Copa do Brasil de 1991; o 'Tigre' do sul catarinense." },
+      { code: "br", slug: "crb", nome: "CRB", liga: "Brasil · Série B", cur: "O 'Galo da Pajuçara'; um dos dois grandes de Alagoas." },
+      { code: "br", slug: "csa", nome: "CSA", busca: "Centro Sportivo Alagoano", liga: "Brasil · Série C", cur: "O 'Azulão'; rival do CRB no clássico alagoano." },
+      { code: "br", slug: "vila-nova", nome: "Vila Nova", busca: "Vila Nova FC", liga: "Brasil · Série B", cur: "O 'Tigrão'; terceiro grande de Goiás." },
+      { code: "br", slug: "abc", nome: "ABC", busca: "ABC FC", liga: "Brasil · Série C", cur: "Recordista de títulos estaduais do Brasil, com mais de 50 no Rio Grande do Norte." },
+      { code: "br", slug: "sampaio-correa", nome: "Sampaio Corrêa", busca: "Sampaio Correa", liga: "Brasil · Série B", cur: "O 'Tricolor de Aço'; maior clube do Maranhão." },
+      { code: "br", slug: "botafogo-pb", nome: "Botafogo-PB", busca: "Botafogo PB", liga: "Brasil · Série C", cur: "O 'Belo'; principal clube da Paraíba." },
+      { code: "br", slug: "operario-pr", nome: "Operário Ferroviário", busca: "Operario Ferroviario", liga: "Brasil · Série B", cur: "O 'Fantasma' de Ponta Grossa, no Paraná." },
+      { code: "br", slug: "londrina", nome: "Londrina", busca: "Londrina EC", liga: "Brasil · Série C", cur: "Campeão da Série C de 2014; principal clube do norte do Paraná." },
+      { code: "br", slug: "mirassol", nome: "Mirassol", busca: "Mirassol FC", liga: "Brasil · Série A", cur: "Cidade de 60 mil habitantes que chegou à Série A do Brasileirão." },
+      { code: "br", slug: "novorizontino", nome: "Novorizontino", busca: "Gremio Novorizontino", liga: "Brasil · Série B", cur: "O 'Tigre do Vale', de Novo Horizonte, interior de São Paulo." },
+      { code: "br", slug: "parana", nome: "Paraná Clube", busca: "Parana Clube", liga: "Brasil · Série D", cur: "Nasceu da fusão de Colorado e Pinheiros em 1989." },
+      { code: "br", slug: "brusque", nome: "Brusque", busca: "Brusque FC", liga: "Brasil · Série C", cur: "O 'Quadricolor' da cidade têxtil de Santa Catarina." },
+      { code: "br", slug: "ituano", nome: "Ituano", busca: "Ituano FC", liga: "Brasil · Série C", cur: "Surpreendeu o Brasil ao ser campeão paulista de 2002 sobre o São Paulo." },
+      { code: "br", slug: "america-rn", nome: "América-RN", busca: "America de Natal", liga: "Brasil · Série D", cur: "O 'Rubro'; principal rival do ABC em Natal." }
+    ]
   }
 };
 
