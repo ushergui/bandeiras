@@ -2033,10 +2033,61 @@ document.addEventListener('DOMContentLoaded', () => {
     }
     // só os estados do Brasil (bandeiras) — usados também no modo "Qual a Bandeira?"
     const ESTADO_ITEMS = COLLECTION_ITEMS.filter(x => x._kind === 'flag');
-    // tudo que aparece no álbum (países + coleções)
+
+    // --- SEÇÕES ILUSTRADAS (figurinhas_data.js) como "países sintéticos" ---
+    // mesma normalização de nome que o estúdio de prompts usa pra nomear o arquivo
+    function slugName(s) {
+        return (s || '').normalize('NFD').replace(/[̀-ͯ]/g, '')
+            .toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '');
+    }
+    // figurinhas "brilhantes fixas" por seção (casadas pelo fim do código)
+    const FIG_SHINY = {
+        lendas: ['pele', 'maradona', 'messi', 'cristiano-ronaldo', 'zidane', 'ronaldo',
+            'beckenbauer', 'di-stefano', 'lev-yashin', 'garrincha'],
+        clubes: ['real-madrid', 'barcelona', 'flamengo', 'boca-juniors', 'manchester-united',
+            'liverpool', 'bayern-munique', 'bayern-de-munique', 'milan', 'juventus', 'ajax'],
+        frutas: [],
+    };
+    // seção -> como montar cada figurinha sintética
+    const FIG_SECTIONS = [
+        { key: 'frutas', book: 'Frutas', dir: 'frutas', pre: 'fru',
+          file: it => it.slug, name: it => it.n, sub: () => '' },
+        { key: 'lendas', book: 'Lendas do futebol', dir: 'lendas', pre: 'len',
+          file: it => it.code + '-' + slugName(it.nome), name: it => it.nome,
+          sub: it => `${it.pais}${it.num ? ' · #' + it.num : ''}` },
+        { key: 'clubes', book: 'Clubes', dir: 'clubes', pre: 'clu',
+          file: it => it.slug, name: it => it.nome, sub: it => it.liga || '' },
+    ];
+    if (window.FIG_DATA) {
+        FIG_SECTIONS.forEach(sc => {
+            const sec = window.FIG_DATA[sc.key];
+            if (!sec || !sec.itens) return;
+            const shinySet = new Set(FIG_SHINY[sc.key] || []);
+            sec.itens.forEach(it => {
+                const f = sc.file(it);
+                if (!f) return;
+                const codigo = sc.pre + '-' + f;
+                COLLECTION_ITEMS.push({
+                    codigo, nome: sc.name(it), continente: sc.book,
+                    fixedShiny: shinySet.has(f) || shinySet.has(slugName(sc.name(it))),
+                    _img: `assets/stickers/${sc.dir}/${f}.webp`,
+                    _kind: 'fig', _sec: sc.key, _sub: sc.sub(it), _cur: it.cur || '',
+                });
+            });
+        });
+    }
+
+    // tudo que aparece no álbum (países + coleções + seções ilustradas)
     const ALBUM_ITEMS = [...countries, ...COLLECTION_ITEMS];
     function albumItem(code) { return ALBUM_ITEMS.find(x => x.codigo === code); }
     function itemImg(c) { return (c && c._img) || `assets/flags/${c.codigo}.png`; }
+    // classe extra do card conforme o formato da imagem da seção
+    function figKindClass(c) {
+        if (!c) return '';
+        if (c._sec === 'clubes') return 'is-crest';
+        if (c._sec === 'lendas') return 'is-portrait';
+        return '';
+    }
     function itemShape(c, cls) {
         return (c && c._img) ? '' :
             `<img class="fig-shape ${cls || ''}" src="assets/shapes/${c.codigo}.svg" alt="" loading="lazy" onerror="this.remove()">`;
@@ -2046,7 +2097,8 @@ document.addEventListener('DOMContentLoaded', () => {
     const CONTINENTS_ORDER = [
         'América do Sul', 'América do Norte', 'América Central',
         'Europa', 'Ásia', 'África', 'Oceania',
-        'Estados do Brasil', 'Capitais do Brasil'
+        'Estados do Brasil', 'Capitais do Brasil',
+        'Frutas', 'Lendas do futebol', 'Clubes'
     ];
     const CONTINENT_META = {
         'América do Sul':   { emoji: '🌎', accent: '#34d399', sigla: 'AMS' },
@@ -2058,6 +2110,9 @@ document.addEventListener('DOMContentLoaded', () => {
         'Oceania':          { emoji: '🐨', accent: '#22d3ee', sigla: 'OCE' },
         'Estados do Brasil':  { emoji: '🇧🇷', accent: '#22c55e', sigla: 'BRA' },
         'Capitais do Brasil': { emoji: '🏙️', accent: '#f59e0b', sigla: 'CAP' },
+        'Frutas':             { emoji: '🍍', accent: '#f472b6', sigla: 'FRU' },
+        'Lendas do futebol':  { emoji: '⚽', accent: '#38bdf8', sigla: 'LEN' },
+        'Clubes':             { emoji: '🛡️', accent: '#a78bfa', sigla: 'CLU' },
     };
     let currentContinent = null;
 
@@ -2065,8 +2120,9 @@ document.addEventListener('DOMContentLoaded', () => {
         const map = {};
         CONTINENTS_ORDER.forEach(cont => {
             const sig = (CONTINENT_META[cont] || {}).sigla || 'XXX';
-            ALBUM_ITEMS.filter(c => c.continente === cont)
-                .forEach((c, i) => { map[c.codigo] = `${sig}-${String(i + 1).padStart(2, '0')}`; });
+            const list = ALBUM_ITEMS.filter(c => c.continente === cont);
+            const w = Math.max(2, String(list.length).length);
+            list.forEach((c, i) => { map[c.codigo] = `${sig}-${String(i + 1).padStart(w, '0')}`; });
         });
         return map;
     })();
@@ -2148,14 +2204,15 @@ document.addEventListener('DOMContentLoaded', () => {
             cardEl.innerHTML = figCardHTML(c, colada);
         } else {
             const acc = (CONTINENT_META[c.continente] || {}).accent || '#60a5fa';
-            cardEl.innerHTML = `<div class="fig-card missing ${c._img ? 'is-collection' : ''}" style="--acc:${acc}">
+            cardEl.innerHTML = `<div class="fig-card missing ${c._img ? 'is-collection' : ''} ${figKindClass(c)}" style="--acc:${acc}">
                 <div class="fig"><span class="fig-bg dim"></span>${itemShape(c, 'big')}
                 <div class="fig-foot"><span class="fig-name">${c.nome}</span></div></div></div>`;
         }
         cardEl.querySelectorAll('img').forEach(i => i.loading = 'eager');
 
         let where = '';
-        if (c._kind === 'img') where = `📍 ${c._sub}`;
+        if (c._kind === 'fig') where = `${(CONTINENT_META[c.continente] || {}).emoji || '🎴'} ${c._sub || c.continente}`;
+        else if (c._kind === 'img') where = `📍 ${c._sub}`;
         else if (c._kind === 'flag') where = `🏛️ Capital: ${c.capital}`;
         else where = `🌎 ${c.continente} · capital: ${c.capital}`;
         const rarTxt = colada
@@ -2188,6 +2245,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     function figZoomSaibaMais(c) {
+        if (c._kind === 'fig') return { text: c._cur || '', audio: '' };
         const BR = window.CURIOSITIES_BR || { bandeiras: {}, paisagens: {} };
         if (c._kind === 'flag') {
             const uf = (c.uf || c.codigo.replace('uf-', '')).toUpperCase();
@@ -2254,7 +2312,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
             if (!colada) {
                 const canGlue = pilha.length > 0;
-                item.className = 'album-card fig-card missing' + (canGlue ? ' has-pilha' : '') + (c._img ? ' is-collection' : '');
+                item.className = 'album-card fig-card missing' + (canGlue ? ' has-pilha' : '') + (c._img ? ' is-collection' : '') + (figKindClass(c) ? ' ' + figKindClass(c) : '');
                 item.innerHTML = `
                     <div class="fig">
                         <span class="fig-bg dim"></span>
@@ -2268,7 +2326,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 const better = bestPilha(c.codigo);
                 const canUp = better && RARITY_ORDER.indexOf(better) > RARITY_ORDER.indexOf(colada);
                 item.className = `album-card fig-card collected rarity-${colada}`
-                    + (shiny ? ' shiny' : '') + (legend ? ' legend' : '') + (c._img ? ' is-collection' : '');
+                    + (shiny ? ' shiny' : '') + (legend ? ' legend' : '') + (c._img ? ' is-collection' : '') + (figKindClass(c) ? ' ' + figKindClass(c) : '');
                 const badge = pilha.length ? `<span class="fig-count" title="Na pilha">×${pilha.length}</span>` : '';
                 const up = canUp ? `<button class="fig-up" data-glue="${c.codigo}" data-rar="${better}" title="Colar a versão ${better}">⬆</button>` : '';
                 item.innerHTML = `
@@ -2389,11 +2447,11 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     function stickerChip(codigo, count, selected) {
-        const c = countries.find(x => x.codigo === codigo) || { nome: codigo };
+        const c = albumItem(codigo) || { nome: codigo, codigo };
         const el = document.createElement('button');
         el.className = 'trade-chip' + (selected ? ' selected' : '');
         el.dataset.codigo = codigo;
-        el.innerHTML = `<img src="assets/flags/${codigo}.png" alt=""><span>${c.nome}</span>${count > 1 ? `<b>×${count}</b>` : ''}`;
+        el.innerHTML = `<img src="${itemImg(c)}" alt=""><span>${c.nome}</span>${count > 1 ? `<b>×${count}</b>` : ''}`;
         return el;
     }
 
@@ -2486,8 +2544,8 @@ document.addEventListener('DOMContentLoaded', () => {
     })();
     document.getElementById('trades-confirm').addEventListener('click', () => {
         if (!tradeGive || !tradeGet || !tradeOther) return;
-        const gname = (countries.find(c => c.codigo === tradeGive) || {}).nome;
-        const rname = (countries.find(c => c.codigo === tradeGet) || {}).nome;
+        const gname = (albumItem(tradeGive) || {}).nome;
+        const rname = (albumItem(tradeGet) || {}).nome;
         const res = Trades.execute(currentUser, tradeOther, tradeGive, tradeGet);
         if (res.error) { showToast(res.error, 'error'); return; }
         _cache.stickers = Trades._read(currentUser);
@@ -2521,11 +2579,11 @@ document.addEventListener('DOMContentLoaded', () => {
             const pool = shuffle([...countries]);
             for (let i = 0; i < REEL_LEN; i++) {
                 const c = (i === REEL_WON_IDX && wonCode)
-                    ? countries.find(x => x.codigo === wonCode)
+                    ? (albumItem(wonCode) || pool[0])
                     : pool[i % pool.length];
                 const t = document.createElement('div');
                 t.className = 'reel-tile';
-                t.innerHTML = `<img src="assets/flags/${c.codigo}.png" alt="">`;
+                t.innerHTML = `<img src="${itemImg(c)}" alt="">`;
                 strip.appendChild(t);
             }
         }
@@ -2564,7 +2622,8 @@ document.addEventListener('DOMContentLoaded', () => {
         const legend = rarity && rarity !== 'base';
         const shiny = !!c.fixedShiny && !legend;
         const acc = (CONTINENT_META[c.continente] || {}).accent || '#60a5fa';
-        const cls = 'fig-card ' + (legend ? 'legend rarity-' + rarity : (shiny ? 'shiny rarity-base' : 'rarity-base')) + (extra ? ' ' + extra : '');
+        const cls = 'fig-card ' + (legend ? 'legend rarity-' + rarity : (shiny ? 'shiny rarity-base' : 'rarity-base'))
+            + (c._img ? ' is-collection' : '') + (figKindClass(c) ? ' ' + figKindClass(c) : '') + (extra ? ' ' + extra : '');
         return `<div class="${cls}" style="--acc:${acc}">
             <div class="fig">
                 <span class="fig-bg"></span>
@@ -2583,7 +2642,7 @@ document.addEventListener('DOMContentLoaded', () => {
         box.innerHTML = Array.from({ length: MACHINE_COST }, (_, i) => {
             const code = machineDeposit[i];
             if (!code) return `<span class="tm-mini empty"></span>`;
-            const c = countries.find(x => x.codigo === code);
+            const c = albumItem(code);
             return c ? `<div class="tm-mini">${figCardHTML(c, weakestRar(code), 'nano')}</div>` : '<span class="tm-mini empty"></span>';
         }).join('');
         requestAnimationFrame(() => fitFigNames(box));
@@ -2602,7 +2661,7 @@ document.addEventListener('DOMContentLoaded', () => {
         if (!grid) return;
         const stk = loadStickers()
             .filter(s => depositable(s) + reservedCount(s.codigo) > 0)
-            .map(s => ({ s, c: countries.find(x => x.codigo === s.codigo) }))
+            .map(s => ({ s, c: albumItem(s.codigo) }))
             .filter(o => o.c)
             .sort((a, b) => a.c.nome.localeCompare(b.c.nome, 'pt'));
 
@@ -2660,9 +2719,9 @@ document.addEventListener('DOMContentLoaded', () => {
         closePickerModal();
         renderMachine();
 
-        // prioriza país que falta no continente atual, senão qualquer que falte colar
-        const missCur = countries.filter(c => c.continente === currentContinent && !isColada(c.codigo));
-        const missAny = countries.filter(c => !isColada(c.codigo));
+        // prioriza figurinha que falta no livro atual, senão qualquer que falte colar
+        const missCur = ALBUM_ITEMS.filter(c => c.continente === currentContinent && !isColada(c.codigo));
+        const missAny = ALBUM_ITEMS.filter(c => !isColada(c.codigo));
         const pool = missCur.length ? missCur : (missAny.length ? missAny : countries);
         const won = shuffle([...pool])[0];
 
@@ -2830,7 +2889,8 @@ document.addEventListener('DOMContentLoaded', () => {
                 const legend = r.rarity !== 'base';
                 const shiny = !!r.country.fixedShiny && !legend;
                 card.className = `pack-card fig-card rarity-${r.rarity}` + (r.isNew ? ' is-new' : '')
-                    + (shiny ? ' shiny' : '') + (legend ? ' legend' : '');
+                    + (shiny ? ' shiny' : '') + (legend ? ' legend' : '')
+                    + (r.country._img ? ' is-collection' : '') + (figKindClass(r.country) ? ' ' + figKindClass(r.country) : '');
                 card.style.animationDelay = `${i * 0.14}s`;
                 card.style.setProperty('--acc', (CONTINENT_META[r.country.continente] || {}).accent || '#60a5fa');
                 card.innerHTML = `

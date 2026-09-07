@@ -233,6 +233,32 @@ def scan_images():
     return res
 
 
+# secao -> lado maior do webp (escudo/moeda menor)
+_WEBP_SIDE = {"clubes": 400, "moedas": 400}
+
+
+def make_webp(base, src_ext):
+    """Gera <base>.webp a partir de <base><src_ext> (mesma logica do otimizar_stickers.py)."""
+    try:
+        from PIL import Image
+    except Exception:
+        return
+    sec = os.path.basename(os.path.dirname(base))
+    side = _WEBP_SIDE.get(sec, 640)
+    q = 88 if side == 400 else 82
+    try:
+        im = Image.open(base + src_ext); im.load()
+        alpha = im.mode in ("RGBA", "LA") or (im.mode == "P" and "transparency" in im.info)
+        im = im.convert("RGBA" if alpha else "RGB")
+        w, h = im.size
+        sc = min(1.0, side / max(w, h))
+        if sc < 1.0:
+            im = im.resize((max(1, round(w * sc)), max(1, round(h * sc))), Image.LANCZOS)
+        im.save(base + ".webp", "WEBP", quality=q, method=6)
+    except Exception as e:
+        print("  (webp falhou:", e, ")")
+
+
 # ---------------------------------------------------------------- servidor
 from flask import Flask, request, jsonify, send_from_directory, Response
 
@@ -280,6 +306,7 @@ def api_upload():
         if os.path.isfile(base + e):
             os.remove(base + e)
     f.save(base + ext)
+    make_webp(base, ext)                    # versao leve .webp pro jogo/deploy
     p = load_progress()                     # upload marca como pronta
     lst = set(p["done"].get(sec, [])); lst.add(key)
     p["done"][sec] = sorted(lst); save_progress(p)

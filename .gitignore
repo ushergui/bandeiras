@@ -43,3 +43,20 @@ imagens-geradas/
 tools/vozes/
 tools/_studio_out/
 tools/_prompts_progress.json
+
+# figurinhas ilustradas: só a versao .webp (leve) vai pro deploy;
+# os originais .png/.jpg (1-2 MB cada) ficam locais p/ o estudio
+assets/stickers/frutas/*.png
+assets/stickers/frutas/*.jpg
+assets/stickers/legumes/*.png
+assets/stickers/legumes/*.jpg
+assets/stickers/animais/*.png
+assets/stickers/animais/*.jpg
+assets/stickers/comidas/*.png
+assets/stickers/comidas/*.jpg
+assets/stickers/lendas/*.png
+assets/stickers/lendas/*.jpg
+assets/stickers/clubes/*.png
+assets/stickers/clubes/*.jpg
+assets/stickers/moedas/*.png
+assets/stickers/moedas/*.jpg

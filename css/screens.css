@@ -1641,6 +1641,25 @@
 }
 .fig-card.is-collection.has-pilha .fig::before { content: none; }
 
+/* ---- FASE 30: seções ilustradas (frutas / lendas / clubes) ---- */
+
+/* clube = escudo: imagem inteira visível (não corta), sem borda de "bandeira" */
+.fig-card.is-crest .fig-flag {
+  aspect-ratio: 1 / 1; object-fit: contain;
+  border: none; box-shadow: none;
+  background: rgba(255,255,255,.08); border-radius: 8px; padding: 5px;
+}
+.fig-card.is-crest .fig-flagwrap { width: 78%; margin: 4px auto 5px; }
+.fig-card.is-crest.missing .fig-flagwrap { display: none; }
+
+/* lenda = retrato vertical */
+.fig-card.is-portrait .fig-flag { aspect-ratio: 4 / 5; object-fit: cover; }
+.fig-card.is-portrait .fig-flagwrap { width: 74%; }
+
+/* zoom mostra escudo/retrato inteiro também */
+.fig-zoom-card .fig-card.is-crest .fig-flag { padding: 10px; }
+.fig-zoom-card .fig-card.is-portrait .fig-flagwrap { width: 70%; }
+
 /* nas seções BRA/CAP a numeração da aba fica com a sigla certa (só visual) */
 .continent-tab .ct-name { text-align: center; }
 
