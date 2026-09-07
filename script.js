@@ -2061,15 +2061,24 @@ document.addEventListener('DOMContentLoaded', () => {
         const s = p && _CONT_SIG[p.continente];
         return s ? `/assets/img/bg/${s}.jpg` : '';
     }
+    // caminho da bandeirinha do país (sct/wls têm arquivo próprio)
+    function flagPath(code) {
+        if (code === 'sct') return 'assets/flags/gb-sct.png';
+        if (code === 'wls') return 'assets/flags/gb-wls.png';
+        return `assets/flags/${code}.png`;
+    }
     // seção -> como montar cada figurinha sintética
     const FIG_SECTIONS = [
         { key: 'frutas', book: 'Frutas', dir: 'frutas', pre: 'fru',
-          file: it => it.slug, name: it => it.n, sub: () => '' },
+          file: it => it.slug, name: it => it.n, sub: () => '',
+          paises: it => it.paises || [] },
         { key: 'lendas', book: 'Lendas do futebol', dir: 'lendas', pre: 'len',
           file: it => it.code + '-' + slugName(it.nome), name: it => it.nome,
-          sub: it => `${it.pais}${it.num ? ' · #' + it.num : ''}`, bg: it => bgForCode(it.code) },
+          sub: it => `${it.pais}${it.num ? ' · #' + it.num : ''}`,
+          bg: it => bgForCode(it.code), flag: it => flagPath(it.code) },
         { key: 'clubes', book: 'Clubes', dir: 'clubes', pre: 'clu',
-          file: it => it.slug, name: it => it.nome, sub: it => it.liga || '', bg: it => bgForCode(it.code) },
+          file: it => it.slug, name: it => it.nome, sub: it => it.liga || '',
+          bg: it => bgForCode(it.code), flag: it => flagPath(it.code) },
     ];
     if (window.FIG_DATA) {
         FIG_SECTIONS.forEach(sc => {
@@ -2086,6 +2095,8 @@ document.addEventListener('DOMContentLoaded', () => {
                     _img: `assets/stickers/${sc.dir}/${f}.webp`,
                     _kind: 'fig', _sec: sc.key, _sub: sc.sub(it), _cur: it.cur || '',
                     _bg: sc.bg ? sc.bg(it) : '',
+                    _flag: sc.flag ? sc.flag(it) : '',
+                    _paises: sc.paises ? sc.paises(it) : [],
                 });
             });
         });
@@ -2125,7 +2136,7 @@ document.addEventListener('DOMContentLoaded', () => {
         'Ásia':             { emoji: '⛩️', accent: '#f87171', sigla: 'ASI' },
         'África':           { emoji: '🦁', accent: '#fbbf24', sigla: 'AFR' },
         'Oceania':          { emoji: '🐨', accent: '#22d3ee', sigla: 'OCE' },
-        'Estados do Brasil':  { emoji: '🇧🇷', accent: '#22c55e', sigla: 'BRA' },
+        'Estados do Brasil':  { emoji: '🇧🇷', flag: 'assets/flags/br.png', accent: '#22c55e', sigla: 'BRA' },
         'Capitais do Brasil': { emoji: '🏙️', accent: '#f59e0b', sigla: 'CAP' },
         'Frutas':             { emoji: '🍍', accent: '#f472b6', sigla: 'FRU' },
         'Lendas do futebol':  { emoji: '⚽', accent: '#38bdf8', sigla: 'LEN' },
@@ -2193,7 +2204,10 @@ document.addEventListener('DOMContentLoaded', () => {
             const btn = document.createElement('button');
             btn.className = 'continent-tab' + (cont === currentContinent ? ' active' : '');
             btn.style.setProperty('--tab-accent', meta.accent);
-            btn.innerHTML = `<span class="ct-emoji">${meta.emoji}</span><span class="ct-name">${cont}</span><span class="ct-count">${st.have}/${st.total}</span>`
+            const icon = meta.flag
+                ? `<img class="ct-flag" src="${meta.flag}" alt="" loading="lazy">`
+                : `<span class="ct-emoji">${meta.emoji}</span>`;
+            btn.innerHTML = `${icon}<span class="ct-name">${cont}</span><span class="ct-count">${st.have}/${st.total}</span>`
                 + (g.count ? `<span class="ct-todo" title="${g.count} pra colar">${g.count}</span>` : '');
             btn.addEventListener('click', () => {
                 const already = currentContinent === cont;
@@ -2228,14 +2242,31 @@ document.addEventListener('DOMContentLoaded', () => {
         }
         cardEl.querySelectorAll('img').forEach(i => i.loading = 'eager');
 
+        // bandeirinha ao lado do "onde" (associação objeto ↔ bandeira)
+        const FLAG = p => `<img class="fz-flag" src="${p}" alt="" onerror="this.style.display='none'">`;
+        let ufBra = '';
+        if (c.codigo.indexOf('cap-') === 0) ufBra = c.codigo.slice(4);
+        else if (c.codigo.indexOf('uf-') === 0) ufBra = c.codigo.slice(3);
+
         let where = '';
-        if (c._kind === 'fig') where = `${(CONTINENT_META[c.continente] || {}).emoji || '🎴'} ${c._sub || c.continente}`;
+        if (c._sec === 'lendas' || c._sec === 'clubes') where = FLAG(c._flag) + ` ${c._sub || c.continente}`;
+        else if (c._kind === 'fig') where = `${(CONTINENT_META[c.continente] || {}).emoji || '🎴'} ${c._sub || c.continente}`;
+        else if (ufBra) where = FLAG(`assets/stickers/bra/${ufBra}.png`) + ` ${c._sub || ('Capital: ' + c.capital)}`;
         else if (c._kind === 'img') where = `📍 ${c._sub}`;
         else if (c._kind === 'flag') where = `🏛️ Capital: ${c.capital}`;
         else where = `🌎 ${c.continente} · capital: ${c.capital}`;
         const rarTxt = colada
             ? (colada === 'base' ? (c.fixedShiny ? '✨ Figurinha brilhante' : 'Figurinha comum') : (RARITY_LABELS[colada] || {}).text)
             : '🔒 Ainda não colada';
+
+        // frutas: "Onde são mais consumidas?" -> 5 bandeirinhas (sem nomes)
+        const fpais = (c._sec === 'frutas' && Array.isArray(c._paises)) ? c._paises : [];
+        const fpaisHTML = fpais.length ? `
+            <div class="fz-flags">
+              <span class="fz-flags-lbl">Onde são mais consumidas?</span>
+              <div class="fz-flags-row">${fpais.map(cd =>
+                `<img src="${flagPath(cd)}" alt="" onerror="this.style.display='none'">`).join('')}</div>
+            </div>` : '';
 
         // "Saber mais": história da bandeira / paisagem / curiosidade do país
         const saiba = figZoomSaibaMais(c);
@@ -2245,6 +2276,7 @@ document.addEventListener('DOMContentLoaded', () => {
             <span class="fz-code">${stickerCode(code)}</span>
             <p>${where}</p>
             <p class="fz-rar">${rarTxt}${pilha.length ? ` · ${pilha.length} na pilha` : ''}</p>
+            ${fpaisHTML}
             ${saiba.text ? `<button class="fz-more-btn" type="button">Saber mais ✨</button>
               <div class="fz-more hidden"><p>${saiba.text}</p>
               ${saiba.audio ? `<button class="fz-play" type="button">🔊 Ouvir</button>` : ''}</div>` : ''}`;
@@ -2429,6 +2461,8 @@ document.addEventListener('DOMContentLoaded', () => {
         showScreen('album');
     }
     if (buttons.showAlbum) buttons.showAlbum.addEventListener('click', openAlbum);
+    const albumHomeBtn = document.getElementById('album-home');
+    if (albumHomeBtn) albumHomeBtn.addEventListener('click', () => showScreen('main'));
 
     // ─── TROCA ENTRE CONTAS ──────────────────────────────
     const ALL_CODES = countries.map(c => c.codigo);
