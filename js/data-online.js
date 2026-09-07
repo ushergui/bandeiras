@@ -178,13 +178,13 @@
     async createProfile() { return { error: 'indisponível' }; },
     async deleteProfile() {},
 
-    async getProgress() { return st.progress; },
+    async getProgress() { return JSON.parse(JSON.stringify(st.progress)); },
     async saveProgress(_name, data) {
-      // upsert só o que mudou
+      // upsert só o que mudou (data é uma cópia; st.progress é o canônico)
       for (const code of Object.keys(data || {})) {
         const a = data[code], b = st.progress[code];
         if (b && JSON.stringify(a) === JSON.stringify(b)) continue;
-        st.progress[code] = a;
+        st.progress[code] = JSON.parse(JSON.stringify(a));
         await put('country_progress', {
           code,
           acertos: a.acertos | 0, erros: a.erros | 0, streak: a.streak | 0,
@@ -196,11 +196,11 @@
       }
     },
 
-    async getStickers() { return st.stickers; },
+    async getStickers() { return JSON.parse(JSON.stringify(st.stickers)); },
     async saveStickers(_name, arr) {
       const byCode = {}; st.stickers.forEach((s) => (byCode[s.codigo] = s));
-      st.stickers = arr;
-      for (const s of arr || []) {
+      st.stickers = JSON.parse(JSON.stringify(arr || []));
+      for (const s of st.stickers) {
         const old = byCode[s.codigo];
         if (old && old.colada === s.colada && JSON.stringify(old.pilha) === JSON.stringify(s.pilha)) continue;
         await put('stickers', { codigo: s.codigo, colada: s.colada || null, pilha: s.pilha || [] });

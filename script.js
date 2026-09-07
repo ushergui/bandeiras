@@ -2108,11 +2108,13 @@ document.addEventListener('DOMContentLoaded', () => {
     }
     function savePacks(n) {
         n = Math.max(0, Number(n) || 0);
+        const changed = _cache.packsCount !== n;
         _cache.packsCount = n;
         localStorage.setItem(`detetive_packs_${currentUser}`, n);
         document.querySelectorAll('#packs-count').forEach(el => el.textContent = n);
         const btn = document.getElementById('open-pack-btn');
         if (btn) btn.classList.toggle('has-packs', n > 0);
+        if (changed && currentUser && window.DG_ONLINE) API.savePacks(currentUser, n);
     }
     function addPacks(n) {
         savePacks(getPacksCount() + n);
