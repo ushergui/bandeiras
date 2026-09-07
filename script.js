@@ -469,17 +469,18 @@ document.addEventListener('DOMContentLoaded', () => {
     let lastAudioPath = null;
 
     // --- TOAST NOTIFICATIONS ---
-    function showToast(message, type = 'info') {
+    function showToast(message, type = 'info', ms) {
         const container = document.getElementById('toast-container');
         if (!container) return;
-        
+
         const toast = document.createElement('div');
         toast.className = `toast toast-${type} ${type}`;
 
         let icon = 'ℹ️';
         if (type === 'success') icon = '✅';
         if (type === 'error') icon = '❌';
-        if (message.toLowerCase().includes('pacotinho')) icon = '🎁';
+        if (message.toLowerCase().includes('pacotinho') || message.includes('+') && message.includes('pacote')) icon = '🎁';
+        if (type === 'fact') { icon = '📌'; type = 'info'; toast.className = 'toast toast-fact info'; }
 
         toast.innerHTML = `<span>${icon}</span> <span>${message}</span>`;
         container.appendChild(toast);
@@ -487,7 +488,7 @@ document.addEventListener('DOMContentLoaded', () => {
         setTimeout(() => {
             toast.classList.add('toast-leave');
             setTimeout(() => toast.remove(), 400);
-        }, 3200);
+        }, ms || 3200);
     }
 
     let gameState = {};
@@ -2588,10 +2589,25 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     // cola com animação (a figurinha "desce" e gruda) + confete + som
+    // curiosidade curta pra mostrar ao colar (país -> curiosities.js; seções -> _cur)
+    function stickerFact(code) {
+        const c = albumItem(code);
+        if (c && c._cur) return c._cur;
+        const all = (typeof curiosities !== 'undefined') ? curiosities : {};
+        const list = all[code];
+        return (list && list.length) ? list[Math.floor(Math.random() * list.length)] : '';
+    }
+
     function doGlue(code, rar, btn) {
         const frame = btn.closest('.fig-frame') || btn.closest('.fig');
+        const eraNova = !isColada(code);
         if (glueSticker(code, rar)) {
             if (window.SFX) window.SFX.play('sticker_paste');
+            if (eraNova) {
+                const fato = stickerFact(code);
+                const nome = (albumItem(code) || {}).nome || '';
+                if (fato) setTimeout(() => showToast(`<b>${nome}</b> — ${fato}`, 'fact', 7000), 950);
+            }
             if (!calmMode && typeof confetti !== 'undefined' && frame) {
                 const r = frame.getBoundingClientRect();
                 confetti({
