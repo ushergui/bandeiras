@@ -17,18 +17,18 @@
     <link rel="icon" href="assets/icons/favicon-32.png" sizes="32x32" type="image/png">
     <link rel="apple-touch-icon" href="assets/icons/apple-touch-icon.png">
 
-    <link rel="stylesheet" href="style.css?v=20260907l">
-    <link rel="stylesheet" href="css/app-shell.css?v=20260907l">
-    <link rel="stylesheet" href="css/screens.css?v=20260907l">
+    <link rel="stylesheet" href="style.css?v=20260907m">
+    <link rel="stylesheet" href="css/app-shell.css?v=20260907m">
+    <link rel="stylesheet" href="css/screens.css?v=20260907m">
     <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800;900&display=swap" rel="stylesheet">
     <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
     <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
-    <script src="countries.js?v=20260907l"></script>
-    <script src="collections.js?v=20260907l"></script>
-    <script src="figurinhas_data.js?v=20260907l"></script>
-    <script src="curiosities.js?v=20260907l"></script>
-    <script src="curiosities_br.js?v=20260907l"></script>
-    <script src="js/sfx.js?v=20260907l"></script>
+    <script src="countries.js?v=20260907m"></script>
+    <script src="collections.js?v=20260907m"></script>
+    <script src="figurinhas_data.js?v=20260907m"></script>
+    <script src="curiosities.js?v=20260907m"></script>
+    <script src="curiosities_br.js?v=20260907m"></script>
+    <script src="js/sfx.js?v=20260907m"></script>
 </head>
 
 <body>
@@ -85,7 +85,19 @@
                     <span class="hub-hello">Olá,<br><b id="welcome-message">explorador</b></span>
                 </div>
                 <div class="hub-actions">
-                    <button id="sound-toggle" class="icon-btn" title="Ligar/desligar som" aria-label="Som">🔊</button>
+                    <div class="sound-wrap">
+                        <button id="sound-toggle" class="icon-btn" title="Som" aria-label="Som">🔊</button>
+                        <div id="sound-menu" class="sound-menu hidden">
+                            <label class="sound-opt">
+                                <span>🔔 Efeitos sonoros</span>
+                                <input type="checkbox" id="opt-sfx">
+                            </label>
+                            <label class="sound-opt">
+                                <span>🗣️ Vozes</span>
+                                <input type="checkbox" id="opt-voice">
+                            </label>
+                        </div>
+                    </div>
                     <button id="change-profile-btn" class="hub-logout" title="Sair da conta">Sair</button>
                 </div>
             </header>
@@ -664,7 +676,7 @@
         </div>
     </div>
 
-    <script src="script.js?v=20260907l"></script>
+    <script src="script.js?v=20260907m"></script>
     <script>
       // link p/ o estudio de prompts -- so aparece rodando localmente (dev). Remover antes de publicar.
       if (/^(localhost|127\.0\.0\.1)$/.test(location.hostname)) {

@@ -43,6 +43,7 @@ imagens-geradas/
 tools/vozes/
 tools/_studio_out/
 tools/_prompts_progress.json
+tools/_fig_frases.json
 
 # figurinhas ilustradas: só a versao .webp (leve) vai pro deploy;
 # os originais .png/.jpg (1-2 MB cada) ficam locais p/ o estudio

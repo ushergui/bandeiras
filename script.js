@@ -1462,8 +1462,13 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
-    function playAudio(p) {
+    // "vozes" (narradora) — liga/desliga separado dos efeitos
+    let voiceOn = true;
+    try { voiceOn = localStorage.getItem('dg_voice') !== 'off'; } catch (e) {}
+
+    function playAudio(p, force) {
         lastAudioPath = p;
+        if (!voiceOn && !force) return;
         const c = p.toLowerCase().replace(/ /g, '_').replace(/\./g, '');
         const a = new Audio(`assets/audio/${c}.mp3`);
         a.play().catch(e => { });
@@ -1474,7 +1479,7 @@ document.addEventListener('DOMContentLoaded', () => {
         if (!btn) return;
         btn.addEventListener('click', () => {
             if (lastAudioPath) {
-                playAudio(lastAudioPath);
+                playAudio(lastAudioPath, true);   // botão "ouvir de novo" = ação explícita
                 btn.classList.add('playing');
                 setTimeout(() => btn.classList.remove('playing'), 600);
             }
@@ -1605,17 +1610,39 @@ document.addEventListener('DOMContentLoaded', () => {
         await selectProfile(res.name, res.avatar);
     });
 
-    // Botão de som (liga/desliga, acesso fácil no hub)
+    // Menu de som: efeitos e vozes desligáveis separadamente
     (function wireSoundToggle() {
         const btn = document.getElementById('sound-toggle');
+        const menu = document.getElementById('sound-menu');
+        const cbSfx = document.getElementById('opt-sfx');
+        const cbVoice = document.getElementById('opt-voice');
         if (!btn) return;
-        const paint = () => { btn.textContent = (window.SFX && window.SFX.enabled) ? '🔊' : '🔇'; btn.classList.toggle('muted', !(window.SFX && window.SFX.enabled)); };
+        const sfxOn = () => !!(window.SFX && window.SFX.enabled);
+        const paint = () => {
+            btn.textContent = (sfxOn() || voiceOn) ? '🔊' : '🔇';
+            btn.classList.toggle('muted', !(sfxOn() || voiceOn));
+            if (cbSfx) cbSfx.checked = sfxOn();
+            if (cbVoice) cbVoice.checked = voiceOn;
+        };
         paint();
-        btn.addEventListener('click', () => {
-            if (!window.SFX) return;
-            window.SFX.enabled = !window.SFX.enabled;
+        btn.addEventListener('click', e => {
+            e.stopPropagation();
+            if (menu) menu.classList.toggle('hidden');
+        });
+        if (cbSfx) cbSfx.addEventListener('change', () => {
+            if (window.SFX) window.SFX.enabled = cbSfx.checked;
+            if (cbSfx.checked && window.SFX) window.SFX.play('toggle');
             paint();
-            if (window.SFX.enabled) window.SFX.play('toggle');
+        });
+        if (cbVoice) cbVoice.addEventListener('change', () => {
+            voiceOn = cbVoice.checked;
+            try { localStorage.setItem('dg_voice', voiceOn ? 'on' : 'off'); } catch (_) {}
+            paint();
+        });
+        document.addEventListener('click', e => {
+            if (menu && !menu.classList.contains('hidden') && !e.target.closest('.sound-wrap')) {
+                menu.classList.add('hidden');
+            }
         });
     })();
 
@@ -2330,11 +2357,12 @@ document.addEventListener('DOMContentLoaded', () => {
         if (glueBtn) glueBtn.addEventListener('click', () => { closeFigZoom(); goColarNoAlbum(code); });
         const moreBtn = info.querySelector('.fz-more-btn');
         if (moreBtn) moreBtn.addEventListener('click', () => {
-            info.querySelector('.fz-more').classList.toggle('hidden');
+            info.querySelector('.fz-more').classList.remove('hidden');
             moreBtn.classList.add('hidden');
+            if (saiba.audio) playAudio(saiba.audio);   // narradora (só se "Vozes" ligado)
         });
         const playBtn = info.querySelector('.fz-play');
-        if (playBtn) playBtn.addEventListener('click', () => { playAudio(saiba.audio); });
+        if (playBtn) playBtn.addEventListener('click', () => { playAudio(saiba.audio, true); });
 
         box.classList.remove('hidden');
         requestAnimationFrame(() => fitFigNames(cardEl));
@@ -2342,7 +2370,13 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     function figZoomSaibaMais(c) {
-        if (c._kind === 'fig') return { text: c._cur || '', audio: '' };
+        if (c._kind === 'fig') {
+            let audio = '';
+            if (c._sec === 'lendas') audio = 'lendas/' + c.codigo.replace('len-', '');
+            else if (c._sec === 'frutas') audio = 'frutas/' + c.codigo.replace('fru-', '');
+            else if (c._sec === 'clubes') audio = 'clubes/' + c.codigo.replace('clu-', '');
+            return { text: c._cur || '', audio };
+        }
         const BR = window.CURIOSITIES_BR || { bandeiras: {}, paisagens: {} };
         if (c._kind === 'flag') {
             const uf = (c.uf || c.codigo.replace('uf-', '')).toUpperCase();
