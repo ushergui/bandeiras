@@ -13,6 +13,11 @@ Rodar:  venv\\Scripts\\python.exe tools\\fetch_escudos.py
 """
 import os, sys, re, json, time, io, subprocess, urllib.request, urllib.parse
 
+try:
+    sys.stdout.reconfigure(encoding="utf-8", errors="replace")
+except Exception:
+    pass
+
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 os.chdir(ROOT)
 _VENV_PY = os.path.join(ROOT, "venv", "Scripts", "python.exe")
