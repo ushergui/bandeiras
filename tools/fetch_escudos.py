@@ -43,6 +43,8 @@ DB_COUNTRY = {
     "mx": "Mexico", "us": "USA", "sa": "Saudi Arabia", "cn": "China", "jp": "Japan",
     "kr": "South Korea", "eg": "Egypt", "ma": "Morocco", "za": "South Africa", "ng": "Nigeria",
     "tn": "Tunisia", "dz": "Algeria", "ao": "Angola", "cd": "DR Congo", "au": "Australia", "nz": "New Zealand",
+    "qa": "Qatar", "ae": "UAE", "th": "Thailand", "my": "Malaysia", "sd": "Sudan", "ci": "Ivory Coast",
+    "fj": "Fiji", "pg": "Papua New Guinea", "ir": "Iran", "sn": "Senegal",
 }
 
 FFMPEG = "ffmpeg"
