@@ -515,6 +515,11 @@ align-items: center;
 }
 body.has-nav #offline-banner { bottom: 62px; }
 
+/* badge "Powered by Netlify" (iframe injetado no plano Free) — some pra todo
+   mundo. O jeito "oficial" é o toggle em Project configuration > General, mas
+   ele não aparece em contas de plano legacy. */
+#nl-badge-frame { display: none !important; }
+
 @keyframes toastSlideIn {
     from { opacity: 0; transform: translateY(-16px) scale(0.95); }
     to   { opacity: 1; transform: translateY(0) scale(1); }
