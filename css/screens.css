@@ -1632,12 +1632,15 @@
 .fig-card.is-collection .fig-flagwrap { width: 84%; margin: 3px auto 5px; }
 .fig-card.is-collection .fig-flag { border-radius: 5px; }
 
-/* slot vazio de coleção: cadeado no lugar do contorno */
+/* slot ainda não conquistado: "?" grande no lugar da figurinha */
 .fig-card.is-collection.missing .fig-flagwrap,
 .fig-card.is-collection.missing .fig-foil { display: none; }
 .fig-card.is-collection.missing .fig::before {
-  content: "🔒"; position: absolute; top: 42%; left: 50%;
-  transform: translate(-50%, -50%); font-size: 1.5rem; opacity: .3; z-index: 1;
+  content: "?"; position: absolute; top: 40%; left: 50%;
+  transform: translate(-50%, -50%); z-index: 1;
+  font: 900 2.4rem/1 "Nunito", system-ui, sans-serif;
+  color: color-mix(in srgb, #fff 40%, var(--acc, #60a5fa));
+  opacity: .55; text-shadow: 0 2px 8px rgba(0,0,0,.5);
 }
 .fig-card.is-collection.has-pilha .fig::before { content: none; }
 
@@ -1722,6 +1725,21 @@
   width: 34px; height: 23px; object-fit: cover; border-radius: 4px;
   border: 1px solid rgba(255,255,255,.35); box-shadow: 0 2px 5px rgba(0,0,0,.45);
 }
+
+/* ---- zoom: "?" grande quando não tem a figurinha + botão colar ---- */
+.fz-qmark {
+  position: absolute; top: 42%; left: 50%; transform: translate(-50%, -50%); z-index: 2;
+  font: 900 3.4rem/1 "Nunito", system-ui, sans-serif;
+  color: color-mix(in srgb, #fff 45%, var(--acc, #60a5fa));
+  opacity: .6; text-shadow: 0 3px 12px rgba(0,0,0,.55);
+}
+.fig-zoom-card .fig-card.missing.locked .fig { min-height: 150px; }
+.fz-glue-btn {
+  display: inline-block; margin: 6px 0 2px;
+  padding: 9px 18px; border-radius: 11px; font-weight: 800; font-size: .88rem;
+  background: var(--accent-green, #22c55e); color: #06281c; border: none; cursor: pointer;
+}
+.fz-glue-btn:hover { filter: brightness(1.06); }
 
 /* ---- máquina de troca: prêmio clicável + ações ---- */
 #tm-prize.clickable { cursor: pointer; }

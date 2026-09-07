@@ -2220,7 +2220,9 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     // aproxima a figurinha pra ver detalhes (não tira do álbum, só amplia)
-    function openFigZoom(code) {
+    // opts.reveal = mostra a imagem de verdade mesmo sem estar colada (ex.: prêmio da máquina)
+    function openFigZoom(code, opts) {
+        opts = opts || {};
         const c = albumItem(code);
         if (!c) return;
         const box = document.getElementById('fig-zoom');
@@ -2230,14 +2232,16 @@ document.addEventListener('DOMContentLoaded', () => {
 
         const colada = coladaRarity(code);
         const pilha = pilhaOf(code);
+        // você "tem" a figurinha se colou, se tem cópia na pilha, ou se pediu pra revelar
+        const owned = !!colada || pilha.length > 0 || opts.reveal;
 
-        if (colada) {
-            cardEl.innerHTML = figCardHTML(c, colada);
+        if (owned) {
+            cardEl.innerHTML = figCardHTML(c, colada || 'base');
         } else {
             const acc = (CONTINENT_META[c.continente] || {}).accent || '#60a5fa';
-            const bgv = c._bg ? `;--fig-bg-img:url('${c._bg}')` : '';
-            cardEl.innerHTML = `<div class="fig-card missing ${c._img ? 'is-collection' : ''} ${figKindClass(c)}${figBgClass(c)}" style="--acc:${acc}${bgv}">
-                <div class="fig"><span class="fig-bg dim"></span>${itemShape(c, 'big')}
+            cardEl.innerHTML = `<div class="fig-card missing locked ${c._img ? 'is-collection' : ''} ${figKindClass(c)}" style="--acc:${acc}">
+                <div class="fig"><span class="fig-bg dim"></span>
+                <span class="fz-qmark">?</span>
                 <div class="fig-foot"><span class="fig-name">${c.nome}</span></div></div></div>`;
         }
         cardEl.querySelectorAll('img').forEach(i => i.loading = 'eager');
@@ -2255,9 +2259,11 @@ document.addEventListener('DOMContentLoaded', () => {
         else if (c._kind === 'img') where = `📍 ${c._sub}`;
         else if (c._kind === 'flag') where = `🏛️ Capital: ${c.capital}`;
         else where = `🌎 ${c.continente} · capital: ${c.capital}`;
+        const canGlueHere = !colada && (pilha.length > 0 || opts.reveal);
         const rarTxt = colada
             ? (colada === 'base' ? (c.fixedShiny ? '✨ Figurinha brilhante' : 'Figurinha comum') : (RARITY_LABELS[colada] || {}).text)
-            : '🔒 Ainda não colada';
+            : canGlueHere ? '📥 Na sua pilha — falta colar no álbum'
+            : '🔒 Você ainda não tem essa figurinha';
 
         // frutas: "Onde são mais consumidas?" -> 5 bandeirinhas (sem nomes)
         const fpais = (c._sec === 'frutas' && Array.isArray(c._paises)) ? c._paises : [];
@@ -2276,11 +2282,14 @@ document.addEventListener('DOMContentLoaded', () => {
             <span class="fz-code">${stickerCode(code)}</span>
             <p>${where}</p>
             <p class="fz-rar">${rarTxt}${pilha.length ? ` · ${pilha.length} na pilha` : ''}</p>
+            ${canGlueHere ? `<button class="fz-glue-btn" type="button">Colar no álbum →</button>` : ''}
             ${fpaisHTML}
             ${saiba.text ? `<button class="fz-more-btn" type="button">Saber mais ✨</button>
               <div class="fz-more hidden"><p>${saiba.text}</p>
               ${saiba.audio ? `<button class="fz-play" type="button">🔊 Ouvir</button>` : ''}</div>` : ''}`;
 
+        const glueBtn = info.querySelector('.fz-glue-btn');
+        if (glueBtn) glueBtn.addEventListener('click', () => { closeFigZoom(); goColarNoAlbum(code); });
         const moreBtn = info.querySelector('.fz-more-btn');
         if (moreBtn) moreBtn.addEventListener('click', () => {
             info.querySelector('.fz-more').classList.toggle('hidden');
@@ -2853,7 +2862,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 origin: rect ? { x: (rect.left + rect.width / 2) / innerWidth, y: (rect.bottom - 10) / innerHeight } : { y: 0.6 },
             });
         }
-        showToast(`A máquina soltou: ${won.nome}! 🎰 (foi pra sua pilha)`, 'success');
+        showToast(`🎰 Saiu: ${won.nome}! Toque na figurinha pra ver e colar.`, 'success');
         showPrizeActions(won);
         renderMachine();
     }
@@ -2876,9 +2885,9 @@ document.addEventListener('DOMContentLoaded', () => {
     }
     (function wirePrizeActions() {
         const prize = document.getElementById('tm-prize');
-        if (prize) prize.addEventListener('click', () => { if (_lastPrize) openFigZoom(_lastPrize.codigo); });
+        if (prize) prize.addEventListener('click', () => { if (_lastPrize) openFigZoom(_lastPrize.codigo, { reveal: true }); });
         const zoomB = document.getElementById('tm-prize-zoom');
-        if (zoomB) zoomB.addEventListener('click', () => { if (_lastPrize) openFigZoom(_lastPrize.codigo); });
+        if (zoomB) zoomB.addEventListener('click', () => { if (_lastPrize) openFigZoom(_lastPrize.codigo, { reveal: true }); });
         const glueB = document.getElementById('tm-prize-glue');
         if (glueB) glueB.addEventListener('click', () => { if (_lastPrize) goColarNoAlbum(_lastPrize.codigo); });
         const moreB = document.getElementById('tm-prize-more');
