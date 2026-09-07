@@ -896,7 +896,16 @@
 .pack-decide { text-align: left; margin-top: 8px; }
 .pack-decide.hidden { display: none; }
 .pack-decide-title { font-weight: 900; font-size: 0.9rem; margin: 0 0 8px; color: var(--text-white); }
-#pack-decide-list { display: flex; flex-direction: column; gap: 6px; max-height: 34vh; overflow-y: auto; }
+#pack-decide-list { display: flex; flex-direction: column; gap: 6px; }
+
+/* uma figurinha nova de cada vez */
+.decide-one { display: flex; flex-direction: column; align-items: center; gap: 8px; text-align: center; padding: 4px 0; }
+.decide-step { font-size: .72rem; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; color: var(--text-muted); }
+.decide-one-img { width: 92px; height: 61px; object-fit: cover; border-radius: 8px; box-shadow: 0 6px 18px rgba(0,0,0,.4); }
+.decide-one-name { font-size: 1rem; font-weight: 900; color: var(--text-white); line-height: 1.15; max-width: 100%; }
+.decide-one-btns { display: flex; gap: 8px; flex-wrap: wrap; justify-content: center; width: 100%; }
+.decide-one-btns .decide-glue, .decide-one-btns .decide-keep { flex: 1 1 auto; min-width: 140px; padding: 11px 12px; font-size: .85rem; border-radius: 11px; }
+
 .decide-row {
   display: flex; align-items: center; gap: 8px;
   background: rgba(255,255,255,.05); border-radius: 10px; padding: 6px 8px;
@@ -2144,6 +2153,18 @@
   border: 1px solid rgba(255,255,255,.18); cursor: pointer;
 }
 .pack-end-more:hover:not(:disabled) { background: rgba(255,255,255,.16); }
+
+/* ---- pacote no celular: encosta no topo e rola, sem "comer" a tela ---- */
+@media (max-width: 767px) {
+  #pack-modal { align-items: flex-start !important; }
+  #pack-modal .modal-content {
+    border-radius: 0 0 22px 22px !important;
+    max-height: 100dvh !important;
+    padding-top: calc(18px + var(--safe-top)) !important;
+  }
+  #pack-modal .pack-stage { margin: 8px 0; min-height: 140px; }
+  #pack-modal #pack-title { font-size: 1.15rem; margin: 0; }
+}
 .pack-end-more:disabled { opacity: .4; cursor: default; }
 
 /* ---- botão "?" ao lado de "Abrir pacote" ---- */

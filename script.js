@@ -569,23 +569,28 @@ document.addEventListener('DOMContentLoaded', () => {
             _cache.journeyLevel = journeyData.level;
         } catch(e) { _cache.journeyLevel = 1; }
 
-        // Load packs — 3 pacotes grátis por "dia" (dia vira às 06:00)
+        // Load packs — pacotes grátis por "dia" (dia vira às 06:00)
         try {
             const packsData = await API.getPacks(name);
             const today = packDayKey();
+            const localMark = `dg_freeday_${name}`;
+            const alreadyToday = packsData.last_daily_at === today
+                || localStorage.getItem(localMark) === today;
             let count = packsData.count;
-            if (packsData.last_daily_at !== today) {
+            if (!alreadyToday) {
                 count += DAILY_FREE_PACKS;
                 await API.savePacks(name, count, today);
-                registerLoginStreak(name);
                 setTimeout(() => showToast(`Você ganhou ${DAILY_FREE_PACKS} pacotes de hoje! 🎁 Abra no Álbum.`, 'success'), 800);
             }
+            try { localStorage.setItem(localMark, today); } catch (e) {}
             _cache.packsCount = count;
             _cache.freePacksDay = today;
-            registerLoginStreak(name); // idempotente — garante _cache.loginStreak
+            savePacks(count); // repinta #packs-count / botão "Abrir pacote"
+            try { registerLoginStreak(name); } catch (e) { console.warn(e); }
         } catch(e) {
             console.warn('Erro ao carregar packs:', e);
             _cache.packsCount = 0;
+            savePacks(0);
         }
 
         _cache.dailyProgress = loadDailyProgress(name);
@@ -598,10 +603,11 @@ document.addEventListener('DOMContentLoaded', () => {
     const ALL_MODES = ['BandeiraPorPais', 'NomePorBandeira', 'PaisPorCapital', 'ContinentePorPais', 'Mapa', 'Forca', 'Memoria'];
 
     // "dia do pacote": vira às 06:00. Antes das 6h ainda conta como o dia anterior.
+    // usa a data LOCAL (não UTC) — senão "vira de dia" às 21h no horário do Brasil.
     function packDayKey(d) {
         d = d ? new Date(d) : new Date();
         if (d.getHours() < 6) d.setDate(d.getDate() - 1);
-        return d.toISOString().slice(0, 10);
+        return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
     }
 
     function loadDailyProgress(name) {
@@ -1405,15 +1411,53 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     function showScreen(key) {
+        const prev = showScreen._current;
         Object.values(screens).forEach(s => s.classList.add('hidden'));
         screens[key].classList.remove('hidden');
+        showScreen._current = key;
+        if (!showScreen._navlock && key !== prev) {
+            try { history.pushState({ screen: key }, ''); } catch (e) {}
+        }
         updateAppNav(key);
+        if (key !== 'game') setTimeout(flushAchievementQueue, 350);
         if (key === 'main') refreshHub();
         if (key === 'album' && typeof renderAlbum === 'function') renderAlbum();
         if (showScreen._ready && window.SFX) window.SFX.play('whoosh');
         showScreen._ready = true;
         try { elements.mainContainer.scrollTop = 0; window.scrollTo(0, 0); } catch (e) {}
     }
+
+    // --- BOTÃO "VOLTAR" DO NAVEGADOR: nunca sai do app ---
+    (function wireHardwareBack() {
+        const BACK_TO = {
+            game: 'main', setup: 'main', album: 'main', passport: 'main', trades: 'main',
+            partyLobbyHost: 'main', partyJoinClient: 'main', partyWaitClient: 'main',
+            partyGameHost: 'main', partyGameClient: 'main', partyLeaderboardHost: 'main',
+        };
+        try { history.replaceState({ screen: showScreen._current || 'profile' }, ''); } catch (e) {}
+        // deixa uma entrada "colchão" pra 1ª tela também ter pra onde voltar
+        try { history.pushState({ screen: showScreen._current || 'profile' }, ''); } catch (e) {}
+
+        window.addEventListener('popstate', () => {
+            // 1) tem modal / zoom aberto? o "voltar" só fecha ele
+            const openModal = document.querySelector('.modal-backdrop:not(.hidden), #fig-zoom:not(.hidden)');
+            if (openModal) {
+                openModal.classList.add('hidden');
+                try { history.pushState({ screen: showScreen._current }, ''); } catch (e) {}
+                return;
+            }
+            const cur = showScreen._current;
+            const dest = BACK_TO[cur];
+            showScreen._navlock = true;
+            if (dest && dest !== cur) {
+                showScreen(dest);
+            } else {
+                showToast('Você já está no início. Toque em "Sair" pra trocar de conta.', 'info', 2600);
+            }
+            showScreen._navlock = false;
+            try { history.pushState({ screen: showScreen._current }, ''); } catch (e) {}
+        });
+    })();
 
     // --- BARRA DE NAVEGAÇÃO PERSISTENTE ---
     const NAV_KEY_FOR_SCREEN = { main: 'jogar', album: 'album', passport: 'passport' };
@@ -1576,23 +1620,38 @@ document.addEventListener('DOMContentLoaded', () => {
 
         achs.forEach(a => {
             if (!u.includes(a.id) && a.c(p)) {
-                elements.achievementText.innerHTML = `<strong>${a.t}</strong><br><span style="font-size:0.8em; color:#555;">${a.desc}</span>`;
-                modals.achievement.classList.remove('hidden');
-                if (window.SFX) window.SFX.play('achievement');
-                dispararConfetes();
                 u.push(a.id);
                 if (window.DG_ONLINE) API.addAchievement(a.id);
                 else localStorage.setItem(`detetive_achievements_${currentUser}`, JSON.stringify(u));
                 if (a.packs > 0 && typeof addPacks === 'function') addPacks(a.packs);
+                if (window.SFX) window.SFX.play('achievement');
+                if (showScreen._current === 'game') {
+                    // não interrompe a partida — avisa com um toast e guarda o modal pro fim
+                    showToast(`🏅 Conquista: ${a.t}`, 'success', 3500);
+                    _achQueue.push(a);
+                } else {
+                    _achQueue.push(a);
+                    flushAchievementQueue();
+                }
             }
         });
     }
 
-    function dispararConfetes() { 
-         if (calmMode) {
+    let _achQueue = [];
+    function flushAchievementQueue() {
+        if (!_achQueue.length || !modals.achievement.classList.contains('hidden')) return;
+        const a = _achQueue.shift();
+        elements.achievementText.innerHTML = `<strong>${a.t}</strong><br><span style="font-size:0.8em; color:#555;">${a.desc}</span>`;
+        modals.achievement.classList.remove('hidden');
+        dispararConfetes();
+    }
+
+    function dispararConfetes() {
+        if (typeof confetti === 'undefined') return;
+        if (calmMode) {
             confetti({ particleCount: 15, spread: 30, origin: { y: 0.6 }, disableForReducedMotion: true });
         } else {
-            confetti({ particleCount: 100, spread: 70, origin: { y: 0.6 } }); 
+            confetti({ particleCount: 100, spread: 70, origin: { y: 0.6 } });
         }
     }
 
@@ -1880,8 +1939,30 @@ document.addEventListener('DOMContentLoaded', () => {
     playFactAudioBtn.addEventListener('click', playCurrentFactAudio);
   }
     buttons.closeFacts.addEventListener('click', () => { stopFactAudio(); modals.facts.classList.add('hidden'); });
-    buttons.closeAchievement.addEventListener('click', () => modals.achievement.classList.add('hidden'));
+    buttons.closeAchievement.addEventListener('click', () => {
+        modals.achievement.classList.add('hidden');
+        setTimeout(flushAchievementQueue, 250);
+    });
     buttons.closeRanking.addEventListener('click', () => modals.ranking.classList.add('hidden'));
+
+    // rede de segurança: tocar na área escura fecha qualquer modal;
+    // Esc também. (o pacote e o zoom têm regras próprias e ficam de fora)
+    const MODAL_KEEP_OPEN = ['pack-modal', 'fig-zoom', 'avatar-picker-modal'];
+    document.querySelectorAll('.modal-backdrop').forEach(bd => {
+        if (MODAL_KEEP_OPEN.includes(bd.id)) return;
+        bd.addEventListener('click', e => {
+            if (e.target !== bd) return;
+            bd.classList.add('hidden');
+            setTimeout(flushAchievementQueue, 250);
+        });
+    });
+    document.addEventListener('keydown', e => {
+        if (e.key !== 'Escape') return;
+        document.querySelectorAll('.modal-backdrop:not(.hidden)').forEach(bd => {
+            if (!MODAL_KEEP_OPEN.includes(bd.id)) bd.classList.add('hidden');
+        });
+        setTimeout(flushAchievementQueue, 250);
+    });
 
     // Passaporte e Ranking
     let rankFilter = 'Todos';
@@ -2115,7 +2196,11 @@ document.addEventListener('DOMContentLoaded', () => {
 
     function getPacksCount() {
         if (typeof _cache.packsCount !== 'number') {
-            _cache.packsCount = Number(localStorage.getItem(`detetive_packs_${currentUser}`) || 0);
+            // no modo online a fonte da verdade é o Supabase (via selectProfile);
+            // não cai pro localStorage legado, que se mistura com o modo local
+            _cache.packsCount = window.DG_ONLINE
+                ? 0
+                : Number(localStorage.getItem(`detetive_packs_${currentUser}`) || 0);
         }
         return _cache.packsCount;
     }
@@ -2589,10 +2674,14 @@ document.addEventListener('DOMContentLoaded', () => {
             });
         });
 
-        // tocar na figurinha aproxima pra ver detalhes
+        // tocar na figurinha:
+        //  - falta e tem cópia na pilha  -> cola direto (clique em qualquer área)
+        //  - já colada / sem cópia       -> abre o zoom pra ver detalhes
         grid.querySelectorAll('.album-card').forEach(card => {
             card.addEventListener('click', e => {
                 if (e.target.closest('[data-glue]')) return;
+                const glueBtn = card.querySelector('.ac-plus[data-glue]');
+                if (glueBtn) { doGlue(glueBtn.dataset.glue, glueBtn.dataset.rar, glueBtn); return; }
                 openFigZoom(card.dataset.code);
             });
         });
@@ -2630,14 +2719,10 @@ document.addEventListener('DOMContentLoaded', () => {
 
     function doGlue(code, rar, btn) {
         const frame = btn.closest('.fig-frame') || btn.closest('.fig');
-        const eraNova = !isColada(code);
         if (glueSticker(code, rar)) {
             if (window.SFX) window.SFX.play('sticker_paste');
-            if (eraNova) {
-                const fato = stickerFact(code);
-                const nome = (albumItem(code) || {}).nome || '';
-                if (fato) setTimeout(() => showToast(`<b>${nome}</b> — ${fato}`, 'fact', 7000), 950);
-            }
+            // curiosidade NÃO aparece sozinha ao colar — só quando a pessoa
+            // abre a figurinha e toca em "Saber mais"
             if (!calmMode && typeof confetti !== 'undefined' && frame) {
                 const r = frame.getBoundingClientRect();
                 confetti({
@@ -3574,38 +3659,60 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     })();
 
-    // lista "o que fazer com as novas" (só as que ainda não estão coladas)
+    // "o que fazer com as novas" — uma de cada vez, com botão "Próxima"
+    let _decideQueue = [];
     function buildDecideList(results) {
         const box = document.getElementById('pack-decide');
         const list = document.getElementById('pack-decide-list');
-        const novas = results.filter(r => r.isNew);
         list.innerHTML = '';
-        if (!novas.length) { box.classList.add('hidden'); return; }
-        box.classList.remove('hidden');
-        // dedup por país (se veio 2x a mesma nova)
+        // dedup por código (se veio 2x a mesma nova)
         const seen = new Set();
-        novas.forEach(r => {
-            if (seen.has(r.country.codigo)) return;
-            seen.add(r.country.codigo);
-            const row = document.createElement('div');
-            row.className = 'decide-row';
-            row.dataset.codigo = r.country.codigo;
-            row.innerHTML = `
-                <img src="${itemImg(r.country)}" alt="">
-                <span class="decide-name">${r.country.nome}</span>
-                <button class="decide-glue">Colar no álbum →</button>
-                <button class="decide-keep">Guardar na pilha</button>`;
-            // "Colar" NÃO cola aqui: leva você até o país no álbum pra colar lá (com o "+")
-            row.querySelector('.decide-glue').addEventListener('click', () => {
-                if (modals.pack) modals.pack.classList.add('hidden');
-                goColarNoAlbum(r.country.codigo);
-            });
-            row.querySelector('.decide-keep').addEventListener('click', () => {
-                row.classList.add('done'); row.querySelector('.decide-name').textContent = r.country.nome + ' — na pilha';
-                row.querySelectorAll('button').forEach(b => b.remove());
-            });
-            list.appendChild(row);
+        _decideQueue = results.filter(r => {
+            if (!r.isNew || seen.has(r.country.codigo)) return false;
+            seen.add(r.country.codigo); return true;
         });
+        box.removeAttribute('data-total');
+        if (!_decideQueue.length) { box.classList.add('hidden'); return; }
+        box.classList.remove('hidden');
+        renderDecideStep();
+    }
+
+    function renderDecideStep() {
+        const box = document.getElementById('pack-decide');
+        const list = document.getElementById('pack-decide-list');
+        const total = box.dataset.total ? +box.dataset.total : (box.dataset.total = _decideQueue.length, _decideQueue.length);
+        if (!_decideQueue.length) {
+            box.classList.add('hidden');
+            box.removeAttribute('data-total');
+            list.innerHTML = '';
+            refreshHub();
+            return;
+        }
+        const r = _decideQueue[0];
+        const done = total - _decideQueue.length + 1;
+        list.innerHTML = `
+            <div class="decide-one">
+                <span class="decide-step">${done} de ${total}</span>
+                <img class="decide-one-img" src="${itemImg(r.country)}" alt="">
+                <span class="decide-one-name">${r.country.nome}</span>
+                <div class="decide-one-btns">
+                    <button class="decide-glue">✅ Colar no álbum</button>
+                    <button class="decide-keep">📦 Guardar na pilha</button>
+                </div>
+            </div>`;
+        requestAnimationFrame(() => fitFigNames(list));
+        const advance = () => { _decideQueue.shift(); renderDecideStep(); };
+        list.querySelector('.decide-glue').addEventListener('click', (e) => {
+            const ok = glueSticker(r.country.codigo, r.rarity);
+            if (window.SFX) window.SFX.play(ok ? 'sticker_paste' : 'tap');
+            if (ok && !calmMode && typeof confetti !== 'undefined') {
+                const b = e.currentTarget.getBoundingClientRect();
+                confetti({ particleCount: 40, spread: 50, startVelocity: 24,
+                    origin: { x: (b.left + b.width / 2) / innerWidth, y: (b.top + b.height / 2) / innerHeight } });
+            }
+            advance();
+        });
+        list.querySelector('.decide-keep').addEventListener('click', advance);
     }
 
     if (buttons.closePack) buttons.closePack.addEventListener('click', () => {

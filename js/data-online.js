@@ -75,6 +75,15 @@
     if (i >= 0) q[i] = { table, row }; else q.push({ table, row });
     qSave(q);
   }
+  // O Supabase tem uma janela de ~1s em que uma leitura (de outra conexão) ainda
+  // vê o valor ANTIGO logo depois de uma escrita. Guardamos quais tabelas foram
+  // escritas há pouco pra o pullAll não sobrescrever o estado local bom com um
+  // retrato velho do servidor.
+  const RECENT_WRITE_MS = 4000;
+  const recentWrites = {};
+  const wroteNow = (t) => { recentWrites[t] = Date.now(); };
+  const wroteRecently = (t) => (Date.now() - (recentWrites[t] || 0)) < RECENT_WRITE_MS;
+
   let flushing = false;
   async function flush() {
     if (flushing || !online || !uid) return;
@@ -85,9 +94,10 @@
         const { table, row } = q[0];
         const { error } = await sb.from(table).upsert(row);
         if (error) { console.warn('[sync]', table, error.message); break; }
+        wroteNow(table);
         q.shift(); qSave(q);
       }
-      if (!qLoad().length) await pullAll();
+      if (!qLoad().length) { await new Promise((r) => setTimeout(r, 1200)); await pullAll(); }
     } finally { flushing = false; }
   }
 
@@ -95,6 +105,7 @@
   async function put(table, row) {
     row.user_id = uid;
     mirror();
+    wroteNow(table);
     if (online) {
       const { error } = await sb.from(table).upsert(row);
       if (error) enqueue(table, row);
@@ -121,18 +132,28 @@
         sb.from('achievements').select('key').eq('user_id', uid),
         sb.from('daily_progress').select('*').eq('user_id', uid).gte('day', todayKey()),
       ]);
-      st.progress = {};
-      (pr.data || []).forEach((r) => { st.progress[r.code] = mapProg(r); });
-      st.stickers = (stk.data || []).map((r) => ({ codigo: r.codigo, colada: r.colada, pilha: r.pilha || [] }));
-      if (pk.data) st.packs = { count: pk.data.count, last_daily_at: pk.data.last_daily_at,
-        streak_count: pk.data.streak_count, streak_last: pk.data.streak_last };
-      st.journey = jr.data ? jr.data.level : 1;
-      st.achievements = (ac.data || []).map((r) => r.key);
-      st.daily = {};
-      (dp.data || []).forEach((r) => {
-        st.daily[r.day] = { day: r.day, acertos: r.acertos, masteredToday: r.mastered,
-          modes: r.modes || {}, bonus: r.bonus || {} };
-      });
+      // não adota o retrato do servidor pra tabelas que acabamos de escrever
+      // (a leitura pode estar ~1s atrasada e apagaria o progresso recém-feito)
+      if (!wroteRecently('country_progress')) {
+        st.progress = {};
+        (pr.data || []).forEach((r) => { st.progress[r.code] = mapProg(r); });
+      }
+      if (!wroteRecently('stickers')) {
+        st.stickers = (stk.data || []).map((r) => ({ codigo: r.codigo, colada: r.colada, pilha: r.pilha || [] }));
+      }
+      if (!wroteRecently('packs') && pk.data) {
+        st.packs = { count: pk.data.count, last_daily_at: pk.data.last_daily_at,
+          streak_count: pk.data.streak_count, streak_last: pk.data.streak_last };
+      }
+      if (!wroteRecently('journey')) st.journey = jr.data ? jr.data.level : 1;
+      if (!wroteRecently('achievements')) st.achievements = (ac.data || []).map((r) => r.key);
+      if (!wroteRecently('daily_progress')) {
+        st.daily = {};
+        (dp.data || []).forEach((r) => {
+          st.daily[r.day] = { day: r.day, acertos: r.acertos, masteredToday: r.mastered,
+            modes: r.modes || {}, bonus: r.bonus || {} };
+        });
+      }
       mirror();
     } catch (e) { console.warn('[pullAll]', e); }
   }
