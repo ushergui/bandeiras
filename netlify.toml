@@ -2,7 +2,9 @@
 
 [build]
   publish = "."
-  command = ""
+  # remove pastas de desenvolvimento do checkout efêmero antes de publicar
+  # (não afeta o repositório — só o que vai pro CDN)
+  command = "rm -rf tools .claude .agent supabase docs venv _arquivo_morto .env .env.local ui-ux-pro-max-skill && rm -f *.py *.bat"
 
 # SPA: qualquer rota desconhecida cai no index.html
 [[redirects]]

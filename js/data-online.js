@@ -20,6 +20,9 @@
 
   const sb = window.supabase.createClient(C.SUPABASE_URL, C.SUPABASE_ANON_KEY, {
     auth: { persistSession: true, autoRefreshToken: true, detectSessionInUrl: false },
+    // nunca servir leitura do banco pelo cache do navegador — depois de uma
+    // troca / abertura de pacote o estado tem que vir fresco na hora
+    global: { fetch: (u, o) => fetch(u, { ...o, cache: 'no-store' }) },
   });
   const EMAIL_DOMAIN = '@detetiveglobal.app';
   const emailFor = (u) => (u || '').trim().toLowerCase().replace(/\s+/g, '-') + EMAIL_DOMAIN;
@@ -367,7 +370,15 @@
     async accept(id, fulfill) {
       const { data, error } = await sb.rpc('accept_trade', { p_trade: id, p_fulfill: fulfill || [] });
       if (error) return { error: error.message }; if (data && data.error) return data;
-      await pullAll(); return { ok: true };
+      // a leitura logo após o RPC às vezes ainda vê o estado antigo (lag do
+      // pooler/edge) — re-puxa algumas vezes até a troca aparecer resolvida
+      for (let i = 0; i < 4; i++) {
+        await new Promise((r) => setTimeout(r, i ? 500 : 250));
+        await pullAll();
+        const done = await sb.from('trades').select('status').eq('id', id).maybeSingle();
+        if (done.data && done.data.status !== 'aberta') { await pullAll(); break; }
+      }
+      return { ok: true };
     },
     async cancel(id) { const { data } = await sb.rpc('cancel_trade', { p_trade: id }); return data || {}; },
     async reject(id) { const { data } = await sb.rpc('reject_trade', { p_trade: id }); return data || {}; },
