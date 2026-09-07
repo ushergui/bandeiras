@@ -2213,6 +2213,9 @@
   background: rgba(255,255,255,.07); border: 1px solid rgba(255,255,255,.14); color: var(--text-white);
 }
 .rk-chip.on { background: rgba(124,58,237,.3); border-color: #a855f7; color: #fff; }
+.rk-chip-p { background: rgba(56,189,248,.1); border-color: rgba(56,189,248,.3); }
+.rk-chip-p.on { background: rgba(56,189,248,.28); border-color: #38bdf8; }
+.rk-sep { width: 100%; height: 0; }
 
 .rk-podium { display: flex; gap: 8px; margin-bottom: 12px; }
 .rk-pod {

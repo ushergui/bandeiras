@@ -675,25 +675,40 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
+    // repetição espaçada (SM-2 enxuto): intervalo por "caixa" (streak), em ms
+    const SR_BOX_MS = [10 * 60e3, 60 * 60e3, 24 * 3600e3, 3 * 24 * 3600e3, 7 * 24 * 3600e3, 21 * 24 * 3600e3];
+
     function updateCountryStats(code, isCorrect, responseMs) {
         const p = loadPlayerProgress();
-        if (!p[code]) p[code] = { acertos: 0, erros: 0, streak: 0 };
+        if (!p[code]) p[code] = { acertos: 0, erros: 0, streak: 0, ease: 2.3 };
         const s = p[code];
         const masteryBefore = s.mastery || 0;
-        if (isCorrect) { s.acertos++; s.streak = (s.streak || 0) + 1; }
-        else { s.erros++; s.streak = 0; }
-        s.lastSeen = Date.now();
+        const now = Date.now();
+        const fast = responseMs && responseMs > 0 && responseMs < 4500;
+
+        if (isCorrect) {
+            s.acertos++; s.streak = (s.streak || 0) + 1;
+            s.ease = Math.min(2.8, (s.ease || 2.3) + (fast ? 0.12 : 0.02));
+        } else {
+            s.erros++; s.streak = 0;
+            s.ease = Math.max(1.3, (s.ease || 2.3) - 0.22);
+        }
+        s.lastSeen = now;
+        // quando revisar de novo
+        const box = Math.min(s.streak, SR_BOX_MS.length - 1);
+        s.nextReview = isCorrect ? now + Math.round(SR_BOX_MS[box] * (s.ease / 2.3)) : now + 4 * 60e3;
 
         if (responseMs && responseMs > 0 && responseMs < 60000) {
-            s.hist = (s.hist || []).concat([{ t: Date.now(), ok: !!isCorrect, ms: Math.round(responseMs) }]).slice(-20);
+            s.hist = (s.hist || []).concat([{ t: now, ok: !!isCorrect, ms: Math.round(responseMs) }]).slice(-20);
             const oks = s.hist.filter(h => h.ok).map(h => h.ms);
             if (oks.length) s.avgMs = Math.round(oks.reduce((a, b) => a + b, 0) / oks.length);
         }
 
-        // mastery 0-100: mistura precisão histórica com sequência atual
+        // mastery 0-100: precisão histórica + sequência atual + bônus de rapidez
         const total = s.acertos + s.erros;
         const acc = total ? s.acertos / total : 0;
-        s.mastery = Math.round(Math.max(0, Math.min(100, acc * 55 + Math.min(s.streak || 0, 6) / 6 * 45)));
+        const speedBonus = (s.avgMs && s.avgMs < 3000) ? 6 : 0;
+        s.mastery = Math.round(Math.max(0, Math.min(100, acc * 52 + Math.min(s.streak || 0, 6) / 6 * 42 + speedBonus)));
 
         savePlayerProgress(p);
         // resumo da sessão
@@ -725,15 +740,27 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
+    // peso de aprendizado: nunca visto e revisão vencida têm prioridade;
+    // dominado recente quase não aparece; evita repetir o que acabou de sair.
+    function learnWeight(s) {
+        if (!s || !s.lastSeen) return 7;                       // nunca viu
+        const now = Date.now();
+        if (now - s.lastSeen < 25e3) return 1;                 // saiu agora há pouco
+        const m = s.mastery || 0;
+        let w = 2;
+        if (s.nextReview && now >= s.nextReview) w += 3;       // revisão vencida
+        if (m < 40) w += 3; else if (m < 70) w += 1;           // ainda aprendendo
+        if ((s.erros || 0) > (s.acertos || 0)) w += 2;         // erra mais que acerta
+        if (m >= 85 && !(s.nextReview && now >= s.nextReview)) w = 1; // dominado e em dia
+        return Math.max(1, w);
+    }
     function getWeightedCountry(pool) {
-        const p = loadPlayerProgress(); let wList = [];
+        const p = loadPlayerProgress(); const wList = [];
         pool.forEach(c => {
-            const s = p[c.codigo] || { acertos: 0, erros: 0 };
-            let w = 1;
-            if (s.erros > s.acertos) w = 5; else if (s.erros > 0) w = 3;
+            const w = learnWeight(p[c.codigo]);
             for (let i = 0; i < w; i++) wList.push(c);
         });
-        return shuffle(wList)[0];
+        return shuffle(wList)[0] || shuffle([...pool])[0];
     }
 
     // fila de revisão: o que você errou volta ~3 rodadas depois, na mesma partida
@@ -751,7 +778,9 @@ document.addEventListener('DOMContentLoaded', () => {
             gameState.review = gameState.review.filter(r => r !== due);
             return pool.find(c => c.codigo === due.code);
         }
-        return (gameConfig.type === 'Jornada') ? getWeightedCountry(pool) : shuffle([...pool])[0];
+        // algoritmo de aprendizado em todos os modos; um pouco de aleatório extra no "Rápido"
+        if (gameConfig.type === 'Rápido' && Math.random() < 0.35) return shuffle([...pool])[0];
+        return getWeightedCountry(pool);
     }
 
     // ─── DICA (custa 3 pontos) ───────────────────────────
@@ -1829,21 +1858,33 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // Passaporte e Ranking
     let rankFilter = 'Todos';
-    function renderRanking(filter) {
+    let rankPeriod = 'sempre';
+    function renderRanking(filter, period) {
         rankFilter = filter || 'Todos';
-        const all = JSON.parse(localStorage.getItem('ranking_global')) || [];
-        const modes = [...new Set(all.map(r => r.mode).filter(Boolean))];
+        if (period) rankPeriod = period;
+        const raw = JSON.parse(localStorage.getItem('ranking_global')) || [];
+        const modes = [...new Set(raw.map(r => r.mode).filter(Boolean))];
 
-        // chips de filtro
+        // chips de filtro (modo + período)
         const fbox = document.getElementById('ranking-filter');
         if (fbox) {
-            fbox.innerHTML = ['Todos', ...modes].map(m =>
-                `<button class="rk-chip${m === rankFilter ? ' on' : ''}" data-m="${m}">${m === 'Todos' ? 'Geral' : m}</button>`).join('');
-            fbox.querySelectorAll('.rk-chip').forEach(b => b.onclick = () => renderRanking(b.dataset.m));
+            const periodChips = [['sempre', 'Sempre'], ['semana', '7 dias'], ['hoje', 'Hoje']].map(([k, lab]) =>
+                `<button class="rk-chip rk-chip-p${k === rankPeriod ? ' on' : ''}" data-p="${k}">${lab}</button>`).join('');
+            fbox.innerHTML = periodChips + '<span class="rk-sep"></span>'
+                + ['Todos', ...modes].map(m =>
+                    `<button class="rk-chip${m === rankFilter ? ' on' : ''}" data-m="${m}">${m === 'Todos' ? 'Geral' : m}</button>`).join('');
+            fbox.querySelectorAll('.rk-chip[data-m]').forEach(b => b.onclick = () => renderRanking(b.dataset.m));
+            fbox.querySelectorAll('.rk-chip[data-p]').forEach(b => b.onclick = () => renderRanking(rankFilter, b.dataset.p));
         }
 
-        const l = (rankFilter === 'Todos' ? all : all.filter(r => r.mode === rankFilter))
-            .slice().sort((a, b) => b.score - a.score);
+        const cut = rankPeriod === 'hoje' ? Date.now() - 864e5
+            : rankPeriod === 'semana' ? Date.now() - 7 * 864e5 : 0;
+        let scoped = raw.filter(r => (rankFilter === 'Todos' || r.mode === rankFilter)
+            && (!cut || new Date(r.played_at || 0).getTime() >= cut));
+        // 1 linha por jogador: guarda só a melhor pontuação
+        const best = {};
+        scoped.forEach(r => { if (!best[r.nome] || r.score > best[r.nome].score) best[r.nome] = r; });
+        const l = Object.values(best).sort((a, b) => b.score - a.score);
 
         const podium = document.getElementById('rk-podium');
         const list = document.getElementById('ranking-list');
