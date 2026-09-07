@@ -2886,8 +2886,6 @@ document.addEventListener('DOMContentLoaded', () => {
     (function wirePrizeActions() {
         const prize = document.getElementById('tm-prize');
         if (prize) prize.addEventListener('click', () => { if (_lastPrize) openFigZoom(_lastPrize.codigo, { reveal: true }); });
-        const zoomB = document.getElementById('tm-prize-zoom');
-        if (zoomB) zoomB.addEventListener('click', () => { if (_lastPrize) openFigZoom(_lastPrize.codigo, { reveal: true }); });
         const glueB = document.getElementById('tm-prize-glue');
         if (glueB) glueB.addEventListener('click', () => { if (_lastPrize) goColarNoAlbum(_lastPrize.codigo); });
         const moreB = document.getElementById('tm-prize-more');
