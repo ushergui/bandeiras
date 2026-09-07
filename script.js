@@ -586,8 +586,9 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     // --- ECONOMIA DE PACOTES ---
-    const DAILY_FREE_PACKS = 3;
+    const DAILY_FREE_PACKS = 2;
     const PACK_STICKERS = 4;
+    const ALL_MODES = ['BandeiraPorPais', 'NomePorBandeira', 'PaisPorCapital', 'ContinentePorPais', 'Mapa', 'Forca', 'Memoria'];
 
     // "dia do pacote": vira às 06:00. Antes das 6h ainda conta como o dia anterior.
     function packDayKey(d) {
@@ -599,8 +600,9 @@ document.addEventListener('DOMContentLoaded', () => {
     function loadDailyProgress(name) {
         const raw = Store._get(`dg_daily_${name}`, null);
         if (!raw || raw.day !== packDayKey()) {
-            return { day: packDayKey(), acertos: 0, bonus: {}, masteredToday: 0 };
+            return { day: packDayKey(), acertos: 0, bonus: {}, masteredToday: 0, modes: {} };
         }
+        if (!raw.modes) raw.modes = {};
         return raw;
     }
     function saveDailyProgress() {
@@ -621,7 +623,14 @@ document.addEventListener('DOMContentLoaded', () => {
         return true;
     }
 
-    // streak de login: 7º dia +3, 8º em diante +1/dia, zera se faltar
+    // recompensa da sequência de login para uma dada contagem de dias
+    // 1 dia: nada · 2: +1 · 3+: +2/dia · múltiplos de 10 (10,20,30…): +5
+    function streakReward(count) {
+        if (count < 2) return { qty: 0, msg: '' };
+        if (count % 10 === 0) return { qty: 5, msg: `${count} dias seguidos! 🔥🔥` };
+        if (count === 2) return { qty: 1, msg: `2 dias seguidos! 🔥` };
+        return { qty: 2, msg: `${count} dias seguidos! 🔥` };
+    }
     function registerLoginStreak(name) {
         const key = `dg_streak_${name}`;
         const s = Store._get(key, { last: null, count: 0 });
@@ -632,8 +641,22 @@ document.addEventListener('DOMContentLoaded', () => {
         s.last = today;
         Store._set(key, s);
         _cache.loginStreak = s.count;
-        if (s.count === 7) setTimeout(() => grantBonusPack('streak7', 3, `7 dias seguidos! 🔥`), 1400);
-        else if (s.count > 7) setTimeout(() => grantBonusPack('streak' + s.count, 1, `${s.count} dias seguidos! 🔥`), 1400);
+        const rw = streakReward(s.count);
+        if (rw.qty) setTimeout(() => grantBonusPack('streak' + s.count, rw.qty, rw.msg), 1400);
+    }
+
+    // marca que o jogador jogou uma partida deste modo hoje -> +2 pacotes ao fechar todos
+    function markModePlayed(mode) {
+        if (!currentUser || !ALL_MODES.includes(mode)) return;
+        const dp = _cache.dailyProgress || (_cache.dailyProgress = loadDailyProgress(currentUser));
+        if (dp.day !== packDayKey()) { _cache.dailyProgress = loadDailyProgress(currentUser); }
+        const d = _cache.dailyProgress;
+        if (d.modes[mode]) return;
+        d.modes[mode] = 1;
+        saveDailyProgress();
+        const feitos = ALL_MODES.filter(m => d.modes[m]).length;
+        if (feitos === ALL_MODES.length) grantBonusPack('todososmodos', 2, 'Jogou todos os modos hoje! 🎯');
+        else showToast(`Modo concluído — ${feitos}/${ALL_MODES.length} modos hoje`, 'info');
     }
 
     // Narração por voz sintética (TTS) removida a pedido — usamos só os
@@ -1291,6 +1314,7 @@ document.addEventListener('DOMContentLoaded', () => {
     // --- UTILS ---
     function handleLevelComplete() {
         updateProgressBar(100); playSound('completed'); dispararConfetes();
+        markModePlayed(gameConfig.mode);
         if (gameConfig.mode === 'Memoria') grantBonusPack('memoria', 1, 'Tabuleiro da Memória completo!');
         else if (gameConfig.type === 'Jornada') grantBonusPack('jornada', 1, 'Nível da Jornada completo!');
         if (gameConfig.type === 'Jornada') {
@@ -1321,6 +1345,9 @@ document.addEventListener('DOMContentLoaded', () => {
         renderLearnSummary();
         speakText(win ? `Incrível ${currentUser}! Você venceu.` : `Bom jogo ${currentUser}. Tente novamente.`);
         saveGlobalScore(gameState.score);
+        // conta como "modo jogado hoje" se realmente jogou (respondeu algo)
+        const jogou = (session.correct + session.wrong) > 0 || (typeof memoryMoves === 'number' && memoryMoves > 0);
+        if (jogou) markModePlayed(gameConfig.mode);
     }
 
     function renderLearnSummary() {
@@ -1949,12 +1976,17 @@ document.addEventListener('DOMContentLoaded', () => {
     // ═══════════════════════════════════════════════════════
     // ÁLBUM DE FIGURINHAS  (modelo: colada + pilha)
     // ═══════════════════════════════════════════════════════
-    const RARITY_ORDER = ['base', 'roxa', 'bronze', 'prata', 'ouro'];
+    // 'shiny' = figurinha brilhante (10% dos sorteios); acima da comum, abaixo das lendas
+    const RARITY_ORDER = ['base', 'shiny', 'roxa', 'bronze', 'prata', 'ouro'];
+    const LEGEND_RARS = ['roxa', 'bronze', 'prata', 'ouro'];
     const RARITY_LABELS = {
         ouro: { text: 'LENDA DOURADA ✨' }, prata: { text: 'LENDA PRATA 🥈' },
         bronze: { text: 'LENDA BRONZE 🥉' }, roxa: { text: 'LENDA ROXA 💜' },
+        shiny: { text: 'BRILHANTE ✨' },
         base: { text: 'NOVA! 🌍' },
     };
+    const SHINY_CHANCE = 0.10;   // 10% de qualquer figurinha sair brilhante no pacote (todos os livros)
+    function isShinyRar(rar) { return rar === 'shiny'; }
 
     function loadStickers() {
         return Array.isArray(_cache.stickers) ? _cache.stickers : [];
@@ -2326,7 +2358,9 @@ document.addEventListener('DOMContentLoaded', () => {
         else where = `🌎 ${c.continente} · capital: ${c.capital}`;
         const canGlueHere = !colada && (pilha.length > 0 || opts.reveal);
         const rarTxt = colada
-            ? (colada === 'base' ? (c.fixedShiny ? '✨ Figurinha brilhante' : 'Figurinha comum') : (RARITY_LABELS[colada] || {}).text)
+            ? (isShinyRar(colada, c) ? '✨ Figurinha brilhante'
+               : colada === 'base' ? 'Figurinha comum'
+               : (RARITY_LABELS[colada] || {}).text)
             : canGlueHere ? '📥 Na sua pilha — falta colar no álbum'
             : '🔒 Você ainda não tem essa figurinha';
 
@@ -2453,8 +2487,8 @@ document.addEventListener('DOMContentLoaded', () => {
                         ${foot}
                     </div>`;
             } else {
-                const shiny = !!c.fixedShiny && colada === 'base';
-                const legend = colada !== 'base';
+                const shiny = isShinyRar(colada, c);
+                const legend = LEGEND_RARS.includes(colada);
                 const better = bestPilha(c.codigo);
                 const canUp = better && RARITY_ORDER.indexOf(better) > RARITY_ORDER.indexOf(colada);
                 item.className = `album-card fig-card collected rarity-${colada}`
@@ -2634,21 +2668,24 @@ document.addEventListener('DOMContentLoaded', () => {
         const streak = _cache.loginStreak || 0;
         const ac = dp.acertos || 0;
         const mast = dp.masteredToday || 0;
+        const modesN = ALL_MODES.filter(m => (dp.modes || {})[m]).length;
+        const nextStreak = streakReward(streak + 1);
 
         const rows = [
-            { done: _cache.freePacksDay === packDayKey(), label: '<b>3 pacotes grátis</b> às 6h da manhã', prog: '' },
-            { done: !!b.acertos10 || ac >= 10, label: 'Acertar <b>10</b> bandeiras no dia', prog: `${Math.min(ac, 10)}/10` },
-            { done: !!b.acertos25 || ac >= 25, label: 'Acertar <b>25</b> bandeiras no dia', prog: `${Math.min(ac, 25)}/25` },
+            { done: _cache.freePacksDay === packDayKey(), label: `<b>${DAILY_FREE_PACKS} pacotes grátis</b> às 6h da manhã`, prog: '' },
+            { done: modesN >= ALL_MODES.length, label: 'Jogar <b>1 partida de cada modo</b> → +2 pacotes', prog: `${modesN}/${ALL_MODES.length}` },
+            { done: !!b.acertos10 || ac >= 10, label: 'Acertar <b>10</b> no dia', prog: `${Math.min(ac, 10)}/10` },
+            { done: !!b.acertos25 || ac >= 25, label: 'Acertar <b>25</b> no dia', prog: `${Math.min(ac, 25)}/25` },
             { done: mast >= 3, label: '<b>Dominar</b> bandeiras novas', prog: `${Math.min(mast, 3)}/3` },
-            { done: !!b.streak15, label: '<b>Sequência de 15</b> acertos numa partida', prog: '' },
+            { done: !!b.streak15, label: '<b>Sequência de 15</b> numa partida', prog: '' },
             { done: !!b.jornada, label: 'Terminar um nível da <b>Jornada</b>', prog: '' },
-            { done: !!b.memoria, label: 'Completar o <b>Jogo da Memória</b>', prog: '' },
             { done: !!b.troca, label: 'Fazer <b>1 troca</b> de figurinha', prog: '' },
             {
-                done: streak >= 7, label: streak >= 7
-                    ? `Login em dia — <b>${streak} dias seguidos</b> (+1 pacote/dia)`
-                    : '<b>Login 7 dias seguidos</b> → +3 pacotes',
-                prog: streak < 7 ? `${streak}/7` : ''
+                done: !!b['streak' + streak] && streakReward(streak).qty > 0,
+                label: streak >= 2
+                    ? `Login <b>${streak} dias seguidos</b> — amanhã: +${nextStreak.qty || 0} 🔥`
+                    : `<b>Login todo dia</b>: 2 dias +1 · 3+ dias +2 · a cada 10 dias +5`,
+                prog: `${streak} 🔥`,
             },
         ];
         list.innerHTML = rows.map(r => `
@@ -2752,8 +2789,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // um mini card de figurinha, igual à prévia do álbum
     function figCardHTML(c, rarity, extra) {
-        const legend = rarity && rarity !== 'base';
-        const shiny = !!c.fixedShiny && !legend;
+        const legend = LEGEND_RARS.includes(rarity);
+        const shiny = isShinyRar(rarity, c);
         const acc = (CONTINENT_META[c.continente] || {}).accent || '#60a5fa';
         const cls = 'fig-card ' + (legend ? 'legend rarity-' + rarity : (shiny ? 'shiny rarity-base' : 'rarity-base'))
             + (c._img ? ' is-collection' : '') + (figKindClass(c) ? ' ' + figKindClass(c) : '') + (legend ? '' : figBgClass(c)) + (extra ? ' ' + extra : '');
@@ -3047,8 +3084,9 @@ document.addEventListener('DOMContentLoaded', () => {
         const results = [];
         for (let i = 0; i < PACK_SIZE; i++) {
             const drawn = shuffle([...ALBUM_ITEMS])[0];
-            const rarity = rollRarity();
-            // brilho fixo NÃO é raridade: continua 'base', o card renderiza metalizado
+            let rarity = rollRarity();
+            // não caiu lenda -> 10% de chance de sair brilhante (qualquer figurinha, qualquer livro)
+            if (rarity === 'base' && Math.random() < SHINY_CHANCE) rarity = 'shiny';
             let e = stickers.find(s => s.codigo === drawn.codigo);
             if (!e) { e = { codigo: drawn.codigo, colada: null, pilha: [] }; stickers.push(e); }
             const isNew = !e.colada;
@@ -3074,14 +3112,14 @@ document.addEventListener('DOMContentLoaded', () => {
 
             const best = results.reduce((b, r) => Math.max(b, RARITY_ORDER.indexOf(r.rarity)), 0);
             if (window.SFX) {
-                const rev = best >= 3 ? 'reveal_legend' : best >= 1 ? 'reveal_rare' : 'reveal_common';
+                const rev = best >= 4 ? 'reveal_legend' : best >= 2 ? 'reveal_rare' : 'reveal_common';
                 setTimeout(() => window.SFX.play(rev), 200);
             }
 
             results.forEach((r, i) => {
                 const card = document.createElement('div');
-                const legend = r.rarity !== 'base';
-                const shiny = !!r.country.fixedShiny && !legend;
+                const legend = LEGEND_RARS.includes(r.rarity);
+                const shiny = isShinyRar(r.rarity, r.country);
                 card.className = `pack-card fig-card rarity-${r.rarity}` + (r.isNew ? ' is-new' : '')
                     + (shiny ? ' shiny' : '') + (legend ? ' legend' : '')
                     + (r.country._img ? ' is-collection' : '') + (figKindClass(r.country) ? ' ' + figKindClass(r.country) : '')
@@ -3103,7 +3141,7 @@ document.addEventListener('DOMContentLoaded', () => {
             });
 
             if (!calmMode && typeof confetti !== 'undefined') {
-                const n = best >= 3 ? 140 : best >= 1 ? 80 : 45;
+                const n = best >= 4 ? 140 : best >= 2 ? 80 : best >= 1 ? 60 : 45;
                 confetti({ particleCount: n, spread: 75, origin: { y: 0.5 } });
             }
 
