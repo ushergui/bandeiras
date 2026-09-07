@@ -139,12 +139,17 @@
     if (!session || !session.user) { uid = null; uname = null; return; }
     uid = session.user.id;
     loadMirror();
-    // profile (nome/avatar)
+    const fallbackName = (session.user.email || '').replace(EMAIL_DOMAIN, '');
+    // profile (nome/avatar) — cria na 1ª vez (contas feitas no painel do Supabase)
     if (online) {
-      const { data } = await sb.from('profiles').select('username,avatar').eq('id', uid).maybeSingle();
+      let { data } = await sb.from('profiles').select('username,avatar').eq('id', uid).maybeSingle();
+      if (!data) {
+        await sb.rpc('bootstrap_profile', { p_username: fallbackName, p_avatar: '🌍' });
+        ({ data } = await sb.from('profiles').select('username,avatar').eq('id', uid).maybeSingle());
+      }
       if (data) { uname = data.username; uavatar = data.avatar || '🌍'; }
     }
-    if (!uname) uname = (session.user.email || '').replace(EMAIL_DOMAIN, '');
+    if (!uname) uname = fallbackName;
     try { localStorage.setItem('dgo_lastuser', JSON.stringify({ name: uname, avatar: uavatar })); } catch (e) {}
     await pullAll();
     await flush();
@@ -168,8 +173,10 @@
     m = (m || '').toLowerCase();
     if (m.includes('invalid login')) return 'Usuário ou senha incorretos.';
     if (m.includes('already registered') || m.includes('duplicate')) return 'Esse usuário já existe. Tente entrar.';
+    if (m.includes('signups not allowed') || m.includes('signup is disabled')) return 'Criar conta está fechado. Peça uma conta pro dono do jogo.';
+    if (m.includes('email not confirmed')) return 'Ligue "Confirm email = OFF" no Supabase e tente de novo.';
     if (m.includes('password')) return 'A senha precisa ter pelo menos 6 caracteres.';
-    if (m.includes('network') || m.includes('fetch')) return 'Sem internet. Verifique a conexão.';
+    if (m.includes('network') || m.includes('fetch') || m.includes('load failed')) return 'Sem internet. Verifique a conexão.';
     return 'Não deu certo. Tente de novo.';
   };
 

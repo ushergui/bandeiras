@@ -1608,13 +1608,26 @@ document.addEventListener('DOMContentLoaded', () => {
     function showAuthError(msg) { if (authErr) { authErr.textContent = msg; authErr.classList.remove('hidden'); } }
     function hideAuthError() { if (authErr) authErr.classList.add('hidden'); }
 
+    const SIGNUP_OPEN = !window.DG_ONLINE || (window.DG_CONFIG && window.DG_CONFIG.ALLOW_SIGNUP);
+    if (!SIGNUP_OPEN) {
+        // esconde a aba "Criar conta"
+        authTabs.forEach(t => { if (t.dataset.tab === 'signup') t.style.display = 'none'; });
+        const at = document.querySelector('.auth-tabs');
+        if (at) at.classList.add('single');
+    }
+
     function setAuthMode(mode) {
+        if (mode === 'signup' && !SIGNUP_OPEN) mode = 'login';
         authMode = mode;
         authTabs.forEach(t => t.classList.toggle('active', t.dataset.tab === mode));
         document.querySelectorAll('[data-signup]').forEach(el => el.classList.toggle('hidden', mode !== 'signup'));
         if (authSubmit) authSubmit.textContent = mode === 'signup' ? 'Criar conta e entrar' : 'Entrar';
         if (authPass) authPass.autocomplete = mode === 'signup' ? 'new-password' : 'current-password';
         hideAuthError();
+        if (mode === 'login' && !SIGNUP_OPEN && window.DG_CONFIG && window.DG_CONFIG.SIGNUP_CLOSED_MSG) {
+            const h = document.getElementById('auth-signup-hint');
+            if (h) h.textContent = window.DG_CONFIG.SIGNUP_CLOSED_MSG;
+        }
     }
 
     function renderAuthAccounts() {
