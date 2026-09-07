@@ -1711,17 +1711,31 @@
   vertical-align: -3px; margin-right: 5px; box-shadow: 0 1px 3px rgba(0,0,0,.5);
 }
 
-/* ---- frutas: "Onde são mais consumidas?" + 5 bandeirinhas ---- */
-.fz-flags { margin: 8px 0 2px; }
+/* ---- frutas: "Onde são mais consumidas?" + 5 bandeirinhas (centralizado) ---- */
+.fz-flags { margin: 8px 0 2px; text-align: center; }
 .fz-flags-lbl {
   display: block; font-size: .74rem; font-weight: 800;
-  color: var(--text-muted); margin-bottom: 5px;
+  color: var(--text-muted); margin-bottom: 6px; text-align: center;
 }
-.fz-flags-row { display: flex; flex-wrap: wrap; gap: 6px; }
+.fz-flags-row { display: flex; flex-wrap: wrap; gap: 6px; justify-content: center; }
 .fz-flags-row img {
   width: 34px; height: 23px; object-fit: cover; border-radius: 4px;
   border: 1px solid rgba(255,255,255,.35); box-shadow: 0 2px 5px rgba(0,0,0,.45);
 }
+
+/* ---- máquina de troca: prêmio clicável + ações ---- */
+#tm-prize.clickable { cursor: pointer; }
+#tm-prize.clickable:hover { filter: brightness(1.08); }
+.tm-prize-actions {
+  display: flex; flex-wrap: wrap; gap: 8px; justify-content: center;
+  margin: 10px 0 2px;
+}
+.tm-prize-actions.hidden { display: none; }
+.tm-prize-actions button {
+  padding: 8px 14px; border-radius: 10px; font-size: .8rem; font-weight: 800; cursor: pointer;
+}
+.tm-pa-glue { background: var(--accent-green, #22c55e); color: #06281c; border: none; }
+.tm-pa-more { background: rgba(255,255,255,.1); color: var(--text-white); border: 1px solid rgba(255,255,255,.18); }
 
 /* ---- botão "Início" no álbum (topo, mobile-friendly) ---- */
 .album-home { align-self: flex-start; }

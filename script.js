@@ -2474,8 +2474,7 @@ document.addEventListener('DOMContentLoaded', () => {
         if (!machineBusy) {
             machineDeposit = [];
             buildReels(null);
-            const prize = document.getElementById('tm-prize');
-            if (prize) { prize.className = 'tray-card'; prize.innerHTML = ''; }
+            hidePrizeActions();
         }
         if (modals.tmPicker) modals.tmPicker.classList.add('hidden');
         renderMachine();
@@ -2710,6 +2709,26 @@ document.addEventListener('DOMContentLoaded', () => {
     }
     function closePickerModal() { modals.tmPicker.classList.add('hidden'); }
 
+    // junta 7 repetidas sozinho, priorizando as de raridade menor (comum → ouro)
+    function autoFillMachine() {
+        if (machineBusy) return;
+        hidePrizeActions();
+        const copies = [];
+        loadStickers().forEach(s => {
+            const avail = (s.pilha || []).length - (coladaRarity(s.codigo) ? 0 : 1);
+            if (avail <= 0) return;
+            const sorted = [...(s.pilha || [])].sort((a, b) => RARITY_ORDER.indexOf(a) - RARITY_ORDER.indexOf(b));
+            for (let i = 0; i < avail; i++) copies.push({ codigo: s.codigo, rar: sorted[i] || 'base' });
+        });
+        copies.sort((a, b) => RARITY_ORDER.indexOf(a.rar) - RARITY_ORDER.indexOf(b.rar));
+        machineDeposit = copies.slice(0, MACHINE_COST).map(c => c.codigo);
+        if (window.SFX) window.SFX.play(machineDeposit.length === MACHINE_COST ? 'tick' : 'error_soft');
+        if (machineDeposit.length < MACHINE_COST) {
+            showToast(`Você só tem ${machineDeposit.length} repetida(s) de sobra pra máquina.`, 'error');
+        }
+        renderMachine();
+    }
+
     function renderPickerModal() {
         const grid = document.getElementById('tmp-grid');
         if (!grid) return;
@@ -2758,6 +2777,7 @@ document.addEventListener('DOMContentLoaded', () => {
     function machinePull() {
         if (machineBusy || machineDeposit.length < MACHINE_COST) return;
         machineBusy = true;
+        hidePrizeActions();
 
         // consome as 7 repetidas escolhidas (a mais fraca de cada figurinha)
         const stickers = loadStickers();
@@ -2834,11 +2854,53 @@ document.addEventListener('DOMContentLoaded', () => {
             });
         }
         showToast(`A máquina soltou: ${won.nome}! 🎰 (foi pra sua pilha)`, 'success');
+        showPrizeActions(won);
         renderMachine();
     }
 
+    // ---- prêmio: ver de perto / colar / trocar mais ----
+    let _lastPrize = null;
+    function showPrizeActions(won) {
+        _lastPrize = won;
+        const box = document.getElementById('tm-prize-actions');
+        if (box) box.classList.remove('hidden');
+        const prize = document.getElementById('tm-prize');
+        if (prize) prize.classList.add('clickable');
+    }
+    function hidePrizeActions() {
+        _lastPrize = null;
+        const box = document.getElementById('tm-prize-actions');
+        if (box) box.classList.add('hidden');
+        const prize = document.getElementById('tm-prize');
+        if (prize) { prize.classList.remove('clickable', 'show'); prize.innerHTML = ''; }
+    }
+    (function wirePrizeActions() {
+        const prize = document.getElementById('tm-prize');
+        if (prize) prize.addEventListener('click', () => { if (_lastPrize) openFigZoom(_lastPrize.codigo); });
+        const zoomB = document.getElementById('tm-prize-zoom');
+        if (zoomB) zoomB.addEventListener('click', () => { if (_lastPrize) openFigZoom(_lastPrize.codigo); });
+        const glueB = document.getElementById('tm-prize-glue');
+        if (glueB) glueB.addEventListener('click', () => { if (_lastPrize) goColarNoAlbum(_lastPrize.codigo); });
+        const moreB = document.getElementById('tm-prize-more');
+        if (moreB) moreB.addEventListener('click', () => { hidePrizeActions(); renderMachine(); });
+    })();
+
+    // puxa a alavanca com o movimentinho e então roda a máquina
+    function pullWithLeverAnim() {
+        if (machineBusy || machineDeposit.length < MACHINE_COST) return;
+        const lever = document.getElementById('tm-lever');
+        if (lever) {
+            lever.style.setProperty('--pull', '1');
+            setTimeout(() => lever.style.setProperty('--pull', '0'), 260);
+        }
+        if (window.SFX) window.SFX.play('toggle');
+        setTimeout(machinePull, 200);
+    }
+
     document.getElementById('tm-add').addEventListener('click', openPickerModal);
-    document.getElementById('tm-pull').addEventListener('click', machinePull);
+    document.getElementById('tm-pull').addEventListener('click', pullWithLeverAnim);
+    const tmAuto = document.getElementById('tm-auto');
+    if (tmAuto) tmAuto.addEventListener('click', autoFillMachine);
     document.getElementById('tmp-close').addEventListener('click', closePickerModal);
     document.getElementById('tmp-confirm').addEventListener('click', () => {
         if (machineDeposit.length === MACHINE_COST) { closePickerModal(); renderMachine(); }
@@ -2849,37 +2911,34 @@ document.addEventListener('DOMContentLoaded', () => {
     });
     modals.tmPicker.addEventListener('click', e => { if (e.target === modals.tmPicker) closePickerModal(); });
 
-    // alavanca: arrastar pra baixo puxa
+    // alavanca: arrastar pra baixo OU só tocar puxa
     (function wireLever() {
         const lever = document.getElementById('tm-lever');
         if (!lever) return;
-        let dragging = false, startY = 0;
+        let dragging = false, startY = 0, moved = 0;
         const setPull = f => { f = Math.max(0, Math.min(1, f)); lever.style.setProperty('--pull', f.toFixed(2)); return f; };
         lever.addEventListener('pointerdown', e => {
             if (machineBusy || machineDeposit.length < MACHINE_COST) return;
-            dragging = true; startY = e.clientY;
+            dragging = true; startY = e.clientY; moved = 0;
             lever.classList.add('grabbing');
             try { lever.setPointerCapture(e.pointerId); } catch (_) {}
         });
         lever.addEventListener('pointermove', e => {
             if (!dragging) return;
-            setPull((e.clientY - startY) / 90);
+            moved = e.clientY - startY;
+            setPull(moved / 90);
         });
         const release = () => {
             if (!dragging) return;
             dragging = false;
             lever.classList.remove('grabbing');
             const f = parseFloat(lever.style.getPropertyValue('--pull')) || 0;
-            lever.style.transition = 'none';
-            lever.style.setProperty('--pull', '1');
-            requestAnimationFrame(() => {
-                lever.style.transition = '';
-                lever.style.setProperty('--pull', '0');
-            });
-            if (f >= 0.55) machinePull();
+            lever.style.setProperty('--pull', '0');
+            if (f >= 0.55) { if (window.SFX) window.SFX.play('toggle'); setTimeout(machinePull, 120); }
+            else pullWithLeverAnim();   // tap simples também puxa
         };
         lever.addEventListener('pointerup', release);
-        lever.addEventListener('pointercancel', release);
+        lever.addEventListener('pointercancel', () => { dragging = false; lever.classList.remove('grabbing'); lever.style.setProperty('--pull', '0'); });
     })();
 
     // ─── ABRIR PACOTE ────────────────────────────────────
