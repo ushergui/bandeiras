@@ -2335,3 +2335,54 @@
 .rk-name { flex: 1; font-weight: 700; color: #fff; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .rk-score { font-weight: 900; color: #4ade80; }
 .rk-empty { text-align: center; color: var(--text-muted); padding: 24px 10px; font-size: .88rem; }
+
+/* ═══ FASE 34 — desafio entre amigos ═══ */
+.duels .setup-head { margin-bottom: 12px; }
+.duel-new { width: 100%; margin-bottom: 12px; }
+.duel-tabs { margin-bottom: 10px; }
+.duels .ot-pane { display: block; }
+.duels .ot-pane.hidden { display: none; }
+
+.dc-card {
+  background: rgba(9,16,28,.5); border: 1px solid rgba(255,255,255,.12);
+  border-radius: 14px; padding: 12px; display: flex; flex-direction: column; gap: 8px;
+}
+.dc-top { display: flex; align-items: center; gap: 8px; }
+.dc-icon { font-size: 1.3rem; }
+.dc-mode { font-weight: 800; color: #fff; font-size: .92rem; }
+.dc-mode small { color: var(--text-muted); font-weight: 600; }
+.dc-line { font-size: .85rem; display: flex; flex-wrap: wrap; gap: 4px 8px; align-items: baseline; }
+.dc-mut { color: var(--text-muted); }
+.dc-win { color: #4ade80; }
+.dc-lose { color: #f87171; }
+.dc-play, .dc-cancel { align-self: flex-start; min-height: 0; padding: 9px 16px; font-size: .85rem; }
+.dc-cancel { background: rgba(255,255,255,.08); border: 1px solid rgba(255,255,255,.18); color: #fff; border-radius: 10px; }
+
+.mode-button.has-pend, #btn-duels.has-pend { position: relative; }
+#btn-duels.has-pend::after {
+  content: ""; position: absolute; top: 8px; right: 8px; width: 10px; height: 10px;
+  border-radius: 50%; background: #f472b6; box-shadow: 0 0 8px #f472b6;
+}
+
+/* modal "novo desafio" */
+.dcm { max-width: 460px; text-align: left; }
+.dcm-label { font-weight: 800; font-size: .8rem; color: var(--text-muted); margin: 14px 0 6px; text-transform: uppercase; letter-spacing: .04em; }
+.dcm-modes { display: flex; flex-wrap: wrap; gap: 8px; }
+.dcm-mode {
+  flex: 1 1 46%; min-height: 0; padding: 11px 10px; border-radius: 11px; font-weight: 700; font-size: .85rem;
+  background: rgba(255,255,255,.06); border: 1px solid rgba(255,255,255,.14); color: #fff; text-align: left;
+}
+.dcm-mode.sel { background: color-mix(in srgb, #8b5cf6 30%, transparent); border-color: #a855f7; }
+.dcm-levels { display: flex; gap: 6px; }
+.dcm-lvl {
+  flex: 1; min-height: 0; padding: 12px 0; border-radius: 10px; font-weight: 900; font-size: 1rem;
+  background: rgba(255,255,255,.06); border: 1px solid rgba(255,255,255,.14); color: #fff;
+}
+.dcm-lvl.sel { background: color-mix(in srgb, #22c55e 28%, transparent); border-color: #4ade80; }
+.dcm-friend { margin-top: 8px; }
+.dcm-friend.hidden { display: none; }
+#dcm-friend {
+  width: 100%; padding: 12px 14px; border-radius: 10px; font-size: .95rem;
+  background: rgba(0,0,0,.3); border: 1px solid rgba(255,255,255,.18); color: #fff;
+}
+#dcm-start { width: 100%; margin-top: 16px; }

@@ -362,6 +362,7 @@ document.addEventListener('DOMContentLoaded', () => {
         main: document.getElementById('main-menu'),
         setup: document.getElementById('game-setup'),
         trades: document.getElementById('trades-menu'),
+        duels: document.getElementById('duels-menu'),
         game: document.getElementById('game-screen'),
         passport: document.getElementById('passport-menu'),
         album: document.getElementById('album-menu'),
@@ -379,7 +380,8 @@ document.addEventListener('DOMContentLoaded', () => {
         facts: document.getElementById('facts-modal'),
         achievement: document.getElementById('achievement-modal'),
         pack: document.getElementById('pack-modal'),
-        tmPicker: document.getElementById('tm-picker-modal')
+        tmPicker: document.getElementById('tm-picker-modal'),
+        duelCompose: document.getElementById('duel-compose-modal')
     };
 
     const elements = {
@@ -785,6 +787,11 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
     function pickRoundCountry(pool) {
+        // desafio entre amigos: perguntas fixas, na ordem gravada
+        if (gameState.duel) {
+            const q = gameState.duel.questions[gameState.duelIdx];
+            return q ? albumItem(q.code) : null;
+        }
         if (!pool || !pool.length) return null;
         const rn = gameState.roundNum || 0;
         const due = (gameState.review || []).find(r => r.dueRound <= rn && pool.some(c => c.codigo === r.code));
@@ -881,12 +888,13 @@ document.addEventListener('DOMContentLoaded', () => {
                 const all = [...new Set(countries.map(c => c.continente))];
                 let sel = gameState.availableCountries;
                 correctAnswer = pickRoundCountry(sel);
-                if (!correctAnswer) { handleLevelComplete(); return; }
+                if (!correctAnswer) { gameState.duel ? finishDuel() : handleLevelComplete(); return; }
 
                 elements.instruction.textContent = `Qual o continente ${correctAnswer.artigo} ${correctAnswer.nome}?`;
                 playAudio(`continente_do_pais/${correctAnswer.nome}`);
 
-                let opts = [correctAnswer.continente, ...shuffle(all.filter(c => c !== correctAnswer.continente)).slice(0, 3)];
+                let opts = gameState.duel ? duelOpts()
+                    : [correctAnswer.continente, ...shuffle(all.filter(c => c !== correctAnswer.continente)).slice(0, 3)];
                 displayTextOptions(shuffle(opts));
             }
         },
@@ -895,8 +903,9 @@ document.addEventListener('DOMContentLoaded', () => {
             setup: () => {
                 elements.memoryGame.classList.add('hidden');
                 const pool = gameState.availableCountries;
-                if (pool.length === 0) { handleLevelComplete(); return; }
+                if (!gameState.duel && pool.length === 0) { handleLevelComplete(); return; }
                 correctAnswer = pickRoundCountry(pool);
+                if (!correctAnswer) { finishDuel(); return; }
 
                 elements.instruction.textContent = 'De qual país é esta bandeira?';
                 const media = document.getElementById('question-media');
@@ -905,7 +914,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     media.classList.remove('hidden');
                 }
 
-                const opts = [correctAnswer, ...wrongOptions(countries, 3)];
+                const opts = gameState.duel ? duelOpts() : [correctAnswer, ...wrongOptions(countries, 3)];
                 displayNameOptions(shuffle(opts));
             }
         },
@@ -914,15 +923,16 @@ document.addEventListener('DOMContentLoaded', () => {
             setup: () => {
                 elements.memoryGame.classList.add('hidden');
                 const pool = gameState.availableCountries;
-                if (pool.length === 0) { handleLevelComplete(); return; }
+                if (!gameState.duel && pool.length === 0) { handleLevelComplete(); return; }
                 correctAnswer = pickRoundCountry(pool);
+                if (!correctAnswer) { finishDuel(); return; }
 
                 elements.instruction.textContent = `Toque no contorno ${correctAnswer.artigo} ${correctAnswer.nome}`;
                 playAudio(`mapa/${correctAnswer.codigo}`);
                 const media = document.getElementById('question-media');
                 if (media) { media.innerHTML = `<img src="${itemImg(correctAnswer)}" alt="bandeira">`; media.classList.remove('hidden'); }
 
-                const opts = shuffle([correctAnswer, ...wrongOptions(countries, 3)]);
+                const opts = shuffle(gameState.duel ? duelOpts() : [correctAnswer, ...wrongOptions(countries, 3)]);
                 elements.options.classList.remove('hidden');
                 elements.options.innerHTML = '';
                 elements.options.className = 'options-container shape-options';
@@ -1061,14 +1071,22 @@ document.addEventListener('DOMContentLoaded', () => {
 
     function setupStandardRound(cb, type) { prepareStandardLogic(cb, type, false); }
 
+    // opções gravadas no desafio (mesmas pros dois jogadores)
+    function duelOpts() {
+        const q = gameState.duel.questions[gameState.duelIdx] || { opts: [] };
+        if (gameConfig.mode === 'ContinentePorPais') return q.opts.slice();
+        return q.opts.map(albumItem).filter(Boolean);
+    }
+
     function prepareStandardLogic(cb, type, random) {
         elements.memoryGame.classList.add('hidden');
         let pool = gameState.availableCountries;
-        if (pool.length === 0) { handleLevelComplete(); return; }
+        if (!gameState.duel && pool.length === 0) { handleLevelComplete(); return; }
 
-        correctAnswer = random ? shuffle([...pool])[0] : pickRoundCountry(pool);
+        correctAnswer = (random && !gameState.duel) ? shuffle([...pool])[0] : pickRoundCountry(pool);
+        if (!correctAnswer) { finishDuel(); return; }
         const base = gameState._base || countries;
-        const opts = [correctAnswer, ...wrongOptions(base, 3)];
+        const opts = gameState.duel ? duelOpts() : [correctAnswer, ...wrongOptions(base, 3)];
 
         cb(correctAnswer); displayFlagOptions(shuffle(opts), false);
     }
@@ -1137,6 +1155,17 @@ document.addEventListener('DOMContentLoaded', () => {
                 currentLevel: sl, availableCountries: pool, totalQuestionsInLevel: pool.length,
                 attemptsThisRound: 0, _base: base, roundNum: 0, review: []
             };
+
+            // DESAFIO ENTRE AMIGOS — perguntas fixas
+            if (conf.duel) {
+                const qs = conf.duel.questions || [];
+                gameState.duel = conf.duel;
+                gameState.duelIdx = 0;
+                gameState.duelTotal = qs.length;
+                gameState.availableCountries = qs.map(q => albumItem(q.code)).filter(Boolean);
+                gameState.totalQuestionsInLevel = qs.length;
+                gameState._base = [...countries, ...ESTADO_ITEMS];
+            }
         }
         updateStats(); updateProgressBar(); nextRound();
     }
@@ -1145,6 +1174,10 @@ document.addEventListener('DOMContentLoaded', () => {
         if (gameState.chances === 0 && gameConfig.lives !== 'infinite') { gameOver(false); return; }
 
         gameState.roundNum = (gameState.roundNum || 0) + 1;
+        if (gameState.duel) {
+            gameState.duelIdx = gameState.roundNum - 1;
+            if (gameState.duelIdx >= gameState.duelTotal) { finishDuel(); return; }
+        }
         gameState.hintsUsed = 0;
         buttons.facts.classList.add('hidden'); buttons.next.classList.add('hidden');
         buttons.hint.classList.toggle('hidden', !HINT_MODES.includes(gameConfig.mode));
@@ -1194,7 +1227,7 @@ document.addEventListener('DOMContentLoaded', () => {
             let pts = Math.max(1, 10 - (gameState.attemptsThisRound * 2)) + (gameState.streak > 1 ? gameState.streak : 0);
             gameState.score += pts;
 
-            gameState.availableCountries = gameState.availableCountries.filter(c => c.codigo !== correctAnswer.codigo);
+            if (!gameState.duel) gameState.availableCountries = gameState.availableCountries.filter(c => c.codigo !== correctAnswer.codigo);
             document.querySelectorAll('.flag-option, .text-option').forEach(x => x.classList.add('disabled'));
             el.classList.remove('disabled'); el.classList.add('correct');
 
@@ -1202,7 +1235,7 @@ document.addEventListener('DOMContentLoaded', () => {
             buttons.next.classList.remove('hidden'); buttons.facts.classList.remove('hidden');
             updateStats(); updateProgressBar();
 
-            if (gameState.availableCountries.length === 0) setTimeout(handleLevelComplete, 1000);
+            if (!gameState.duel && gameState.availableCountries.length === 0) setTimeout(handleLevelComplete, 1000);
         } else {
             playSound('wrong'); el.classList.add('wrong', 'disabled'); gameState.streak = 0;
             if (gameConfig.lives !== 'infinite') gameState.chances--;
@@ -1243,6 +1276,13 @@ document.addEventListener('DOMContentLoaded', () => {
                 gameLocked = true;
             }
             elements.feedback.style.color = '#FF6347';
+
+            // desafio: uma tentativa por pergunta — trava e mostra "Próxima"
+            if (gameState.duel && type !== 'flag') {
+                gameLocked = true;
+                document.querySelectorAll('.flag-option, .text-option, .shape-option').forEach(x => x.classList.add('disabled'));
+                buttons.next.classList.remove('hidden');
+            }
 
             if (gameState.chances === 0 && gameConfig.lives !== 'infinite') setTimeout(() => gameOver(false), 1000);
             updateStats();
@@ -1430,7 +1470,7 @@ document.addEventListener('DOMContentLoaded', () => {
     // --- BOTÃO "VOLTAR" DO NAVEGADOR: nunca sai do app ---
     (function wireHardwareBack() {
         const BACK_TO = {
-            game: 'main', setup: 'main', album: 'main', passport: 'main', trades: 'main',
+            game: 'main', setup: 'main', album: 'main', passport: 'main', trades: 'main', duels: 'main',
             partyLobbyHost: 'main', partyJoinClient: 'main', partyWaitClient: 'main',
             partyGameHost: 'main', partyGameClient: 'main', partyLeaderboardHost: 'main',
         };
@@ -1511,9 +1551,15 @@ document.addEventListener('DOMContentLoaded', () => {
         } else {
             elements.stat1.textContent = `⭐ ${gameState.score}`;
             elements.stat2.textContent = `🔥 ${gameState.streak}`;
-            elements.stat3.textContent = gameConfig.lives === 'infinite' ? `❤️ ∞` : `❤️ ${gameState.chances}`;
-            let cur = gameState.totalQuestionsInLevel - gameState.availableCountries.length;
-            let tot = gameState.totalQuestionsInLevel || 1;
+            let cur, tot;
+            if (gameState.duel) {
+                elements.stat3.textContent = `📍 ${Math.min(gameState.roundNum || 1, gameState.duelTotal)}/${gameState.duelTotal}`;
+                cur = gameState.duelIdx; tot = gameState.duelTotal;
+            } else {
+                elements.stat3.textContent = gameConfig.lives === 'infinite' ? `❤️ ∞` : `❤️ ${gameState.chances}`;
+                cur = gameState.totalQuestionsInLevel - gameState.availableCountries.length;
+                tot = gameState.totalQuestionsInLevel || 1;
+            }
             updateProgressBar((cur / tot) * 100);
         }
     }
@@ -2755,6 +2801,216 @@ document.addEventListener('DOMContentLoaded', () => {
     const ALL_CODES = countries.map(c => c.codigo);
     let tradeOther = null, tradeGive = null, tradeGet = null;
 
+    // ═══════════════ DESAFIO ENTRE AMIGOS (assíncrono) ═══════════════
+    const DUEL_Q = 8;
+    let duelUnsub = null;
+
+    function buildDuelQuestions(mode, difficulty, n) {
+        n = n || DUEL_Q;
+        let pool = countries.filter(c => c.nivel === difficulty);
+        if (pool.length < n + 4) pool = countries.filter(c => c.nivel <= Math.max(2, difficulty));
+        const picks = shuffle([...pool]).slice(0, n);
+        const conts = [...new Set(countries.map(c => c.continente))];
+        return picks.map(c => {
+            if (mode === 'ContinentePorPais') {
+                const wrong = shuffle(conts.filter(x => x !== c.continente)).slice(0, 3);
+                return { code: c.codigo, opts: shuffle([c.continente, ...wrong]) };
+            }
+            const same = shuffle(countries.filter(x => x.codigo !== c.codigo && x.continente === c.continente));
+            const other = shuffle(countries.filter(x => x.codigo !== c.codigo && x.continente !== c.continente));
+            const wrong = [...same, ...other].slice(0, 3).map(x => x.codigo);
+            return { code: c.codigo, opts: shuffle([c.codigo, ...wrong]) };
+        });
+    }
+
+    function playDuel(d) {
+        if (modals.duelCompose) modals.duelCompose.classList.add('hidden');
+        startGame({
+            mode: d.mode, type: null, level: d.difficulty, lives: 'infinite', pool: 'paises',
+            duel: { id: d.id, mode: d.mode, difficulty: d.difficulty, questions: d.questions },
+        });
+    }
+
+    async function finishDuel() {
+        if (!gameState.duel || gameState._duelDone) return;
+        gameState._duelDone = true;
+        const d = gameState.duel;
+        gameLocked = true;
+        buttons.next.classList.add('hidden'); buttons.facts.classList.add('hidden');
+        buttons.hint.classList.add('hidden'); buttons.playAgain.classList.add('hidden');
+        elements.options.classList.add('hidden');
+        const media = document.getElementById('question-media');
+        if (media) { media.classList.add('hidden'); media.innerHTML = ''; }
+        screens.game.classList.add('game-over-view');
+        document.getElementById('learn-summary').classList.add('hidden');
+        elements.instruction.textContent = 'Você terminou o desafio!';
+        elements.feedback.textContent = `${gameState.score} pontos · enviando…`;
+        elements.feedback.style.color = '#32CD32';
+        if (!calmMode && typeof confetti !== 'undefined') confetti({ particleCount: 90, spread: 70, origin: { y: .5 } });
+        markModePlayed(gameConfig.mode);
+
+        let res = null;
+        if (window.OnlineDuels) { try { res = await OnlineDuels.submitScore(d.id, gameState.score); } catch (e) {} }
+        if (res && res.error) elements.feedback.textContent = `${gameState.score} pontos (não deu pra enviar: ${res.error})`;
+        setTimeout(() => { openDuels(); if (res && !res.error) duelOutcomeToast(d, res); }, 1300);
+    }
+
+    function duelOutcomeToast(d, res) {
+        if (res.status !== 'completo') {
+            showToast('Desafio enviado! Você já vê o resultado quando o amigo jogar.', 'info', 4000);
+            return;
+        }
+        const meFrom = window.OnlineDuels && OnlineDuels.myUid() === d.from_user;
+        const my = meFrom ? res.from_score : res.to_score;
+        const their = meFrom ? res.to_score : res.from_score;
+        if (my > their) grantBonusPack('duel-' + d.id, 2, `Você venceu o desafio ${my} a ${their}!`);
+        else if (my === their) grantBonusPack('duel-' + d.id, 1, `Empate no desafio (${my} a ${my})!`);
+        else showToast(`Você perdeu o desafio ${my} a ${their}. Revanche? 😤`, 'info', 4500);
+    }
+
+    function duelRole(d) {
+        const me = window.OnlineDuels ? OnlineDuels.myUid() : null;
+        const meFrom = d.from_user === me;
+        return {
+            meFrom,
+            myDone: meFrom ? d.from_done : d.to_done,
+            myScore: meFrom ? d.from_score : d.to_score,
+            theirScore: meFrom ? d.to_score : d.from_score,
+            theirName: (meFrom ? d.to_username : d.from_username) || 'alguém',
+            isMural: !d.to_user && !meFrom,
+        };
+    }
+
+    function duelCardHTML(d) {
+        const m = MODE_META[d.mode] || { icon: '⚔️', label: d.mode };
+        const r = duelRole(d);
+        let line, btn = '';
+        if (d.status === 'cancelado') {
+            line = '<span class="dc-mut">Cancelado</span>';
+        } else if (d.status === 'completo') {
+            const win = r.myScore > r.theirScore, tie = r.myScore === r.theirScore;
+            line = `<b class="${win ? 'dc-win' : tie ? '' : 'dc-lose'}">${win ? '🏆 Você venceu' : tie ? '🤝 Empate' : 'Você perdeu'}</b>
+                    <span class="dc-mut">${r.myScore} × ${r.theirScore} · ${r.theirName}</span>`;
+        } else if (!r.myDone) {
+            line = r.isMural
+                ? `<span class="dc-mut">Mural · desafio de ${d.from_username}</span>`
+                : `<span class="dc-mut">${r.meFrom ? 'Você desafiou' : 'Desafio de'} ${r.theirName}</span>`;
+            btn = `<button class="btn-primary dc-play" data-duel="${d.id}">▶ ${r.isMural ? 'Aceitar e jogar' : 'Jogar'}</button>`;
+        } else {
+            line = `<span class="dc-mut">Você fez ${r.myScore} · aguardando ${r.theirName}</span>`;
+            if (r.meFrom && !d.to_done) btn = `<button class="tm-btn dc-cancel" data-duel="${d.id}">Cancelar</button>`;
+        }
+        return `<div class="dc-card"><div class="dc-top"><span class="dc-icon">${m.icon}</span>
+            <span class="dc-mode">${m.label}<small> · nível ${d.difficulty}</small></span></div>
+            <div class="dc-line">${line}</div>${btn}</div>`;
+    }
+
+    async function renderDuels() {
+        const mineBox = document.getElementById('duel-mine-list');
+        const muralBox = document.getElementById('duel-mural-list');
+        if (!mineBox) return;
+        mineBox.innerHTML = '<p class="ot-empty">carregando…</p>';
+        const [mine, mural] = await Promise.all([OnlineDuels.mine(), OnlineDuels.mural()]);
+        mineBox.innerHTML = mine.length ? mine.map(duelCardHTML).join('')
+            : '<p class="ot-empty">Nenhum desafio ainda. Toque em “Novo desafio”.</p>';
+        muralBox.innerHTML = mural.length ? mural.map(duelCardHTML).join('')
+            : '<p class="ot-empty">Nenhum desafio no mural agora.</p>';
+
+        const pend = mine.filter(d => d.status === 'aberto' && !duelRole(d).myDone).length;
+        const badge = document.getElementById('duel-mine-badge');
+        if (badge) { badge.hidden = !pend; badge.textContent = pend; }
+        const hubB = document.getElementById('btn-duels');
+        if (hubB) hubB.classList.toggle('has-pend', pend > 0);
+
+        const wire = (box) => box.querySelectorAll('[data-duel]').forEach(b => b.addEventListener('click', async () => {
+            const all = [...mine, ...mural];
+            const d = all.find(x => x.id === b.dataset.duel);
+            if (!d) return;
+            if (b.classList.contains('dc-cancel')) { await OnlineDuels.cancel(d.id); renderDuels(); return; }
+            b.disabled = true;
+            const fresh = await OnlineDuels.get(d.id) || d;
+            playDuel(fresh);
+        }));
+        wire(mineBox); wire(muralBox);
+    }
+
+    function duelSubscribe() {
+        if (duelUnsub || !window.OnlineDuels) return;
+        duelUnsub = OnlineDuels.subscribe((payload) => {
+            const d = payload.new || {};
+            if (showScreen._current === 'duels') { renderDuels(); return; }
+            if (d.status === 'completo') showToast('⚔️ Um desafio seu terminou! Veja quem ganhou.', 'success', 4000);
+            else if (d.to_done || d.from_done) showToast('⚔️ Seu adversário jogou o desafio!', 'info', 3500);
+        });
+    }
+
+    async function openDuels() {
+        const on = window.DG_ONLINE && window.OnlineDuels;
+        document.getElementById('duels-offline-hint').hidden = !!on;
+        ['duel-new'].forEach(id => { const e = document.getElementById(id); if (e) e.style.display = on ? '' : 'none'; });
+        document.querySelectorAll('#duels-menu .duel-tabs, #duels-menu .ot-pane')
+            .forEach(el => el.style.display = on ? '' : 'none');
+        showScreen('duels');
+        if (on) { renderDuels(); duelSubscribe(); }
+    }
+
+    // tabs meus/mural
+    document.querySelectorAll('#duels-menu [data-dt]').forEach(t => t.addEventListener('click', () => {
+        document.querySelectorAll('#duels-menu [data-dt]').forEach(x => x.classList.toggle('active', x === t));
+        document.getElementById('duel-meus').classList.toggle('hidden', t.dataset.dt !== 'meus');
+        document.getElementById('duel-mural').classList.toggle('hidden', t.dataset.dt !== 'mural');
+    }));
+
+    // ---- modal "Novo desafio" ----
+    let dcmMode = null, dcmLvl = null, dcmTarget = null;
+    const dcmStart = document.getElementById('dcm-start');
+    const dcmErr = document.getElementById('dcm-error');
+    function dcmRefresh() {
+        const friendOk = dcmTarget !== 'direto' || document.getElementById('dcm-friend').value.trim().length >= 2;
+        dcmStart.disabled = !(dcmMode && dcmLvl && dcmTarget && friendOk);
+    }
+    function showDcmError(m) { dcmErr.textContent = m; dcmErr.classList.remove('hidden'); }
+    document.querySelectorAll('#dcm-modes .dcm-mode').forEach(b => b.addEventListener('click', () => {
+        dcmMode = b.dataset.mode;
+        document.querySelectorAll('#dcm-modes .dcm-mode').forEach(x => x.classList.toggle('sel', x === b));
+        dcmRefresh();
+    }));
+    document.querySelectorAll('#dcm-levels .dcm-lvl').forEach(b => b.addEventListener('click', () => {
+        dcmLvl = +b.dataset.lvl;
+        document.querySelectorAll('#dcm-levels .dcm-lvl').forEach(x => x.classList.toggle('sel', x === b));
+        dcmRefresh();
+    }));
+    document.querySelectorAll('#dcm-target .dcm-mode').forEach(b => b.addEventListener('click', () => {
+        dcmTarget = b.dataset.target;
+        document.querySelectorAll('#dcm-target .dcm-mode').forEach(x => x.classList.toggle('sel', x === b));
+        document.getElementById('dcm-friend-row').classList.toggle('hidden', dcmTarget !== 'direto');
+        dcmRefresh();
+    }));
+    document.getElementById('dcm-friend').addEventListener('input', dcmRefresh);
+    document.getElementById('dcm-close').addEventListener('click', () => modals.duelCompose.classList.add('hidden'));
+    document.getElementById('duel-new').addEventListener('click', () => {
+        dcmErr.classList.add('hidden');
+        modals.duelCompose.classList.remove('hidden');
+    });
+    dcmStart.addEventListener('click', async () => {
+        dcmErr.classList.add('hidden');
+        dcmStart.disabled = true; dcmStart.textContent = 'Montando…';
+        let toUser = null;
+        if (dcmTarget === 'direto') {
+            toUser = await OnlineDuels.findUser(document.getElementById('dcm-friend').value);
+            if (!toUser) { showDcmError('Não achei esse usuário.'); dcmStart.disabled = false; dcmStart.textContent = 'Montar e jogar'; return; }
+            if (toUser.id === OnlineDuels.myUid()) { showDcmError('Escolha um amigo, não você.'); dcmStart.disabled = false; dcmStart.textContent = 'Montar e jogar'; return; }
+        }
+        const questions = buildDuelQuestions(dcmMode, dcmLvl, DUEL_Q);
+        const r = await OnlineDuels.create(dcmMode, dcmLvl, questions, toUser);
+        dcmStart.disabled = false; dcmStart.textContent = 'Montar e jogar';
+        if (r.error) { showDcmError(r.error); return; }
+        playDuel(r.duel);
+    });
+    document.getElementById('duels-back').addEventListener('click', () => showScreen('main'));
+    const btnDuels = document.getElementById('btn-duels');
+    if (btnDuels) btnDuels.addEventListener('click', openDuels);
+
     function openTrades() {
         tradeOther = tradeGive = tradeGet = null;
         document.getElementById('trades-panel').classList.add('hidden');
@@ -3754,6 +4010,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     document.getElementById('close-constructive-button').addEventListener('click', () => {
         document.getElementById('constructive-feedback-modal').classList.add('hidden');
+        if (gameState.duel) { nextRound(); return; }
         if (gameConfig.lives === 'infinite' || gameState.chances > 0) {
             if (gameState.availableCountries.length > 0) {
                 nextRound();

@@ -17,20 +17,20 @@
     <link rel="icon" href="assets/icons/favicon-32.png" sizes="32x32" type="image/png">
     <link rel="apple-touch-icon" href="assets/icons/apple-touch-icon.png">
 
-    <link rel="stylesheet" href="style.css?v=20260908r">
-    <link rel="stylesheet" href="css/app-shell.css?v=20260908r">
-    <link rel="stylesheet" href="css/screens.css?v=20260908r">
+    <link rel="stylesheet" href="style.css?v=20260908s">
+    <link rel="stylesheet" href="css/app-shell.css?v=20260908s">
+    <link rel="stylesheet" href="css/screens.css?v=20260908s">
     <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800;900&display=swap" rel="stylesheet">
     <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
     <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
-    <script src="countries.js?v=20260908r"></script>
-    <script src="collections.js?v=20260908r"></script>
-    <script src="figurinhas_data.js?v=20260908r"></script>
-    <script src="curiosities.js?v=20260908r"></script>
-    <script src="curiosities_br.js?v=20260908r"></script>
-    <script src="js/sfx.js?v=20260908r"></script>
-    <script src="js/config.js?v=20260908r"></script>
-    <script src="js/vendor/supabase.min.js?v=20260908r"></script>
+    <script src="countries.js?v=20260908s"></script>
+    <script src="collections.js?v=20260908s"></script>
+    <script src="figurinhas_data.js?v=20260908s"></script>
+    <script src="curiosities.js?v=20260908s"></script>
+    <script src="curiosities_br.js?v=20260908s"></script>
+    <script src="js/sfx.js?v=20260908s"></script>
+    <script src="js/config.js?v=20260908s"></script>
+    <script src="js/vendor/supabase.min.js?v=20260908s"></script>
 </head>
 
 <body>
@@ -144,13 +144,16 @@
             </section>
 
             <section class="hub-section">
-                <h2 class="hub-title">Jogar com amigos <span class="hub-badge">beta</span></h2>
+                <h2 class="hub-title">Jogar com amigos</h2>
                 <div class="menu-grid hub-party">
+                    <button class="mode-button" id="btn-duels">
+                        <span class="mb-icon">⚔️</span><span>Desafiar amigo</span>
+                    </button>
                     <button class="mode-button party-mode" id="btn-host-party">
-                        <span class="mb-icon">📺</span><span>Criar sala (TV)</span>
+                        <span class="mb-icon">📺</span><span>Criar sala (TV) <span class="hub-badge">beta</span></span>
                     </button>
                     <button class="mode-button party-mode" id="btn-join-party">
-                        <span class="mb-icon">📱</span><span>Entrar c/ celular</span>
+                        <span class="mb-icon">📱</span><span>Entrar c/ celular <span class="hub-badge">beta</span></span>
                     </button>
                 </div>
             </section>
@@ -357,6 +360,63 @@
                     </div>
                 </div>
                 <button id="trades-confirm" class="btn-primary" disabled>Escolha uma de cada lado</button>
+            </div>
+        </div>
+
+        <div id="duels-menu" class="screen duels hidden">
+            <header class="setup-head">
+                <button class="setup-back" id="duels-back" aria-label="Voltar">Voltar</button>
+                <span class="setup-mode"><span class="mb-icon">⚔️</span><span>Desafiar amigo</span></span>
+            </header>
+
+            <button id="duel-new" class="btn-primary duel-new">➕ Novo desafio</button>
+
+            <div class="ot-tabs duel-tabs">
+                <button class="ot-tab active" data-dt="meus">Meus desafios <span id="duel-mine-badge" class="apb-count" hidden>0</span></button>
+                <button class="ot-tab" data-dt="mural">📌 Mural</button>
+            </div>
+            <div id="duel-meus" class="ot-pane"><div id="duel-mine-list" class="ot-list"></div></div>
+            <div id="duel-mural" class="ot-pane hidden"><div id="duel-mural-list" class="ot-list"></div></div>
+
+            <p class="trades-hint" id="duels-offline-hint" hidden>O modo de desafio precisa de internet.</p>
+        </div>
+
+        <div id="duel-compose-modal" class="modal-backdrop hidden">
+            <div class="modal-content dcm">
+                <header class="tmp-head">
+                    <h2>Novo desafio</h2>
+                    <button id="dcm-close" class="tmp-x" aria-label="Fechar">✕</button>
+                </header>
+
+                <p class="dcm-label">Modo</p>
+                <div class="dcm-modes" id="dcm-modes">
+                    <button class="dcm-mode" data-mode="BandeiraPorPais">🏳️ Qual a Bandeira?</button>
+                    <button class="dcm-mode" data-mode="NomePorBandeira">🔎 De que País é?</button>
+                    <button class="dcm-mode" data-mode="PaisPorCapital">🏛️ Capital</button>
+                    <button class="dcm-mode" data-mode="ContinentePorPais">🌎 Continente</button>
+                    <button class="dcm-mode" data-mode="Mapa">🗺️ Que Formato é?</button>
+                </div>
+
+                <p class="dcm-label">Dificuldade</p>
+                <div class="dcm-levels" id="dcm-levels">
+                    <button class="dcm-lvl" data-lvl="1">1</button>
+                    <button class="dcm-lvl" data-lvl="2">2</button>
+                    <button class="dcm-lvl" data-lvl="3">3</button>
+                    <button class="dcm-lvl" data-lvl="4">4</button>
+                    <button class="dcm-lvl" data-lvl="5">5</button>
+                </div>
+
+                <p class="dcm-label">Pra quem</p>
+                <div class="dcm-modes" id="dcm-target">
+                    <button class="dcm-mode" data-target="mural">📌 Mural (qualquer amigo)</button>
+                    <button class="dcm-mode" data-target="direto">🎯 Um amigo</button>
+                </div>
+                <div id="dcm-friend-row" class="dcm-friend hidden">
+                    <input type="text" id="dcm-friend" placeholder="usuário do amigo" autocapitalize="none" spellcheck="false">
+                </div>
+
+                <p id="dcm-error" class="auth-error hidden"></p>
+                <button id="dcm-start" class="btn-primary" disabled>Montar e jogar</button>
             </div>
         </div>
 
@@ -721,8 +781,8 @@
         </div>
     </div>
 
-    <script src="script.js?v=20260908r"></script>
-    <script src="js/data-online.js?v=20260908r"></script>
+    <script src="script.js?v=20260908s"></script>
+    <script src="js/data-online.js?v=20260908s"></script>
 </body>
 
 </html>

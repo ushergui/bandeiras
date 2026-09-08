@@ -412,4 +412,62 @@
       return () => { try { sb.removeChannel(ch); } catch (e) {} };
     },
   };
+
+  // ═══════════════ OnlineDuels (desafio assíncrono entre amigos) ═══════════════
+  window.OnlineDuels = {
+    available: true,
+    myUid: () => uid,
+    async findUser(name) {
+      if (!online) return null;
+      const { data } = await sb.from('profiles').select('id,username,avatar')
+        .eq('username_lower', (name || '').trim().toLowerCase()).maybeSingle();
+      return data || null;
+    },
+    // toUser = {id, username} ou null (mural). questions = [{code, opts:[...]}]
+    async create(mode, difficulty, questions, toUser) {
+      if (!online) return { error: 'Precisa de internet pra criar um desafio.' };
+      const row = {
+        kind: 'async', mode, difficulty: difficulty || 1, questions,
+        from_user: uid, from_username: uname,
+        to_user: (toUser && toUser.id) || null,
+        to_username: (toUser && toUser.username) || null,
+      };
+      const { data, error } = await sb.from('duels').insert(row).select().single();
+      return error ? { error: error.message } : { ok: true, duel: data };
+    },
+    async mine() {
+      if (!online) return [];
+      const { data } = await sb.from('duels').select('*')
+        .or(`from_user.eq.${uid},to_user.eq.${uid}`)
+        .order('created_at', { ascending: false }).limit(50);
+      return data || [];
+    },
+    async mural() {
+      if (!online) return [];
+      const { data } = await sb.from('duels').select('*')
+        .is('to_user', null).eq('status', 'aberto').neq('from_user', uid)
+        .order('created_at', { ascending: false }).limit(40);
+      return data || [];
+    },
+    async get(id) {
+      if (!online) return null;
+      const { data } = await sb.from('duels').select('*').eq('id', id).maybeSingle();
+      return data || null;
+    },
+    async submitScore(id, score) {
+      if (!online) return { error: 'Sem internet — joga de novo quando voltar.' };
+      const { data, error } = await sb.rpc('submit_duel_score', { p_duel: id, p_score: score | 0 });
+      if (error) return { error: error.message };
+      return data || { ok: true };
+    },
+    async cancel(id) { const { data } = await sb.rpc('cancel_duel', { p_duel: id }); return data || {}; },
+    subscribe(cb) {
+      if (!online) return () => {};
+      const ch = sb.channel('duels-' + uid)
+        .on('postgres_changes', { event: '*', schema: 'public', table: 'duels', filter: `to_user=eq.${uid}` }, cb)
+        .on('postgres_changes', { event: '*', schema: 'public', table: 'duels', filter: `from_user=eq.${uid}` }, cb)
+        .subscribe();
+      return () => { try { sb.removeChannel(ch); } catch (e) {} };
+    },
+  };
 })();
