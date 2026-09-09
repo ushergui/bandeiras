@@ -17,20 +17,20 @@
     <link rel="icon" href="assets/icons/favicon-32.png" sizes="32x32" type="image/png">
     <link rel="apple-touch-icon" href="assets/icons/apple-touch-icon.png">
 
-    <link rel="stylesheet" href="style.css?v=20260908z">
-    <link rel="stylesheet" href="css/app-shell.css?v=20260908z">
-    <link rel="stylesheet" href="css/screens.css?v=20260908z">
+    <link rel="stylesheet" href="style.css?v=20260909b">
+    <link rel="stylesheet" href="css/app-shell.css?v=20260909b">
+    <link rel="stylesheet" href="css/screens.css?v=20260909b">
     <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800;900&display=swap" rel="stylesheet">
     <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
     <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
-    <script src="countries.js?v=20260908z"></script>
-    <script src="collections.js?v=20260908z"></script>
-    <script src="figurinhas_data.js?v=20260908z"></script>
-    <script src="curiosities.js?v=20260908z"></script>
-    <script src="curiosities_br.js?v=20260908z"></script>
-    <script src="js/sfx.js?v=20260908z"></script>
-    <script src="js/config.js?v=20260908z"></script>
-    <script src="js/vendor/supabase.min.js?v=20260908z"></script>
+    <script src="countries.js?v=20260909b"></script>
+    <script src="collections.js?v=20260909b"></script>
+    <script src="figurinhas_data.js?v=20260909b"></script>
+    <script src="curiosities.js?v=20260909b"></script>
+    <script src="curiosities_br.js?v=20260909b"></script>
+    <script src="js/sfx.js?v=20260909b"></script>
+    <script src="js/config.js?v=20260909b"></script>
+    <script src="js/vendor/supabase.min.js?v=20260909b"></script>
 </head>
 
 <body>
@@ -195,11 +195,11 @@
                     <button class="mode-button" id="btn-duels">
                         <span class="mb-icon">⚔️</span><span>Desafiar amigo</span>
                     </button>
-                    <button class="mode-button party-mode" id="btn-host-party">
-                        <span class="mb-icon">📺</span><span>Criar sala (TV) <span class="hub-badge">beta</span></span>
+                    <button class="mode-button" id="btn-kp-host">
+                        <span class="mb-icon">📺</span><span>Criar sala (telão)</span>
                     </button>
-                    <button class="mode-button party-mode" id="btn-join-party">
-                        <span class="mb-icon">📱</span><span>Entrar c/ celular <span class="hub-badge">beta</span></span>
+                    <button class="mode-button" id="btn-kp-join">
+                        <span class="mb-icon">📱</span><span>Entrar em sala</span>
                     </button>
                 </div>
             </section>
@@ -718,6 +718,112 @@
             </div>
         </div>
 
+        <!-- ═══ FASE 34C — Sala "Conhecimento é Poder" ═══ -->
+        <div id="kp-host" class="screen kp-host hidden">
+            <div id="kph-lobby" class="kph-view">
+                <button class="setup-back" id="kph-back" aria-label="Sair">Sair</button>
+                <div class="kph-code-box">
+                    <span class="kph-code-label">Código da sala</span>
+                    <span class="kph-code" id="kph-code">····</span>
+                </div>
+                <p class="kph-how">No celular: <b>Jogar com amigos → Entrar em sala</b> e digite o código.</p>
+                <div class="kph-players" id="kph-players"><p class="kph-empty">Esperando os jogadores…</p></div>
+                <div class="kph-config">
+                    <label>Modo
+                        <select id="kph-mode">
+                            <option value="BandeiraPorPais">Qual a Bandeira?</option>
+                            <option value="NomePorBandeira">De que País é?</option>
+                            <option value="PaisPorCapital">Capital</option>
+                            <option value="ContinentePorPais">Continente</option>
+                        </select>
+                    </label>
+                    <label>Dificuldade
+                        <select id="kph-diff"><option>1</option><option selected>2</option><option>3</option><option>4</option><option>5</option></select>
+                    </label>
+                    <label>Rodadas
+                        <select id="kph-rounds"><option>6</option><option selected>10</option><option>15</option><option>20</option></select>
+                    </label>
+                </div>
+                <button id="kph-start" class="btn-primary" disabled>Começar</button>
+            </div>
+
+            <div id="kph-play" class="kph-view hidden">
+                <div class="kph-topbar"><span id="kph-round">1/10</span><span id="kph-phase">Respondam no celular!</span></div>
+                <div class="kph-timer"><span id="kph-timer-fill"></span></div>
+                <h1 id="kph-question">…</h1>
+                <div id="kph-media" class="kph-media"></div>
+                <div id="kph-options" class="kph-options"></div>
+                <div id="kph-answered" class="kph-answered"></div>
+            </div>
+
+            <div id="kph-board" class="kph-view hidden">
+                <h2 id="kph-board-title">Placar</h2>
+                <div id="kph-board-list" class="kph-board-list"></div>
+                <p class="kph-board-next" id="kph-board-next"></p>
+            </div>
+
+            <div id="kph-podium" class="kph-view hidden">
+                <h1>🏆 Fim de jogo!</h1>
+                <div id="kph-podium-box" class="kph-podium-box"></div>
+                <div id="kph-podium-rest" class="kph-podium-rest"></div>
+                <div class="kph-podium-actions">
+                    <button id="kph-again" class="btn-primary">Jogar de novo</button>
+                    <button id="kph-close" class="pack-end-more">Encerrar</button>
+                </div>
+            </div>
+        </div>
+
+        <div id="kp-join" class="screen kp-join hidden">
+            <header class="setup-head">
+                <button class="setup-back" id="kpj-back" aria-label="Voltar">Voltar</button>
+                <span class="setup-mode"><span class="mb-icon">🎮</span><span>Entrar em sala</span></span>
+            </header>
+            <label class="auth-field">
+                <span>Código da sala</span>
+                <input type="text" id="kpj-code" maxlength="4" placeholder="ABCD" autocapitalize="characters" autocomplete="off" spellcheck="false">
+            </label>
+            <label class="auth-field" id="kpj-name-row">
+                <span>Seu nome</span>
+                <input type="text" id="kpj-name" maxlength="14" placeholder="como querem te chamar" autocomplete="off">
+            </label>
+            <p id="kpj-error" class="auth-error hidden"></p>
+            <button id="kpj-go" class="btn-primary">Entrar na sala</button>
+        </div>
+
+        <div id="kp-ctrl" class="screen kp-ctrl hidden">
+            <div id="kpc-wait" class="kpc-view">
+                <span class="kpc-av" id="kpc-me-av">🌍</span>
+                <b class="kpc-me-name" id="kpc-me-name">você</b>
+                <p id="kpc-wait-msg">Você está na sala! Olha o telão. ⏳</p>
+                <div class="kpc-players" id="kpc-players"></div>
+                <button id="kpc-leave" class="link-btn">Sair da sala</button>
+            </div>
+
+            <div id="kpc-answer" class="kpc-view hidden">
+                <p class="kpc-q" id="kpc-q">A pergunta está no telão 👀</p>
+                <div id="kpc-options" class="kpc-options"></div>
+                <div id="kpc-sab-overlay" class="kpc-sab-overlay hidden"></div>
+                <p class="kpc-feedback" id="kpc-feedback"></p>
+            </div>
+
+            <div id="kpc-sabotage" class="kpc-view hidden">
+                <h3>⚡ Sabote alguém!</h3>
+                <p class="kpc-sab-hint">Escolhe quem atrapalhar na próxima:</p>
+                <div id="kpc-sab-targets" class="kpc-sab-targets"></div>
+                <div id="kpc-sab-powers" class="kpc-sab-powers">
+                    <button data-power="borrao">🖊️<span>Borrão</span></button>
+                    <button data-power="embaralha">🔀<span>Embaralha</span></button>
+                    <button data-power="congela">❄️<span>Congela</span></button>
+                </div>
+                <button id="kpc-sab-skip" class="link-btn">Passar essa vez</button>
+            </div>
+
+            <div id="kpc-done" class="kpc-view hidden">
+                <p id="kpc-done-msg">…</p>
+                <button id="kpc-done-leave" class="link-btn">Sair</button>
+            </div>
+        </div>
+
     </div>
 
     <nav id="app-nav" class="app-nav hidden" aria-label="Navegação principal">
@@ -904,8 +1010,8 @@
         </div>
     </div>
 
-    <script src="script.js?v=20260908z"></script>
-    <script src="js/data-online.js?v=20260908z"></script>
+    <script src="script.js?v=20260909b"></script>
+    <script src="js/data-online.js?v=20260909b"></script>
 </body>
 
 </html>

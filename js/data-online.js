@@ -28,6 +28,12 @@
   const emailFor = (u) => (u || '').trim().toLowerCase().replace(/\s+/g, '-') + EMAIL_DOMAIN;
   const todayKey = () => new Date().toISOString().slice(0, 10);
 
+  // cliente sem sessão — pra convidado (sem conta) entrar numa sala de festa
+  let _anon = null;
+  const sbAnon = () => (_anon || (_anon = window.supabase.createClient(C.SUPABASE_URL, C.SUPABASE_ANON_KEY, {
+    auth: { persistSession: false, autoRefreshToken: false, detectSessionInUrl: false },
+  })));
+
   let uid = null, uname = null, uavatar = '🌍', uIsAdmin = false, uMustChange = false;
   let online = navigator.onLine;
   let readyResolve;
@@ -595,6 +601,97 @@
         send: (event, payload) => { try { ch.send({ type: 'broadcast', event, payload: payload || {} }); } catch (e) {} },
         present: () => Object.keys(ch.presenceState() || {}),
         leave: () => { try { sb.removeChannel(ch); } catch (e) {} },
+      };
+    },
+  };
+
+  // ═══════════════ OnlineParty (sala "Conhecimento é Poder": telão + celulares) ═══════════════
+  const CODE_ALPHA = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'; // sem I,O,0,1
+  const randCode = () => Array.from({ length: 4 }, () => CODE_ALPHA[Math.floor(Math.random() * CODE_ALPHA.length)]).join('');
+
+  window.OnlineParty = {
+    available: true,
+    // id do participante: uid se logado, senão um id de convidado estável na aba
+    myPid() {
+      if (uid) return uid;
+      let g = null;
+      try { g = sessionStorage.getItem('dg_guestpid'); } catch (e) {}
+      if (!g) { g = 'g-' + Math.random().toString(36).slice(2, 9); try { sessionStorage.setItem('dg_guestpid', g); } catch (e) {} }
+      return g;
+    },
+    myName: () => uname,
+    myAvatar: () => uavatar,
+    isLogged: () => !!uid,
+
+    async createRoom(config) {
+      if (!online || !uid) return { error: 'Precisa estar logado pra criar a sala.' };
+      for (let i = 0; i < 6; i++) {
+        const code = randCode();
+        const { data, error } = await sb.from('party_rooms')
+          .insert({ code, host_user: uid, host_name: uname, config: config || {} })
+          .select().single();
+        if (!error) return { ok: true, code, id: data.id };
+        if (/party_rooms/.test(error.message)) return { error: 'A sala em grupo ainda não foi ativada no servidor.' };
+        if (!/duplicate|unique/i.test(error.message)) return { error: error.message };
+      }
+      return { error: 'Não deu pra criar a sala. Tenta de novo.' };
+    },
+    async findRoom(code) {
+      code = (code || '').trim().toUpperCase();
+      if (!code) return null;
+      const cli = sbAnon();
+      const { data } = await cli.from('party_rooms').select('id,code,host_name,status,config')
+        .eq('code', code).neq('status', 'closed').maybeSingle();
+      return data || null;
+    },
+    async setRoomStatus(id, status, results) {
+      if (!online || !uid) return;
+      const patch = { status };
+      if (results !== undefined) patch.results = results;
+      try { await sb.from('party_rooms').update(patch).eq('id', id); } catch (e) {}
+    },
+
+    // canal de tempo real da sala. handlers: onPresence(list) / onLeave(pids) / onMsg(ev,payload)
+    // events broadcast: lobby, config, start, question, tick, lock, reveal, sabotage-open,
+    //                   sabotage-cast, sabotage-hit, scoreboard, gameover, answer, bye
+    joinChannel(code, me, handlers) {
+      code = (code || '').trim().toUpperCase();
+      handlers = handlers || {};
+      const cli = uid ? sb : sbAnon();
+      const pid = this.myPid();
+      const ch = cli.channel('party-' + code, {
+        config: { presence: { key: pid }, broadcast: { self: false } },
+      });
+      ch.on('presence', { event: 'sync' }, () => {
+        const st = ch.presenceState() || {};
+        const list = Object.keys(st).map((k) => {
+          const p = (st[k] && st[k][0]) || {};
+          return { pid: k, name: p.name, avatar: p.avatar, role: p.role };
+        });
+        handlers.onPresence && handlers.onPresence(list);
+      });
+      ch.on('presence', { event: 'leave' }, ({ leftPresences }) => {
+        handlers.onLeave && handlers.onLeave((leftPresences || []).map((p) => p.presence_ref ? p.key : (p.key || p.pid)));
+      });
+      const EVENTS = ['lobby', 'config', 'start', 'question', 'tick', 'lock', 'reveal',
+        'sabotage-open', 'sabotage-cast', 'sabotage-hit', 'scoreboard', 'gameover', 'answer', 'bye'];
+      EVENTS.forEach((ev) => ch.on('broadcast', { event: ev }, ({ payload }) => {
+        handlers.onMsg && handlers.onMsg(ev, payload || {});
+      }));
+      ch.subscribe(async (status) => {
+        if (status === 'SUBSCRIBED') {
+          try { await ch.track({ name: me.name, avatar: me.avatar, role: me.role, pid }); } catch (e) {}
+          handlers.onReady && handlers.onReady();
+        }
+      });
+      return {
+        pid,
+        send: (event, payload) => { try { ch.send({ type: 'broadcast', event, payload: payload || {} }); } catch (e) {} },
+        present: () => {
+          const st = ch.presenceState() || {};
+          return Object.keys(st).map((k) => ({ pid: k, ...((st[k] && st[k][0]) || {}) }));
+        },
+        leave: () => { try { cli.removeChannel(ch); } catch (e) {} },
       };
     },
   };
