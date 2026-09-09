@@ -2476,6 +2476,8 @@
 .live-end-actions { display: flex; gap: 10px; justify-content: center; flex-wrap: wrap; margin-top: 10px; }
 .live-end-actions .btn-primary { margin: 0; }
 
-#dcm-kind .dcm-mode { flex-direction: column; align-items: flex-start; gap: 2px; }
-#dcm-kind .dcm-mode small { font-weight: 600; color: var(--text-muted); font-size: .72rem; }
+#dcm-kind .dcm-mode, #dcm-pace .dcm-mode { flex-direction: column; align-items: flex-start; gap: 2px; }
+#dcm-pace .dcm-mode { flex: 1 1 28%; align-items: center; }
+.dcm-mode small { font-weight: 600; color: var(--text-muted); font-size: .72rem; }
+#dcm-count .dcm-lvl { font-size: .9rem; }
 .lim-mode { font-weight: 700; color: #fff; }

@@ -2876,22 +2876,38 @@ document.addEventListener('DOMContentLoaded', () => {
     let tradeOther = null, tradeGive = null, tradeGet = null;
 
     // ═══════════════ DESAFIO ENTRE AMIGOS (assíncrono) ═══════════════
-    const DUEL_Q = 8;
+    const DUEL_Q = 10;
+    const DUEL_PACE = { rapido: 8000, normal: 13000, calmo: 20000 };
     let duelUnsub = null;
 
-    function buildDuelQuestions(mode, difficulty, n) {
-        n = n || DUEL_Q;
-        let pool = countries.filter(c => c.nivel === difficulty);
-        if (pool.length < n + 4) pool = countries.filter(c => c.nivel <= Math.max(2, difficulty));
+    // pool só faz sentido pra "Qual a Bandeira?" (os outros modos são de país)
+    const DUEL_POOL_MODE = 'BandeiraPorPais';
+
+    function buildDuelQuestions(mode, difficulty, n, poolKind) {
+        n = Math.max(5, Math.min(30, n || DUEL_Q));
+        poolKind = (mode === DUEL_POOL_MODE && poolKind) ? poolKind : 'paises';
+
+        const estados = (typeof ESTADO_ITEMS !== 'undefined') ? ESTADO_ITEMS : [];
+        let base;
+        if (poolKind === 'estados') base = estados.slice();
+        else if (poolKind === 'ambos') base = [...countries, ...estados];
+        else base = countries.slice();
+
+        // por nível só filtra os países (estados não têm nível)
+        let pool = base.filter(c => c._kind === 'flag' || c.nivel === difficulty);
+        if (pool.length < n + 4) pool = base.filter(c => c._kind === 'flag' || c.nivel <= Math.max(2, difficulty));
+        if (pool.length < n) pool = base.slice();
+
         const picks = shuffle([...pool]).slice(0, n);
         const conts = [...new Set(countries.map(c => c.continente))];
+        const distractPool = poolKind === 'estados' ? estados : (poolKind === 'ambos' ? base : countries);
         return picks.map(c => {
             if (mode === 'ContinentePorPais') {
                 const wrong = shuffle(conts.filter(x => x !== c.continente)).slice(0, 3);
                 return { code: c.codigo, opts: shuffle([c.continente, ...wrong]) };
             }
-            const same = shuffle(countries.filter(x => x.codigo !== c.codigo && x.continente === c.continente));
-            const other = shuffle(countries.filter(x => x.codigo !== c.codigo && x.continente !== c.continente));
+            const same = shuffle(distractPool.filter(x => x.codigo !== c.codigo && x.continente === c.continente));
+            const other = shuffle(distractPool.filter(x => x.codigo !== c.codigo && x.continente !== c.continente));
             const wrong = [...same, ...other].slice(0, 3).map(x => x.codigo);
             return { code: c.codigo, opts: shuffle([c.codigo, ...wrong]) };
         });
@@ -3056,12 +3072,21 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // ---- modal "Novo desafio" ----
     let dcmKind = 'async', dcmMode = null, dcmLvl = null, dcmTarget = null;
+    let dcmCount = DUEL_Q, dcmPool = 'paises', dcmPace = 'normal';
     const dcmStart = document.getElementById('dcm-start');
     const dcmErr = document.getElementById('dcm-error');
     function dcmRefresh() {
         const friendOk = dcmTarget !== 'direto' || document.getElementById('dcm-friend').value.trim().length >= 2;
         dcmStart.disabled = !(dcmMode && dcmLvl && dcmTarget && friendOk);
         dcmStart.textContent = dcmKind === 'live' ? 'Criar sala e esperar' : 'Montar e jogar';
+        // pool só pra "Qual a Bandeira?"; ritmo só pro ao vivo
+        const poolOn = dcmMode === DUEL_POOL_MODE;
+        document.getElementById('dcm-pool').hidden = !poolOn;
+        document.getElementById('dcm-pool-label').hidden = !poolOn;
+        if (!poolOn) dcmPool = 'paises';
+        const paceOn = dcmKind === 'live';
+        document.getElementById('dcm-pace').hidden = !paceOn;
+        document.getElementById('dcm-pace-label').hidden = !paceOn;
     }
     function showDcmError(m) { dcmErr.textContent = m; dcmErr.classList.remove('hidden'); }
     document.querySelectorAll('#dcm-kind .dcm-mode').forEach(b => b.addEventListener('click', () => {
@@ -3075,6 +3100,18 @@ document.addEventListener('DOMContentLoaded', () => {
         dcmMode = b.dataset.mode;
         document.querySelectorAll('#dcm-modes .dcm-mode').forEach(x => x.classList.toggle('sel', x === b));
         dcmRefresh();
+    }));
+    document.querySelectorAll('#dcm-pool .dcm-mode').forEach(b => b.addEventListener('click', () => {
+        dcmPool = b.dataset.pool;
+        document.querySelectorAll('#dcm-pool .dcm-mode').forEach(x => x.classList.toggle('sel', x === b));
+    }));
+    document.querySelectorAll('#dcm-count .dcm-lvl').forEach(b => b.addEventListener('click', () => {
+        dcmCount = +b.dataset.count;
+        document.querySelectorAll('#dcm-count .dcm-lvl').forEach(x => x.classList.toggle('sel', x === b));
+    }));
+    document.querySelectorAll('#dcm-pace .dcm-mode').forEach(b => b.addEventListener('click', () => {
+        dcmPace = b.dataset.pace;
+        document.querySelectorAll('#dcm-pace .dcm-mode').forEach(x => x.classList.toggle('sel', x === b));
     }));
     document.querySelectorAll('#dcm-levels .dcm-lvl').forEach(b => b.addEventListener('click', () => {
         dcmLvl = +b.dataset.lvl;
@@ -3102,14 +3139,14 @@ document.addEventListener('DOMContentLoaded', () => {
             if (!toUser) { showDcmError('Não achei esse usuário.'); dcmStart.disabled = false; dcmStart.textContent = 'Montar e jogar'; return; }
             if (toUser.id === OnlineDuels.myUid()) { showDcmError('Escolha um amigo, não você.'); dcmStart.disabled = false; dcmStart.textContent = 'Montar e jogar'; return; }
         }
-        const questions = buildDuelQuestions(dcmMode, dcmLvl, DUEL_Q);
+        const questions = buildDuelQuestions(dcmMode, dcmLvl, dcmCount, dcmPool);
         const r = dcmKind === 'live'
             ? await OnlineDuels.createLive(dcmMode, dcmLvl, questions, toUser)
             : await OnlineDuels.create(dcmMode, dcmLvl, questions, toUser);
         dcmStart.disabled = false; dcmRefresh();
         if (r.error) { showDcmError(r.error); return; }
         modals.duelCompose.classList.add('hidden');
-        if (dcmKind === 'live') openLiveRoom(r.duel, true);
+        if (dcmKind === 'live') openLiveRoom(r.duel, true, DUEL_PACE[dcmPace] || LIVE_Q_MS);
         else playDuel(r.duel);
     });
     document.getElementById('duels-back').addEventListener('click', () => showScreen('main'));
@@ -3127,10 +3164,11 @@ document.addEventListener('DOMContentLoaded', () => {
         const bar = document.getElementById('live-timer');
         const fill = document.getElementById('live-timer-fill');
         if (bar) bar.classList.remove('hidden');
+        const dur = (_live && _live.pace) || LIVE_Q_MS;
         const t0 = Date.now();
         _qTimer = setInterval(() => {
-            const left = Math.max(0, LIVE_Q_MS - (Date.now() - t0));
-            const pct = left / LIVE_Q_MS * 100;
+            const left = Math.max(0, dur - (Date.now() - t0));
+            const pct = left / dur * 100;
             if (fill) { fill.style.width = pct + '%'; fill.classList.toggle('lt-low', pct < 30); }
             if (left <= 0) { clearQTimer(); liveForceTimeout(); }
         }, 80);
@@ -3181,7 +3219,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     // ---- sala de espera / pronto ----
-    function openLiveRoom(duel, isHost) {
+    function openLiveRoom(duel, isHost, pace) {
         liveCleanup();
         const meUid = OnlineDuels.myUid();
         const oppFromRow = () => isHost
@@ -3190,16 +3228,19 @@ document.addEventListener('DOMContentLoaded', () => {
         _live = {
             id: duel.id, isHost, phase: 'room',
             mode: duel.mode, difficulty: duel.difficulty, questions: duel.questions,
+            pace: pace || LIVE_Q_MS,
             iReady: false, oppReady: false, oppPresent: false,
             oppName: oppFromRow().name, oppAvatar: oppFromRow().av || '❓', oppUid: oppFromRow().id,
             oppScore: 0, oppQ: 0, oppDone: false, iAmDone: false,
             room: null, foTimer: null, resultShown: false,
         };
         const m = MODE_META[duel.mode] || { icon: '⚡', label: duel.mode };
+        const nq = (duel.questions || []).length;
+        const paceLbl = { 8000: ' · ⚡ rápido', 13000: '', 20000: ' · 🐢 calmo' }[_live.pace] || '';
         document.getElementById('lr-me-av').textContent = Auth.avatarOf(currentUser) || '🌍';
         document.getElementById('lr-me-name').textContent = currentUser || 'você';
         document.getElementById('lr-me-status').textContent = '…';
-        document.getElementById('lr-mode').textContent = `${m.icon} ${m.label} · nível ${duel.difficulty} · ${(duel.questions || []).length} perguntas`;
+        document.getElementById('lr-mode').textContent = `${m.icon} ${m.label} · nível ${duel.difficulty} · ${nq} perguntas${paceLbl}`;
         document.getElementById('lr-ready').classList.remove('hidden');
         document.getElementById('lr-ready').disabled = false;
         document.getElementById('lr-start').classList.add('hidden');
@@ -3260,7 +3301,10 @@ document.addEventListener('DOMContentLoaded', () => {
     function handleLiveMsg(ev, p) {
         if (!_live) return;
         if (ev === 'ready') { _live.oppReady = true; refreshLiveRoomOpp(); }
-        else if (ev === 'go') { if (_live.phase === 'room') startLiveCountdown(); }
+        else if (ev === 'go') {
+            if (p && p.pace) _live.pace = p.pace;
+            if (_live.phase === 'room') startLiveCountdown();
+        }
         else if (ev === 'progress') {
             _live.oppScore = p.score || 0; _live.oppQ = p.q || _live.oppQ;
             if (window.SFX) window.SFX.play('tick');
@@ -3289,7 +3333,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const r = await OnlineDuels.startLive(_live.id);
         b.disabled = false; b.textContent = 'Começar o duelo!';
         if (r && r.error) { showToast(r.error, 'error'); return; }
-        _live.room.send('go', {});
+        _live.room.send('go', { pace: _live.pace });
         startLiveCountdown();
     });
     document.getElementById('lr-cancel').addEventListener('click', () => leaveLiveRoom(true));
@@ -3419,13 +3463,14 @@ document.addEventListener('DOMContentLoaded', () => {
                 <button id="live-rematch" class="btn-primary">Revanche ⚡</button>
                 <button id="live-exit" class="pack-end-more">Voltar</button></div>`;
             const oppUid = _live.oppUid, oppName = _live.oppName, mode = _live.mode, diff = _live.difficulty;
+            const nq = (_live.questions || []).length || DUEL_Q, pace = _live.pace || LIVE_Q_MS;
             document.getElementById('live-rematch').addEventListener('click', async () => {
                 if (_live && _live.room) _live.room.send('rematch', {});
                 liveCleanup();
-                const qs = buildDuelQuestions(mode, diff, DUEL_Q);
+                const qs = buildDuelQuestions(mode, diff, nq);
                 const rr = await OnlineDuels.createLive(mode, diff, qs, oppUid ? { id: oppUid, username: oppName } : null);
                 if (rr.error) { showToast(rr.error, 'error'); showScreen('duels'); return; }
-                openLiveRoom(rr.duel, true);
+                openLiveRoom(rr.duel, true, pace);
             });
             document.getElementById('live-exit').addEventListener('click', () => { liveCleanup(); showScreen('duels'); renderLiveDuels(); });
         }
