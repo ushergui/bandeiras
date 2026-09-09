@@ -6,7 +6,12 @@
   # (não afeta o repositório — só o que vai pro CDN)
   command = "rm -rf tools .claude .agent supabase docs venv _arquivo_morto .env .env.local ui-ux-pro-max-skill && rm -f *.py *.bat"
 
+[functions]
+  directory = "netlify/functions"
+  node_bundler = "esbuild"
+
 # SPA: qualquer rota desconhecida cai no index.html
+# (rotas /.netlify/functions/* são tratadas ANTES deste redirect)
 [[redirects]]
   from = "/*"
   to = "/index.html"

@@ -141,6 +141,8 @@ window.Auth = {
     onReady: () => Promise.resolve(),
     isOnline: () => true,
     currentName: () => localStorage.getItem('currentUser') || null,
+    needsPasswordChange: () => false,
+    isAdmin: () => false,
 };
 
 // ═══════════════════════════════════════════════════════
@@ -360,6 +362,8 @@ document.addEventListener('DOMContentLoaded', () => {
     const screens = {
         profile: document.getElementById('profile-menu'),
         main: document.getElementById('main-menu'),
+        setpw: document.getElementById('set-password'),
+        admin: document.getElementById('admin-menu'),
         setup: document.getElementById('game-setup'),
         trades: document.getElementById('trades-menu'),
         duels: document.getElementById('duels-menu'),
@@ -1470,7 +1474,7 @@ document.addEventListener('DOMContentLoaded', () => {
     // --- BOTÃO "VOLTAR" DO NAVEGADOR: nunca sai do app ---
     (function wireHardwareBack() {
         const BACK_TO = {
-            game: 'main', setup: 'main', album: 'main', passport: 'main', trades: 'main', duels: 'main',
+            game: 'main', setup: 'main', album: 'main', passport: 'main', trades: 'main', duels: 'main', admin: 'main',
             partyLobbyHost: 'main', partyJoinClient: 'main', partyWaitClient: 'main',
             partyGameHost: 'main', partyGameClient: 'main', partyLeaderboardHost: 'main',
         };
@@ -1526,6 +1530,8 @@ document.addEventListener('DOMContentLoaded', () => {
         if (nameEl) nameEl.textContent = currentUser || 'explorador';
         const avEl = document.getElementById('hub-avatar');
         if (avEl) avEl.textContent = Auth.avatarOf(currentUser) || localStorage.getItem('detetive_avatar') || '🌍';
+        const adm = document.getElementById('hub-admin-btn');
+        if (adm) adm.hidden = !(window.DG_ONLINE && Auth.isAdmin && Auth.isAdmin());
 
         const p = (_cache.progress && typeof _cache.progress === 'object') ? _cache.progress : {};
         let known = 0, mastered = 0;
@@ -1794,8 +1800,51 @@ document.addEventListener('DOMContentLoaded', () => {
         _cache.progress = null;
         _cache.stickers = null;
         _cache.packsCount = null;
-        await selectProfile(res.name, res.avatar);
+        await enterAfterAuth(res.name, res.avatar);
     });
+
+    // porta de entrada: 1º acesso com senha temporária -> obriga a criar a senha
+    let _pendAuth = null;
+    async function enterAfterAuth(name, avatar) {
+        if (window.DG_ONLINE && Auth.needsPasswordChange && Auth.needsPasswordChange()) {
+            _pendAuth = { name, avatar };
+            document.getElementById('spw-1').value = '';
+            document.getElementById('spw-2').value = '';
+            document.getElementById('spw-error').classList.add('hidden');
+            showScreen('setpw');
+            setTimeout(() => document.getElementById('spw-1').focus(), 60);
+            return;
+        }
+        await selectProfile(name, avatar);
+    }
+
+    (function wireSetPassword() {
+        const b = document.getElementById('spw-save');
+        if (!b) return;
+        const err = (m) => { const e = document.getElementById('spw-error'); e.textContent = m; e.classList.remove('hidden'); };
+        b.addEventListener('click', async () => {
+            const p1 = document.getElementById('spw-1').value;
+            const p2 = document.getElementById('spw-2').value;
+            if (p1.length < 6) return err('A senha precisa ter pelo menos 6 caracteres.');
+            if (p1 !== p2) return err('As duas senhas não são iguais.');
+            b.disabled = true; b.textContent = 'Salvando…';
+            const r = await Auth.changeMyPassword(p1);
+            b.disabled = false; b.textContent = 'Salvar e entrar';
+            if (r.error) return err(r.error);
+            const who = _pendAuth || { name: Auth.currentName(), avatar: '🌍' };
+            _pendAuth = null;
+            showToast('Senha criada! 🔐', 'success');
+            await selectProfile(who.name, who.avatar);
+        });
+        const cancel = document.getElementById('spw-cancel');
+        if (cancel) cancel.addEventListener('click', async () => {
+            _pendAuth = null;
+            try { await Auth.logout(); } catch (e) {}
+            currentUser = null;
+            try { localStorage.removeItem('currentUser'); } catch (e) {}
+            showScreen('profile');
+        });
+    })();
 
     // Menu de som: efeitos e vozes desligáveis separadamente
     (function wireSoundToggle() {
@@ -3010,6 +3059,78 @@ document.addEventListener('DOMContentLoaded', () => {
     document.getElementById('duels-back').addEventListener('click', () => showScreen('main'));
     const btnDuels = document.getElementById('btn-duels');
     if (btnDuels) btnDuels.addEventListener('click', openDuels);
+
+    // ═══════════════ PAINEL DE CONTAS (dono do jogo) ═══════════════
+    function admMsg(text, kind) {
+        const el = document.getElementById('adm-msg');
+        if (!el) return;
+        el.textContent = text; el.className = 'adm-msg ' + (kind || 'info');
+        el.classList.toggle('hidden', !text);
+    }
+
+    async function renderAdminList() {
+        const box = document.getElementById('adm-list');
+        if (!box) return;
+        box.innerHTML = '<p class="ot-empty">carregando…</p>';
+        const r = await Auth.admin.list();
+        if (r.error) { box.innerHTML = `<p class="ot-empty">${r.error}</p>`; return; }
+        const users = r.users || [];
+        const badge = document.getElementById('adm-count');
+        if (badge) { badge.hidden = !users.length; badge.textContent = users.length; }
+        if (!users.length) { box.innerHTML = '<p class="ot-empty">Nenhuma conta ainda.</p>'; return; }
+        box.innerHTML = users.map(u => {
+            const last = u.last_sign_in_at ? new Date(u.last_sign_in_at).toLocaleDateString('pt-BR') : 'nunca entrou';
+            const tag = u.must_change ? '<span class="adm-tag">senha temporária</span>' : '';
+            const me = Auth.currentName && Auth.currentName() === u.username;
+            return `<div class="adm-item">
+                <div class="adm-item-main"><b>${u.username}</b>${me ? ' <span class="adm-tag adm-you">você</span>' : ''} ${tag}
+                    <span class="adm-item-sub">último acesso: ${last}</span></div>
+                ${me ? '' : `<button class="tm-btn adm-reset" data-id="${u.id}" data-user="${u.username}">Resetar senha</button>`}
+            </div>`;
+        }).join('');
+        box.querySelectorAll('.adm-reset').forEach(b => b.addEventListener('click', () => admReset(b.dataset.id, b.dataset.user)));
+    }
+
+    async function admReset(id, username) {
+        const tmp = prompt(`Nova senha temporária para "${username}":`, 'detetive123');
+        if (tmp === null) return;
+        if (tmp.length < 6) { admMsg('A senha temporária precisa de pelo menos 6 caracteres.', 'error'); return; }
+        admMsg('resetando…', 'info');
+        const r = await Auth.admin.reset(id, tmp);
+        if (r.error) { admMsg(r.error, 'error'); return; }
+        admMsg(`Pronto! Passe pra ${username}: usuário "${username}" · senha "${tmp}". O progresso NÃO foi tocado.`, 'ok');
+        renderAdminList();
+    }
+
+    async function openAdmin() {
+        if (!(window.DG_ONLINE && Auth.isAdmin && Auth.isAdmin())) { showScreen('main'); return; }
+        admMsg('', '');
+        document.getElementById('adm-user').value = '';
+        document.getElementById('adm-pass').value = 'detetive123';
+        showScreen('admin');
+        renderAdminList();
+    }
+
+    (function wireAdmin() {
+        const back = document.getElementById('admin-back');
+        if (back) back.addEventListener('click', () => showScreen('main'));
+        const hb = document.getElementById('hub-admin-btn');
+        if (hb) hb.addEventListener('click', openAdmin);
+        const create = document.getElementById('adm-create');
+        if (create) create.addEventListener('click', async () => {
+            const u = document.getElementById('adm-user').value.trim();
+            const p = document.getElementById('adm-pass').value;
+            if (u.length < 2) { admMsg('Digite o usuário do amigo.', 'error'); return; }
+            if (p.length < 6) { admMsg('A senha temporária precisa de pelo menos 6 caracteres.', 'error'); return; }
+            create.disabled = true; create.textContent = 'Criando…';
+            const r = await Auth.admin.create(u, p);
+            create.disabled = false; create.textContent = 'Criar';
+            if (r.error) { admMsg(r.error, 'error'); return; }
+            admMsg(`Conta "${r.username}" criada! Passe pro amigo: usuário "${r.username}" · senha "${p}". Ele troca a senha no 1º acesso.`, 'ok');
+            document.getElementById('adm-user').value = '';
+            renderAdminList();
+        });
+    })();
 
     function openTrades() {
         tradeOther = tradeGive = tradeGet = null;
@@ -4435,7 +4556,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const who = online ? (Auth.currentName && Auth.currentName())
             : (currentUser && Auth.list().some(a => a.name === currentUser) ? currentUser : null);
         if (who) {
-            selectProfile(who, Auth.avatarOf(who));
+            enterAfterAuth(who, Auth.avatarOf(who));
         } else {
             if (!online) { Auth.logout(); currentUser = null; }
             showScreen('profile');

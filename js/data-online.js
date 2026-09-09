@@ -28,7 +28,7 @@
   const emailFor = (u) => (u || '').trim().toLowerCase().replace(/\s+/g, '-') + EMAIL_DOMAIN;
   const todayKey = () => new Date().toISOString().slice(0, 10);
 
-  let uid = null, uname = null, uavatar = '🌍';
+  let uid = null, uname = null, uavatar = '🌍', uIsAdmin = false, uMustChange = false;
   let online = navigator.onLine;
   let readyResolve;
   const ready = new Promise((r) => (readyResolve = r));
@@ -160,18 +160,25 @@
 
   // ---------- sessão ----------
   async function adoptSession(session) {
-    if (!session || !session.user) { uid = null; uname = null; return; }
+    if (!session || !session.user) { uid = null; uname = null; uIsAdmin = false; uMustChange = false; return; }
     uid = session.user.id;
+    uMustChange = !!(session.user.user_metadata && session.user.user_metadata.must_change);
     loadMirror();
     const fallbackName = (session.user.email || '').replace(EMAIL_DOMAIN, '');
     // profile (nome/avatar) — cria na 1ª vez (contas feitas no painel do Supabase)
     if (online) {
-      let { data } = await sb.from('profiles').select('username,avatar').eq('id', uid).maybeSingle();
+      // is_admin só existe depois de rodar supabase/admin.sql — cai pro select simples se faltar
+      const readProfile = async () => {
+        let q = await sb.from('profiles').select('username,avatar,is_admin').eq('id', uid).maybeSingle();
+        if (q.error) q = await sb.from('profiles').select('username,avatar').eq('id', uid).maybeSingle();
+        return q.data;
+      };
+      let data = await readProfile();
       if (!data) {
         await sb.rpc('bootstrap_profile', { p_username: fallbackName, p_avatar: '🌍' });
-        ({ data } = await sb.from('profiles').select('username,avatar').eq('id', uid).maybeSingle());
+        data = await readProfile();
       }
-      if (data) { uname = data.username; uavatar = data.avatar || '🌍'; }
+      if (data) { uname = data.username; uavatar = data.avatar || '🌍'; uIsAdmin = data.is_admin === true; }
     }
     if (!uname) uname = fallbackName;
     try { localStorage.setItem('dgo_lastuser', JSON.stringify({ name: uname, avatar: uavatar })); } catch (e) {}
@@ -343,12 +350,49 @@
       const { error } = await sb.auth.signInWithPassword({ email: emailFor(name), password });
       if (error) return { error: traduzErro(error.message) };
       await adoptSession((await sb.auth.getSession()).data.session);
-      return { name: uname, avatar: uavatar };
+      return { name: uname, avatar: uavatar, mustChange: uMustChange };
     },
 
     async logout() {
       try { await sb.auth.signOut(); } catch (e) {}
-      uid = null; uname = null;
+      uid = null; uname = null; uIsAdmin = false; uMustChange = false;
+    },
+
+    // ---- troca de senha obrigatória no 1º acesso ----
+    needsPasswordChange: () => uMustChange,
+    async changeMyPassword(newPw) {
+      if (!online) return { error: 'Precisa de internet.' };
+      if ((newPw || '').length < 6) return { error: 'A senha precisa ter pelo menos 6 caracteres.' };
+      const { error } = await sb.auth.updateUser({ password: newPw, data: { must_change: false } });
+      if (error) return { error: traduzErro(error.message) };
+      uMustChange = false;
+      return { ok: true };
+    },
+
+    // ---- painel do dono (chama a Netlify Function) ----
+    isAdmin: () => uIsAdmin,
+    admin: {
+      async _call(action, extra) {
+        if (!online) return { error: 'Precisa de internet.' };
+        const { data: s } = await sb.auth.getSession();
+        const token = s && s.session && s.session.access_token;
+        if (!token) return { error: 'Sessão expirada — entre de novo.' };
+        let r;
+        try {
+          r = await fetch('/.netlify/functions/admin', {
+            method: 'POST',
+            headers: { 'content-type': 'application/json', Authorization: 'Bearer ' + token },
+            body: JSON.stringify(Object.assign({ action }, extra || {})),
+          });
+        } catch (e) { return { error: 'Servidor de contas fora do ar.' }; }
+        let j = {};
+        try { j = await r.json(); } catch (e) {}
+        if (!r.ok) return { error: j.error || ('erro ' + r.status) };
+        return j;
+      },
+      list() { return this._call('list'); },
+      create(username, password) { return this._call('create', { username, password }); },
+      reset(userId, password) { return this._call('reset', { userId, password }); },
     },
   };
 

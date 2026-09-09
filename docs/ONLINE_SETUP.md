@@ -104,13 +104,43 @@ continua (veio da nuvem). No **Table Editor** as tabelas `profiles`, `stickers`,
    uma conta → jogue. Instale em 2 aparelhos com a mesma conta pra ver o
    progresso sincronizar.
 
+## 8. Painel de contas dentro do jogo (Fase 35)
+
+Deixa você **criar contas** e **resetar senha** direto no jogo, sem painel do
+Supabase, sem e-mail. Resetar senha **nunca** apaga o progresso.
+
+1. **SQL** — SQL Editor → cola `supabase/admin.sql` → Run. Depois roda, trocando
+   pelo seu usuário:
+   ```sql
+   update public.profiles set is_admin = true where username_lower = 'seuusuario';
+   ```
+2. **Chave secreta** — Supabase → **Project Settings → API Keys** → copie a
+   **`service_role`** (a secreta, começa com `sb_secret_...` ou `eyJ...` marcada
+   como *secret*). **Nunca** ponha essa no `js/config.js`.
+3. **Variáveis no Netlify** — site → **Site configuration → Environment
+   variables** → **Add**:
+   - `SUPABASE_URL` = `https://mcuwlydjlroedwuansri.supabase.co`
+   - `SUPABASE_SERVICE_KEY` = a `service_role` do passo 2
+4. **Redeploy** — Netlify → Deploys → **Trigger deploy → Deploy site** (pra pegar
+   as variáveis novas e a função).
+5. Entre no jogo com a sua conta → aparece um **🔑** no topo → **Contas dos
+   amigos**. Cria a conta (usuário + senha temporária tipo `detetive123`), passa
+   pro amigo. No 1º acesso o jogo obriga ele a criar a senha dele.
+6. Esqueceu? No painel, **Resetar senha** → gera nova temporária → avisa a
+   pessoa. O progresso continua intacto.
+
+## 9. Desafio entre amigos (Fase 34)
+
+SQL Editor → cola `supabase/duels.sql` → Run. Pronto — aparece **⚔️ Desafiar
+amigo** no hub.
+
 ---
 
 ## Nuances / limitações desta fase
 
-- **Sem "esqueci a senha"** — os e-mails são fake. Você (dono) recria a conta
-  pelo painel e passa uma senha nova; o progresso da conta antiga fica perdido a
-  menos que você troque só a senha do mesmo usuário em **Authentication → Users**.
+- **Esqueci a senha** — resolvido: o dono reseta pelo 🔑 no jogo (ou em
+  **Authentication → Users** no Supabase). **O progresso nunca é perdido num
+  reset** — só é perdido se a conta for *apagada*.
 - **Free-tier pausa o projeto** depois de ~1 semana sem *nenhum* acesso. Volta
   sozinho quando alguém abre o jogo (a 1ª carga demora ~1 min). **Os dados não
   são apagados.** Só some se ficar ~90 dias parado.

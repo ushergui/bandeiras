@@ -17,20 +17,20 @@
     <link rel="icon" href="assets/icons/favicon-32.png" sizes="32x32" type="image/png">
     <link rel="apple-touch-icon" href="assets/icons/apple-touch-icon.png">
 
-    <link rel="stylesheet" href="style.css?v=20260908s">
-    <link rel="stylesheet" href="css/app-shell.css?v=20260908s">
-    <link rel="stylesheet" href="css/screens.css?v=20260908s">
+    <link rel="stylesheet" href="style.css?v=20260908t">
+    <link rel="stylesheet" href="css/app-shell.css?v=20260908t">
+    <link rel="stylesheet" href="css/screens.css?v=20260908t">
     <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800;900&display=swap" rel="stylesheet">
     <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
     <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
-    <script src="countries.js?v=20260908s"></script>
-    <script src="collections.js?v=20260908s"></script>
-    <script src="figurinhas_data.js?v=20260908s"></script>
-    <script src="curiosities.js?v=20260908s"></script>
-    <script src="curiosities_br.js?v=20260908s"></script>
-    <script src="js/sfx.js?v=20260908s"></script>
-    <script src="js/config.js?v=20260908s"></script>
-    <script src="js/vendor/supabase.min.js?v=20260908s"></script>
+    <script src="countries.js?v=20260908t"></script>
+    <script src="collections.js?v=20260908t"></script>
+    <script src="figurinhas_data.js?v=20260908t"></script>
+    <script src="curiosities.js?v=20260908t"></script>
+    <script src="curiosities_br.js?v=20260908t"></script>
+    <script src="js/sfx.js?v=20260908t"></script>
+    <script src="js/config.js?v=20260908t"></script>
+    <script src="js/vendor/supabase.min.js?v=20260908t"></script>
 </head>
 
 <body>
@@ -76,6 +76,51 @@
             </div>
         </div>
 
+        <div id="set-password" class="screen auth-screen hidden">
+            <div class="auth-hero">
+                <img class="auth-logo-img" src="assets/img/logo.png" alt="Detetive Global" width="120" height="120">
+                <p class="profile-subtitle">Bem-vindo! Crie a <b>sua</b> senha</p>
+            </div>
+            <div class="auth-card">
+                <p class="spw-intro">A senha que te passaram é temporária. Escolha uma senha só sua — anote num lugar seguro.</p>
+                <label class="auth-field">
+                    <span>Nova senha</span>
+                    <input type="password" id="spw-1" autocomplete="new-password" placeholder="pelo menos 6 letras/números">
+                </label>
+                <label class="auth-field">
+                    <span>Repita a senha</span>
+                    <input type="password" id="spw-2" autocomplete="new-password" placeholder="a mesma de novo">
+                </label>
+                <p id="spw-error" class="auth-error hidden"></p>
+                <button id="spw-save" class="btn-primary">Salvar e entrar</button>
+                <button id="spw-cancel" class="link-btn">Entrar com outra conta</button>
+            </div>
+        </div>
+
+        <div id="admin-menu" class="screen admin hidden">
+            <header class="setup-head">
+                <button class="setup-back" id="admin-back" aria-label="Voltar">Voltar</button>
+                <span class="setup-mode"><span class="mb-icon">🔑</span><span>Contas dos amigos</span></span>
+            </header>
+
+            <section class="adm-new">
+                <h3>Criar uma conta</h3>
+                <div class="adm-row">
+                    <input type="text" id="adm-user" placeholder="usuário (ex: joao)" autocapitalize="none" spellcheck="false">
+                    <input type="text" id="adm-pass" placeholder="senha temporária" value="detetive123">
+                    <button id="adm-create" class="btn-primary">Criar</button>
+                </div>
+                <p class="adm-tip">Passe pro amigo o <b>usuário</b> e a <b>senha temporária</b>. No primeiro acesso ele escolhe a senha dele.</p>
+            </section>
+
+            <section class="adm-list-sec">
+                <h3>Contas <span id="adm-count" class="apb-count" hidden>0</span></h3>
+                <div id="adm-list" class="adm-list"></div>
+            </section>
+
+            <p id="adm-msg" class="adm-msg hidden"></p>
+        </div>
+
         <div id="main-menu" class="screen hub hidden">
             <img class="hub-logo-wide" src="assets/img/logo-horizontal.png" alt="Detetive Global">
             <header class="hub-header">
@@ -97,6 +142,7 @@
                             </label>
                         </div>
                     </div>
+                    <button id="hub-admin-btn" class="icon-btn" title="Contas dos amigos" aria-label="Contas" hidden>🔑</button>
                     <button id="change-profile-btn" class="hub-logout" title="Sair da conta">Sair</button>
                 </div>
             </header>
@@ -781,8 +827,8 @@
         </div>
     </div>
 
-    <script src="script.js?v=20260908s"></script>
-    <script src="js/data-online.js?v=20260908s"></script>
+    <script src="script.js?v=20260908t"></script>
+    <script src="js/data-online.js?v=20260908t"></script>
 </body>
 
 </html>
