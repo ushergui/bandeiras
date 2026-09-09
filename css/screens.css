@@ -2473,8 +2473,23 @@
 .live-timer span { display: block; height: 100%; width: 100%; background: linear-gradient(90deg,#4ade80,#a3e635); transition: width .1s linear; }
 .live-timer span.lt-low { background: linear-gradient(90deg,#f59e0b,#ef4444); }
 
-.live-end-actions { display: flex; gap: 10px; justify-content: center; flex-wrap: wrap; margin-top: 10px; }
-.live-end-actions .btn-primary { margin: 0; }
+.live-end-actions { display: flex; gap: 10px; justify-content: center; flex-wrap: wrap; margin-top: 12px; }
+.live-end-actions .btn-primary,
+.live-end-actions .pack-end-more { margin: 0; padding: 13px 26px; flex: 1 1 auto; min-width: 130px; max-width: 220px; }
+
+/* botões "Legal!" / "Entendi!" / "Continuar" dos modais simples (sem classe) */
+#close-achievement-button,
+#close-constructive-button,
+#level-up-continue-button {
+  margin-top: 16px; padding: 12px 30px; border-radius: 12px;
+  font-weight: 800; font-size: .95rem; cursor: pointer;
+  color: #fff; border: 1px solid rgba(255,255,255,.18);
+  background: linear-gradient(135deg, #1d4ed8, #7c3aed);
+}
+#close-constructive-button { background: rgba(255,255,255,.12); }
+#close-achievement-button:hover,
+#close-constructive-button:hover,
+#level-up-continue-button:hover { filter: brightness(1.1); }
 
 #dcm-kind .dcm-mode, #dcm-pace .dcm-mode { flex-direction: column; align-items: flex-start; gap: 2px; }
 #dcm-pace .dcm-mode { flex: 1 1 28%; align-items: center; }
