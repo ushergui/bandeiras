@@ -3385,6 +3385,7 @@ document.addEventListener('DOMContentLoaded', () => {
         elements.options.classList.add('hidden');
         document.getElementById('live-hud').classList.add('hidden');
         document.getElementById('live-timer').classList.add('hidden');
+        const rb = document.getElementById('replay-audio-btn'); if (rb) rb.hidden = true;
         buttons.next.classList.add('hidden'); buttons.facts.classList.add('hidden'); buttons.hint.classList.add('hidden');
         buttons.playAgain.classList.add('hidden');
 
@@ -3440,6 +3441,24 @@ document.addEventListener('DOMContentLoaded', () => {
         _live = null;
         document.getElementById('live-hud')?.classList.add('hidden');
         document.getElementById('live-timer')?.classList.add('hidden');
+    }
+
+    // paga o pacote do vencedor ao vivo mesmo se ele não viu a tela de resultado
+    function claimLiveReward(row) {
+        if (!row || row.status !== 'terminado') return;
+        const me = OnlineDuels.myUid();
+        if (row.host_user !== me && row.guest_user !== me) return;
+        const key = 'dg_liveclaim_' + row.id;
+        try {
+            if (localStorage.getItem(key)) return;
+            localStorage.setItem(key, '1');
+        } catch (e) { return; }
+        const myS = row.host_user === me ? row.host_score : row.guest_score;
+        const opS = row.host_user === me ? row.guest_score : row.host_score;
+        const won = row.winner === me || (myS != null && opS != null && myS > opS);
+        const tie = !row.winner && myS === opS;
+        if (won) grantBonusPack('live-' + row.id, 3, 'Vitória no duelo ao vivo!');
+        else if (tie) grantBonusPack('live-' + row.id, 2, 'Empate no duelo ao vivo!');
     }
 
     // ---- lista de duelos ao vivo (aba) ----
@@ -3514,6 +3533,7 @@ document.addEventListener('DOMContentLoaded', () => {
             if (!row) return;
             // convite pra mim
             maybeShowLiveInvite(row);
+            if (row.status === 'terminado') claimLiveReward(row);
             if (_live && row.id === _live.id) {
                 if (row.status === 'cancelado' && _live.phase === 'room') {
                     showToast('O duelo foi cancelado.', 'info'); leaveLiveRoom(); return;
