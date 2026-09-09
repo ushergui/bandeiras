@@ -5,7 +5,7 @@
    - /assets/** (bandeiras, formas, áudios, ícones): cache-first
    - CDNs (fontes, confetti, peerjs): stale-while-revalidate
 */
-const VERSION = 'v20-2026-09-09';
+const VERSION = 'v21-2026-09-09';
 const SHELL_CACHE = `shell-${VERSION}`;
 const ASSET_CACHE = `assets-${VERSION}`;
 const RUNTIME_CACHE = `runtime-${VERSION}`;
