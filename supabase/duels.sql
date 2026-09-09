@@ -103,6 +103,9 @@ grant select, insert on public.duels to authenticated;
 grant execute on function public.submit_duel_score(uuid, int) to authenticated;
 grant execute on function public.cancel_duel(uuid) to authenticated;
 
-alter publication supabase_realtime add table public.duels;
+do $$ begin
+  alter publication supabase_realtime add table public.duels;
+exception when duplicate_object then null;
+end $$;
 
 -- pronto.

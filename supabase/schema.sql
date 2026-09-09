@@ -371,8 +371,11 @@ begin
   if not exists (select 1 from pg_publication where pubname = 'supabase_realtime') then
     create publication supabase_realtime;
   end if;
+  begin
+    alter publication supabase_realtime add table public.trades;
+  exception when duplicate_object then null;
+  end;
 end $$;
-alter publication supabase_realtime add table public.trades;
 
 -- ===========================================================================
 --  Fase 34 — DESAFIOS ENTRE AMIGOS (assíncrono)
@@ -464,6 +467,9 @@ end $$;
 grant select, insert on public.duels to authenticated;
 grant execute on function public.submit_duel_score(uuid, int) to authenticated;
 grant execute on function public.cancel_duel(uuid) to authenticated;
-alter publication supabase_realtime add table public.duels;
+do $$ begin
+  alter publication supabase_realtime add table public.duels;
+exception when duplicate_object then null;
+end $$;
 
 -- pronto.
