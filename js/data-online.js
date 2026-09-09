@@ -525,7 +525,11 @@
         invited_user: (invited && invited.id) || null,
       };
       const { data, error } = await sb.from('live_duels').insert(row).select().single();
-      return error ? { error: error.message } : { ok: true, duel: data };
+      if (error) {
+        if (/live_duels/.test(error.message)) return { error: 'O modo ao vivo ainda não foi ativado no servidor.' };
+        return { error: error.message };
+      }
+      return { ok: true, duel: data };
     },
     async getLive(id) {
       if (!online) return null;
