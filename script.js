@@ -2901,7 +2901,7 @@ document.addEventListener('DOMContentLoaded', () => {
         let res = null;
         if (window.OnlineDuels) { try { res = await OnlineDuels.submitScore(d.id, gameState.score); } catch (e) {} }
         if (res && res.error) elements.feedback.textContent = `${gameState.score} pontos (não deu pra enviar: ${res.error})`;
-        setTimeout(() => { openDuels(); if (res && !res.error) duelOutcomeToast(d, res); }, 1300);
+        setTimeout(() => { openDuels(); if (res && !res.error) duelOutcomeToast(d, res); }, 1900);
     }
 
     function duelOutcomeToast(d, res) {
@@ -4215,7 +4215,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     document.getElementById('setup-back').addEventListener('click', () => showScreen('main'));
 
-    document.querySelectorAll('#main-menu .mode-button:not(.party-mode)').forEach(b => b.addEventListener('click', () => {
+    document.querySelectorAll('#main-menu .mode-button[data-gamemode]').forEach(b => b.addEventListener('click', () => {
         openSetup(b.dataset.gamemode);
     }));
 
