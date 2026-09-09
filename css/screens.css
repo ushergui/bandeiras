@@ -2613,3 +2613,13 @@
 .kp-join .auth-field input { width: 100%; padding: 12px 14px; border-radius: 10px; background: rgba(0,0,0,.3); border: 1px solid rgba(255,255,255,.2); color: #fff; font-size: 1rem; }
 #kpj-code { text-transform: uppercase; letter-spacing: .3em; font-weight: 900; font-size: 1.4rem; text-align: center; }
 .kp-join .btn-primary { margin-top: 2px; }
+
+/* 34C ajustes: bandeiras sem nome = maiores; respiros */
+.kph-opt img { max-width: 100%; width: 100%; }
+.kph-opt { padding: 8px; }
+.kpc-opt img { max-width: 100%; width: 100%; }
+.kpc-opt { padding: 8px; }
+#kph-play, #kph-board, #kph-podium { padding: 4px 2px 12px; }
+.kph-sabhit { font-size: 1rem !important; text-align: center; }
+.kph-sabhit b { color: #f472b6; }
+#kpc-answer, #kpc-sabotage, #kpc-wait, #kpc-done { padding: 8px 2px 16px; }

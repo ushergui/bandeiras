@@ -3618,6 +3618,7 @@ document.addEventListener('DOMContentLoaded', () => {
     let _kpTimer = null, _kpSabInt = null;
     const KP_Q_MS = 12000, KP_REVEAL_MS = 3600, KP_BOARD_MS = 3200, KP_SAB_MS = 12000;
     const KP_POWERS = { borrao: '🖊️ Borrão', embaralha: '🔀 Embaralha', congela: '❄️ Congela' };
+    const KP_POWER_LABEL = { borrao: 'um borrão 🖊️', embaralha: 'o embaralha 🔀', congela: 'o congela ❄️' };
 
     function kpClearTimers() {
         if (_kpTimer) { clearInterval(_kpTimer); _kpTimer = null; }
@@ -3785,7 +3786,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const opts = document.getElementById('kph-options');
         opts.className = 'kph-options' + (p.opts[0] && p.opts[0].img ? ' is-flags' : ' is-text');
         opts.innerHTML = p.opts.map(o => o.img
-            ? `<div class="kph-opt" data-k="${o.k}"><img src="${o.img}" alt=""><span>${o.label}</span></div>`
+            ? `<div class="kph-opt" data-k="${o.k}"><img src="${o.img}" alt=""></div>`
             : `<div class="kph-opt kph-opt-text" data-k="${o.k}">${o.label}</div>`).join('');
         document.getElementById('kph-answered').innerHTML = '';
         const fill = document.getElementById('kph-timer-fill'); if (fill) fill.style.width = '100%';
@@ -3874,10 +3875,28 @@ document.addEventListener('DOMContentLoaded', () => {
     }
     function kpResolveSabotage() {
         if (!_kp || _kp.phase !== 'sabotage') return;
+        kpClearTimers();
         _kp.sabotages = {};
-        Object.values(_kp.sabCasts).forEach(c => { if (!c.skip && c.target && c.power) _kp.sabotages[c.target] = c.power; });
-        _kp.phase = 'playing';
-        kpShowQuestion();
+        const hits = [];
+        Object.keys(_kp.sabCasts).forEach(casterPid => {
+            const c = _kp.sabCasts[casterPid];
+            if (c.skip || !c.target || !c.power) return;
+            _kp.sabotages[c.target] = c.power;
+            const cn = (_kp.players[casterPid] || {}).name || 'alguém';
+            const tn = (_kp.players[c.target] || {}).name || 'alguém';
+            hits.push({ from: cn, to: tn, power: c.power });
+        });
+        _kp.phase = 'sabreveal';
+        _kp.room.send('sabotage-hit', { hits });
+        // telão mostra quem sabotou quem por uns segundos
+        document.getElementById('kph-phase').textContent = '😈 Sabotagens!';
+        document.getElementById('kph-question').textContent = hits.length ? 'Olha o que vem por aí…' : 'Ninguém sabotou ninguém 😇';
+        document.getElementById('kph-options').innerHTML = hits.length
+            ? hits.map(h => `<div class="kph-opt kph-opt-text kph-sabhit">${h.from} → <b>${KP_POWERS[h.power]}</b> → ${h.to}</div>`).join('')
+            : '';
+        document.getElementById('kph-answered').innerHTML = '';
+        if (window.SFX) window.SFX.play('wrong');
+        setTimeout(() => { if (_kp && _kp.phase === 'sabreveal') { _kp.phase = 'playing'; kpShowQuestion(); } }, hits.length ? 3400 : 1400);
     }
 
     function kpPodium() {
@@ -3937,7 +3956,7 @@ document.addEventListener('DOMContentLoaded', () => {
         if (room.status === 'done') return err('Esse jogo já acabou.');
 
         const avatar = OnlineParty.isLogged() ? (Auth.avatarOf(currentUser) || '🌍') : ['🦊', '🐼', '🐸', '🦁', '🐵', '🐙', '🦄', '🐧'][Math.floor(Math.random() * 8)];
-        _kp = { role: 'player', code, roomId: room.id, name, avatar, myPid: null, phase: 'wait', mode: room.config && room.config.mode, answered: false, room: null };
+        _kp = { role: 'player', code, roomId: room.id, name, avatar, myPid: OnlineParty.myPid(), phase: 'wait', mode: room.config && room.config.mode, answered: false, room: null };
         document.getElementById('kpc-me-av').textContent = avatar;
         document.getElementById('kpc-me-name').textContent = name;
         showScreen('kpCtrl');
@@ -3982,6 +4001,12 @@ document.addEventListener('DOMContentLoaded', () => {
             if (_kp.phase !== 'sabotage') { kpv('kpc-done'); document.getElementById('kpc-done-msg').textContent = kpMyBoardLine(p); }
         } else if (ev === 'sabotage-open') {
             kpCtrlSabotage(p);
+        } else if (ev === 'sabotage-hit') {
+            const mine = (p.hits || []).find(h => h.to === _kp.name);
+            if (mine && _kp.phase !== 'question') {
+                kpv('kpc-done');
+                document.getElementById('kpc-done-msg').textContent = `😱 ${mine.from} te jogou ${KP_POWER_LABEL[mine.power] || 'uma sabotagem'}! Prepara…`;
+            }
         } else if (ev === 'gameover') {
             kpCtrlGameover(p);
         }
@@ -4002,10 +4027,11 @@ document.addEventListener('DOMContentLoaded', () => {
         const wrap = document.getElementById('kpc-options');
         wrap.className = 'kpc-options' + (p.opts[0] && p.opts[0].img ? ' is-flags' : ' is-text');
         wrap.innerHTML = p.opts.map(o => o.img
-            ? `<button class="kpc-opt" data-k="${o.k}"><img src="${o.img}" alt=""><span>${o.label}</span></button>`
+            ? `<button class="kpc-opt" data-k="${o.k}"><img src="${o.img}" alt=""></button>`
             : `<button class="kpc-opt kpc-opt-text" data-k="${o.k}">${o.label}</button>`).join('');
         wrap.querySelectorAll('.kpc-opt').forEach(b => b.addEventListener('click', () => kpAnswer(b.dataset.k)));
         // sabotagem contra mim?
+        _kp.myPid = _kp.myPid || (_kp.room && _kp.room.pid) || OnlineParty.myPid();
         const sab = p.sabotages && p.sabotages[_kp.myPid];
         kpApplySabotage(sab);
     }
