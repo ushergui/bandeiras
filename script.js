@@ -2909,12 +2909,22 @@ document.addEventListener('DOMContentLoaded', () => {
             showToast('Desafio enviado! Você já vê o resultado quando o amigo jogar.', 'info', 4000);
             return;
         }
+        claimDuelReward({ ...d, status: 'completo', from_score: res.from_score, to_score: res.to_score }, true);
+    }
+
+    // paga o pacote do vencedor/empate — funciona pra quem jogou primeiro também
+    // (chamado ao ver o desafio já resolvido na lista). Marcador permanente.
+    function claimDuelReward(d, loud) {
+        if (d.status !== 'completo' || d.from_score == null || d.to_score == null) return;
+        const key = 'dg_duelclaim_' + d.id;
+        if (localStorage.getItem(key)) return;
         const meFrom = window.OnlineDuels && OnlineDuels.myUid() === d.from_user;
-        const my = meFrom ? res.from_score : res.to_score;
-        const their = meFrom ? res.to_score : res.from_score;
+        const my = meFrom ? d.from_score : d.to_score;
+        const their = meFrom ? d.to_score : d.from_score;
+        try { localStorage.setItem(key, '1'); } catch (e) {}
         if (my > their) grantBonusPack('duel-' + d.id, 2, `Você venceu o desafio ${my} a ${their}!`);
         else if (my === their) grantBonusPack('duel-' + d.id, 1, `Empate no desafio (${my} a ${my})!`);
-        else showToast(`Você perdeu o desafio ${my} a ${their}. Revanche? 😤`, 'info', 4500);
+        else if (loud) showToast(`Você perdeu o desafio ${my} a ${their}. Revanche? 😤`, 'info', 4500);
     }
 
     function duelRole(d) {
@@ -2960,6 +2970,7 @@ document.addEventListener('DOMContentLoaded', () => {
         if (!mineBox) return;
         mineBox.innerHTML = '<p class="ot-empty">carregando…</p>';
         const [mine, mural] = await Promise.all([OnlineDuels.mine(), OnlineDuels.mural()]);
+        mine.forEach(d => { if (d.status === 'completo') claimDuelReward(d, false); });
         mineBox.innerHTML = mine.length ? mine.map(duelCardHTML).join('')
             : '<p class="ot-empty">Nenhum desafio ainda. Toque em “Novo desafio”.</p>';
         muralBox.innerHTML = mural.length ? mural.map(duelCardHTML).join('')
