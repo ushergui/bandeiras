@@ -513,5 +513,85 @@
         .subscribe();
       return () => { try { sb.removeChannel(ch); } catch (e) {} };
     },
+
+    // ─────────────── DUELO AO VIVO ───────────────
+    myName: () => uname,
+    myAvatar: () => uavatar,
+    async createLive(mode, difficulty, questions, invited) {
+      if (!online) return { error: 'Precisa de internet.' };
+      const row = {
+        mode, difficulty: difficulty || 1, questions,
+        host_user: uid, host_name: uname, host_avatar: uavatar,
+        invited_user: (invited && invited.id) || null,
+      };
+      const { data, error } = await sb.from('live_duels').insert(row).select().single();
+      return error ? { error: error.message } : { ok: true, duel: data };
+    },
+    async getLive(id) {
+      if (!online) return null;
+      const { data } = await sb.from('live_duels').select('*').eq('id', id).maybeSingle();
+      return data || null;
+    },
+    async myLive() {
+      if (!online) return [];
+      const { data } = await sb.from('live_duels').select('*')
+        .or(`host_user.eq.${uid},guest_user.eq.${uid},invited_user.eq.${uid}`)
+        .in('status', ['aguardando', 'pronto', 'jogando'])
+        .order('created_at', { ascending: false }).limit(20);
+      return data || [];
+    },
+    async liveLobby() {
+      if (!online) return [];
+      const { data } = await sb.from('live_duels').select('*')
+        .eq('status', 'aguardando').is('guest_user', null).is('invited_user', null)
+        .neq('host_user', uid).order('created_at', { ascending: false }).limit(20);
+      return data || [];
+    },
+    async joinLive(id)   { const { data, error } = await sb.rpc('join_live_duel',  { p_id: id });          return error ? { error: error.message } : (data || {}); },
+    async startLive(id)  { const { data, error } = await sb.rpc('start_live_duel', { p_id: id });          return error ? { error: error.message } : (data || {}); },
+    async finishLive(id, score) { const { data, error } = await sb.rpc('finish_live_duel', { p_id: id, p_score: score | 0 }); return error ? { error: error.message } : (data || {}); },
+    async forfeitLive(id) { const { data, error } = await sb.rpc('forfeit_live_duel', { p_id: id });        return error ? { error: error.message } : (data || {}); },
+    async cancelLive(id)  { const { data } = await sb.rpc('cancel_live_duel', { p_id: id });                return data || {}; },
+
+    // avisa quando alguém te convida / entra / termina um duelo ao vivo
+    subscribeLive(cb) {
+      if (!online) return () => {};
+      const ch = sb.channel('live-notif-' + uid)
+        .on('postgres_changes', { event: '*', schema: 'public', table: 'live_duels', filter: `invited_user=eq.${uid}` }, cb)
+        .on('postgres_changes', { event: '*', schema: 'public', table: 'live_duels', filter: `host_user=eq.${uid}` }, cb)
+        .on('postgres_changes', { event: '*', schema: 'public', table: 'live_duels', filter: `guest_user=eq.${uid}` }, cb)
+        .subscribe();
+      return () => { try { sb.removeChannel(ch); } catch (e) {} };
+    },
+
+    // sala de tempo real de UM duelo: presença (quem está conectado) + broadcast
+    liveRoom(id, handlers) {
+      handlers = handlers || {};
+      if (!online) return { send() {}, leave() {}, present: () => [] };
+      const ch = sb.channel('live-duel-' + id, { config: { presence: { key: uid } } });
+      ch.on('presence', { event: 'sync' }, () => {
+        const keys = Object.keys(ch.presenceState() || {});
+        handlers.onPresence && handlers.onPresence(keys);
+      });
+      ch.on('presence', { event: 'leave' }, ({ leftPresences }) => {
+        handlers.onLeave && handlers.onLeave((leftPresences || []).map((p) => p.user || p.key));
+      });
+      ['ready', 'go', 'progress', 'done', 'rematch'].forEach((ev) => {
+        ch.on('broadcast', { event: ev }, ({ payload }) => {
+          handlers.onMsg && handlers.onMsg(ev, payload || {});
+        });
+      });
+      ch.subscribe(async (status) => {
+        if (status === 'SUBSCRIBED') {
+          try { await ch.track({ user: uid, name: uname, avatar: uavatar }); } catch (e) {}
+          handlers.onReady && handlers.onReady();
+        }
+      });
+      return {
+        send: (event, payload) => { try { ch.send({ type: 'broadcast', event, payload: payload || {} }); } catch (e) {} },
+        present: () => Object.keys(ch.presenceState() || {}),
+        leave: () => { try { sb.removeChannel(ch); } catch (e) {} },
+      };
+    },
   };
 })();

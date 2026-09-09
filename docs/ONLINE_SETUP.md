@@ -131,8 +131,11 @@ Supabase, sem e-mail. Resetar senha **nunca** apaga o progresso.
 
 ## 9. Desafio entre amigos (Fase 34)
 
-SQL Editor → cola `supabase/duels.sql` → Run. Pronto — aparece **⚔️ Desafiar
-amigo** no hub.
+SQL Editor → cola `supabase/duels.sql` → Run (assíncrono).
+SQL Editor → cola `supabase/live_duels.sql` → Run (ao vivo, tempo real).
+
+Pronto — aparece **⚔️ Desafiar amigo** no hub, com "📮 Assíncrono" e
+"⚡ Ao vivo" no "Novo desafio".
 
 ---
 

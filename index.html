@@ -17,20 +17,20 @@
     <link rel="icon" href="assets/icons/favicon-32.png" sizes="32x32" type="image/png">
     <link rel="apple-touch-icon" href="assets/icons/apple-touch-icon.png">
 
-    <link rel="stylesheet" href="style.css?v=20260908v">
-    <link rel="stylesheet" href="css/app-shell.css?v=20260908v">
-    <link rel="stylesheet" href="css/screens.css?v=20260908v">
+    <link rel="stylesheet" href="style.css?v=20260908w">
+    <link rel="stylesheet" href="css/app-shell.css?v=20260908w">
+    <link rel="stylesheet" href="css/screens.css?v=20260908w">
     <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800;900&display=swap" rel="stylesheet">
     <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
     <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
-    <script src="countries.js?v=20260908v"></script>
-    <script src="collections.js?v=20260908v"></script>
-    <script src="figurinhas_data.js?v=20260908v"></script>
-    <script src="curiosities.js?v=20260908v"></script>
-    <script src="curiosities_br.js?v=20260908v"></script>
-    <script src="js/sfx.js?v=20260908v"></script>
-    <script src="js/config.js?v=20260908v"></script>
-    <script src="js/vendor/supabase.min.js?v=20260908v"></script>
+    <script src="countries.js?v=20260908w"></script>
+    <script src="collections.js?v=20260908w"></script>
+    <script src="figurinhas_data.js?v=20260908w"></script>
+    <script src="curiosities.js?v=20260908w"></script>
+    <script src="curiosities_br.js?v=20260908w"></script>
+    <script src="js/sfx.js?v=20260908w"></script>
+    <script src="js/config.js?v=20260908w"></script>
+    <script src="js/vendor/supabase.min.js?v=20260908w"></script>
 </head>
 
 <body>
@@ -419,12 +419,54 @@
 
             <div class="ot-tabs duel-tabs">
                 <button class="ot-tab active" data-dt="meus">Meus desafios <span id="duel-mine-badge" class="apb-count" hidden>0</span></button>
+                <button class="ot-tab" data-dt="live">⚡ Ao vivo <span id="duel-live-badge" class="apb-count" hidden>0</span></button>
                 <button class="ot-tab" data-dt="mural">📌 Mural</button>
             </div>
             <div id="duel-meus" class="ot-pane"><div id="duel-mine-list" class="ot-list"></div></div>
+            <div id="duel-live" class="ot-pane hidden"><div id="duel-live-list" class="ot-list"></div></div>
             <div id="duel-mural" class="ot-pane hidden"><div id="duel-mural-list" class="ot-list"></div></div>
 
             <p class="trades-hint" id="duels-offline-hint" hidden>O modo de desafio precisa de internet.</p>
+        </div>
+
+        <div id="live-room" class="screen live-room hidden">
+            <header class="setup-head">
+                <button class="setup-back" id="lr-back" aria-label="Voltar">Voltar</button>
+                <span class="setup-mode"><span class="mb-icon">⚡</span><span>Duelo ao vivo</span></span>
+            </header>
+
+            <div class="lr-vs">
+                <div class="lr-player lr-me">
+                    <span class="lr-av" id="lr-me-av">🌍</span>
+                    <b class="lr-name" id="lr-me-name">você</b>
+                    <span class="lr-status" id="lr-me-status">…</span>
+                </div>
+                <div class="lr-vs-badge">VS</div>
+                <div class="lr-player lr-opp">
+                    <span class="lr-av" id="lr-opp-av">❓</span>
+                    <b class="lr-name" id="lr-opp-name">aguardando…</b>
+                    <span class="lr-status" id="lr-opp-status">…</span>
+                </div>
+            </div>
+
+            <p class="lr-mode" id="lr-mode">🏳️ · 8 perguntas</p>
+            <p class="lr-hint" id="lr-hint">Manda o link ou espera o amigo entrar pelo "Ao vivo".</p>
+
+            <button id="lr-ready" class="btn-primary">Estou pronto!</button>
+            <button id="lr-start" class="btn-primary hidden">Começar o duelo!</button>
+            <button id="lr-cancel" class="link-btn">Sair</button>
+
+            <div id="lr-countdown" class="lr-countdown hidden"><span></span></div>
+        </div>
+
+        <div id="live-invite-modal" class="modal-backdrop hidden">
+            <div class="modal-content">
+                <h2>⚡ Duelo ao vivo!</h2>
+                <p><b id="lim-from">Alguém</b> te chamou pra um duelo <b>ao vivo</b>.</p>
+                <p class="lim-mode" id="lim-mode"></p>
+                <button id="lim-accept" class="btn-primary">Aceitar e jogar</button>
+                <button id="lim-decline" class="link-btn">Agora não</button>
+            </div>
         </div>
 
         <div id="duel-compose-modal" class="modal-backdrop hidden">
@@ -433,6 +475,12 @@
                     <h2>Novo desafio</h2>
                     <button id="dcm-close" class="tmp-x" aria-label="Fechar">✕</button>
                 </header>
+
+                <p class="dcm-label">Tipo</p>
+                <div class="dcm-modes" id="dcm-kind">
+                    <button class="dcm-mode sel" data-kind="async">📮 Assíncrono <small>joga cada um na sua hora</small></button>
+                    <button class="dcm-mode" data-kind="live">⚡ Ao vivo <small>os dois jogando juntos</small></button>
+                </div>
 
                 <p class="dcm-label">Modo</p>
                 <div class="dcm-modes" id="dcm-modes">
@@ -476,9 +524,16 @@
                 </div>
             </div>
 
+            <div id="live-hud" class="live-hud hidden">
+                <span class="lh-side lh-me"><span id="lh-me-name">você</span> <b id="lh-me-score">0</b></span>
+                <span class="lh-bar"><span id="lh-bar-fill"></span></span>
+                <span class="lh-side lh-opp"><b id="lh-opp-score">0</b> <span id="lh-opp-av">❓</span><span id="lh-opp-name">…</span> <i id="lh-opp-q"></i></span>
+            </div>
+
             <div class="progress-bar-container">
                 <div id="progress-bar-fill" class="progress-bar-fill" style="width: 0%"></div>
             </div>
+            <div id="live-timer" class="live-timer hidden"><span id="live-timer-fill"></span></div>
 
             <div class="game-question">
                 <h2 id="instruction">...</h2>
@@ -827,8 +882,8 @@
         </div>
     </div>
 
-    <script src="script.js?v=20260908v"></script>
-    <script src="js/data-online.js?v=20260908v"></script>
+    <script src="script.js?v=20260908w"></script>
+    <script src="js/data-online.js?v=20260908w"></script>
 </body>
 
 </html>

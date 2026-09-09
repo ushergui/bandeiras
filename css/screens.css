@@ -2426,3 +2426,56 @@
 .adm-msg.error { background: rgba(239,68,68,.14); color: #fca5a5; border: 1px solid rgba(239,68,68,.3); }
 .adm-msg.info { background: rgba(255,255,255,.06); color: var(--text-muted); }
 #adm-count { display: inline-grid; vertical-align: middle; margin-left: 6px; }
+
+/* ═══ FASE 34B — duelo ao vivo ═══ */
+.live-room { display: flex; flex-direction: column; gap: 14px; }
+.lr-vs {
+  display: grid; grid-template-columns: 1fr auto 1fr; align-items: center; gap: 8px;
+  margin-top: 8px;
+}
+.lr-player {
+  display: flex; flex-direction: column; align-items: center; gap: 4px; text-align: center;
+  background: rgba(9,16,28,.5); border: 1px solid rgba(255,255,255,.12);
+  border-radius: 14px; padding: 14px 8px;
+}
+.lr-me { border-color: rgba(96,165,250,.5); }
+.lr-opp { border-color: rgba(244,114,182,.4); }
+.lr-av { font-size: 2rem; line-height: 1; }
+.lr-name { font-size: .95rem; color: #fff; word-break: break-word; }
+.lr-status { font-size: .72rem; color: var(--text-muted); }
+.lr-vs-badge { font-weight: 900; font-size: 1.1rem; color: #f472b6; }
+.lr-mode { text-align: center; font-weight: 700; color: #fff; font-size: .9rem; }
+.lr-hint { text-align: center; font-size: .82rem; color: var(--text-muted); line-height: 1.4; }
+.live-room .btn-primary { margin: 0; }
+
+.lr-countdown {
+  position: fixed; inset: 0; z-index: 400; display: grid; place-items: center;
+  background: rgba(7,12,22,.9); backdrop-filter: blur(4px);
+}
+.lr-countdown span { font-size: 5rem; font-weight: 900; color: #fff; }
+.cd-pop { animation: cdPop .5s cubic-bezier(.2,1.4,.4,1); }
+@keyframes cdPop { from { transform: scale(.3); opacity: 0; } to { transform: scale(1); opacity: 1; } }
+
+/* HUD do adversário durante a partida */
+.live-hud {
+  display: flex; align-items: center; gap: 8px; font-size: .82rem; font-weight: 800;
+  padding: 6px 10px; background: rgba(9,16,28,.6); border-radius: 10px; margin: 4px 0;
+}
+.live-hud .lh-side { display: flex; align-items: center; gap: 4px; white-space: nowrap; }
+.live-hud .lh-me { color: #93c5fd; }
+.live-hud .lh-opp { color: #f9a8d4; margin-left: auto; }
+.live-hud b { font-size: 1rem; color: #fff; }
+.live-hud .lh-bar { flex: 1; height: 6px; border-radius: 999px; background: rgba(244,114,182,.35); overflow: hidden; min-width: 30px; }
+.live-hud .lh-bar span { display: block; height: 100%; background: #60a5fa; transition: width .35s ease; }
+.live-hud i { font-style: normal; font-size: .7rem; opacity: .8; }
+
+.live-timer { height: 6px; border-radius: 999px; background: rgba(255,255,255,.08); overflow: hidden; margin: 4px 0 2px; }
+.live-timer span { display: block; height: 100%; width: 100%; background: linear-gradient(90deg,#4ade80,#a3e635); transition: width .1s linear; }
+.live-timer span.lt-low { background: linear-gradient(90deg,#f59e0b,#ef4444); }
+
+.live-end-actions { display: flex; gap: 10px; justify-content: center; flex-wrap: wrap; margin-top: 10px; }
+.live-end-actions .btn-primary { margin: 0; }
+
+#dcm-kind .dcm-mode { flex-direction: column; align-items: flex-start; gap: 2px; }
+#dcm-kind .dcm-mode small { font-weight: 600; color: var(--text-muted); font-size: .72rem; }
+.lim-mode { font-weight: 700; color: #fff; }
