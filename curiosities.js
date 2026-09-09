@@ -11,7 +11,7 @@ const curiosities = {
         "A Oktoberfest de Munique é o maior festival de cerveja do mundo.",
         "Negar o Holocausto é um crime na Alemanha.",
         "Berlim tem mais pontes do que Veneza.",
-        "O primeiro livro impresso do mundo foi criado pelo alemão Johannes Gutenberg."
+        "O alemão Johannes Gutenberg criou a primeira imprensa de tipos móveis da Europa, que espalhou os livros pelo mundo ocidental."
     ],
     'ar': [
         "A língua falada no país é o espanhol (castelhano).",
@@ -34,14 +34,14 @@ const curiosities = {
         "A cidade de Melbourne já foi a cidade mais rica do mundo durante a corrida do ouro.",
         "O país tem mais de 10.000 praias. Você poderia visitar uma nova praia todos os dias por mais de 27 anos.",
         "A Austrália foi o segundo país do mundo a conceder o direito de voto às mulheres.",
-        "A 'selfie' foi inventada na Austrália.",
+        "A palavra 'selfie' surgiu num fórum de internet australiano, em 2002.",
         "A maior cerca do mundo, a 'Dingo Fence', está na Austrália e é mais longa que a Muralha da China."
     ],
     'br': [
         "A língua falada no país é o português.",
         "Quem nasce no Brasil é chamado de brasileiro ou brasileira.",
         "O Brasil é o maior produtor de café do mundo há mais de 150 anos.",
-        "A Feijoada, prato nacional, foi inventada pelos escravos africanos.",
+        "A Feijoada, prato nacional, tem raízes nos cozidos portugueses de feijão com carnes e virou o prato mais brasileiro que existe.",
         "O Brasil possui a maior biodiversidade do mundo, abrigando a Floresta Amazônica.",
         "O nome 'Brasil' vem de uma árvore chamada pau-brasil, de cor avermelhada como brasa.",
         "O Cristo Redentor foi eleito uma das Sete Maravilhas do Mundo Moderno.",
@@ -64,14 +64,14 @@ const curiosities = {
     'cn': [
         "A língua falada no país é o mandarim.",
         "Quem nasce na China é chamado de chinês ou chinesa.",
-        "O sorvete foi inventado na China há cerca de 4.000 anos.",
+        "Sobremesas geladas com neve e gelo já eram feitas na China há mais de mil anos.",
         "O papel, a bússola, a pólvora e a impressão foram inventados na China.",
         "A Grande Muralha da China é a maior estrutura já construída pelo homem.",
         "O Ano Novo Chinês é a celebração mais importante e dura 15 dias.",
         "Todos os pandas gigantes do mundo pertencem à China e são 'emprestados' a outros países.",
         "O Exército de Terracota consiste em mais de 8.000 soldados de argila em tamanho real.",
         "A China é o país mais populoso do mundo.",
-        "O jogo de Kitesurf (pipa) foi inventado na China."
+        "A pipa (papagaio de papel) foi inventada na China há mais de 2.000 anos."
     ],
     'eg': [
         "A língua falada no país é o árabe.",
@@ -148,7 +148,7 @@ const curiosities = {
     'jp': [
         "A língua falada no país é o japonês.",
         "Quem nasce no Japão é chamado de japonês ou japonesa.",
-        "O Japão é composto por mais de 6.800 ilhas.",
+        "O Japão é composto por mais de 14.000 ilhas (uma recontagem oficial de 2023 mais que dobrou o número antigo).",
         "A taxa de alfabetização no Japão é de quase 100%.",
         "As máquinas de venda automática no Japão vendem de tudo, desde bebidas até refeições quentes.",
         "Comer frango frito no Natal é uma tradição popular no Japão, graças a uma campanha de marketing.",
@@ -201,7 +201,7 @@ const curiosities = {
         "A Transiberiana é a linha ferroviária mais longa do mundo.",
         "A Catedral de São Basílio, em Moscou, foi encomendada por Ivan, o Terrível.",
         "O jogo Tetris foi criado pelo programador russo Alexey Pajitnov.",
-        "A Rússia foi o primeiro país a enviar um ser humano ao espaço, o cosmonauta Yuri Gagarin.",
+        "A antiga União Soviética foi a primeira a enviar um ser humano ao espaço, o cosmonauta russo Yuri Gagarin, em 1961.",
         "O Museu Hermitage, em São Petersburgo, tem uma 'guarda' de gatos para proteger suas obras de arte de roedores.",
         "A Rússia tem a maior floresta do mundo, a Taiga Siberiana."
     ],
@@ -285,7 +285,7 @@ const curiosities = {
         "O K-Pop (pop coreano) é um fenômeno musical global.",
         "O kimchi, um prato de vegetais fermentados, é o prato nacional e é servido em quase todas as refeições.",
         "A empresa Samsung é sul-coreana e responde por uma parte significativa da economia do país.",
-        "Os sul-coreanos nascem com um ano de idade, pois a contagem de idade começa no útero.",
+        "Até 2023, os sul-coreanos contavam a idade de um jeito próprio: já nasciam com um ano e todos ganhavam mais um ano no dia 1º de janeiro.",
         "O país tem a maior taxa de cirurgia plástica per capita do mundo.",
         "O 'hangul', o alfabeto coreano, foi criado no século 15 para ser fácil de aprender."
     ],
@@ -466,7 +466,7 @@ const curiosities = {
         "O pássaro kiwi, que não voa, é um símbolo nacional e dá apelido aos seus habitantes.",
         "A Nova Zelândia tem a maior proporção de ovelhas por pessoa do mundo (cerca de 5 ovelhas para cada pessoa).",
         "O bungee jumping comercial começou na Nova Zelândia.",
-        "O ponto geográfico mais distante de qualquer oceano está na China, e o mais distante de qualquer terra está perto da Nova Zelândia.",
+        "O ponto de terra mais distante de qualquer oceano fica na China; o Ponto Nemo, no Pacífico Sul, é o ponto do mar mais distante de qualquer terra firme.",
         "Sir Edmund Hillary, a primeira pessoa a escalar o Monte Everest, era neozelandês."
     ],
     'pk': [
@@ -655,7 +655,7 @@ const curiosities = {
         "O Cazaquistão é o maior país sem litoral do mundo.",
         "O Cosmódromo de Baikonur, o primeiro e maior centro de lançamento espacial do mundo, está localizado no Cazaquistão.",
         "Acredita-se que as maçãs e as tulipas se originaram nas montanhas do Cazaquistão.",
-        "Astana (agora Nur-Sultan) é uma das capitais mais novas e modernas do mundo.",
+        "Astana, a capital, é uma das capitais mais novas e modernas do mundo (chamou-se Nur-Sultan entre 2019 e 2022).",
         "O país tem uma vasta estepe, onde os cavalos foram domesticados pela primeira vez.",
         "O Cazaquistão tem a chaminé mais alta do mundo, a Chaminé da Usina de Ekibastuz GRES-2.",
         "O Mar de Aral, que já foi o quarto maior lago do mundo, está localizado entre o Cazaquistão e o Uzbequistão.",
@@ -712,10 +712,10 @@ const curiosities = {
     'et': [
         "A língua falada no país é o amárico.",
         "Quem nasce na Etiópia é chamado de etíope.",
-        "A Etiópia é o único país africano que nunca foi colonizado.",
+        "A Etiópia nunca foi formalmente colonizada por uma potência europeia, apesar da ocupação italiana entre 1936 e 1941.",
         "O café foi descoberto na Etiópia por um pastor de cabras.",
         "A Etiópia segue seu próprio calendário, que está cerca de sete a oito anos atrás do calendário ocidental.",
-        "O país abriga o fóssil humano mais antigo já descoberto, 'Lucy'.",
+        "O país abriga 'Lucy', um dos fósseis de ancestrais humanos mais famosos do mundo, com cerca de 3,2 milhões de anos.",
         "As igrejas esculpidas na rocha de Lalibela são um Patrimônio Mundial da UNESCO.",
         "A Etiópia é o país sem litoral mais populoso do mundo.",
         "O imperador Haile Selassie é considerado uma figura messiânica pelos seguidores do movimento Rastafari.",
@@ -727,7 +727,7 @@ const curiosities = {
         "As Filipinas são o segundo maior arquipélago do mundo, com mais de 7.000 ilhas.",
         "O país recebeu seu nome em homenagem ao Rei Filipe II da Espanha.",
         "O ioiô foi inventado nas Filipinas como uma arma de caça.",
-        "As Filipinas são o único país de maioria cristã na Ásia.",
+        "As Filipinas são um dos poucos países de maioria cristã da Ásia (junto com Timor-Leste).",
         "O karaokê foi inventado por um filipino, Roberto del Rosario.",
         "Os terraços de arroz de Banaue são considerados a 'Oitava Maravilha do Mundo'.",
         "O país é um dos maiores produtores de cocos e abacaxis do mundo.",
@@ -1048,7 +1048,7 @@ const curiosities = {
 ],
 'bd': [
     "A língua falada no país é o bengali.",
-    "Quem nasce em Bangladesh é chamado de bangladês ou benegalês.",
+    "Quem nasce em Bangladesh é chamado de bangladês ou bengalês.",
     "Bangladesh tem o maior delta de rio do mundo, o Delta do Ganges.",
     "É um dos países mais densamente povoados do planeta.",
     "O tigre-de-bengala, um dos maiores felinos, é o animal nacional.",
@@ -1083,7 +1083,7 @@ const curiosities = {
     "O Marco conversível é a moeda local, atrelado ao Euro."
 ],
 'bt': [
-    "A língua falada no país é o dzonga.",
+    "A língua falada no país é o dzongkha.",
     "Quem nasce no Butão é chamado de butanês ou butanesa.",
     "O Butão mede sua prosperidade pelo índice de 'Felicidade Nacional Bruta' em vez do PIB.",
     "É o único país do mundo com emissão de carbono negativa.",
@@ -1351,7 +1351,7 @@ const curiosities = {
     "A língua falada no país é o espanhol.",
     "Quem nasce na Nicarágua é chamado de nicaraguense.",
     "A Nicarágua é conhecida como a 'terra de lagos e vulcões'.",
-    "O Lago Nicarágua é o maior lago da América Central e abriga os únicos tubarões de água doce do mundo.",
+    "O Lago Nicarágua é o maior lago da América Central e abriga tubarões-touro, que nadam do mar do Caribe até o lago subindo o rio San Juan.",
     "O país tem o mais antigo nome de cidade da América Central, Granada, fundada em 1524.",
     "O 'gallo pinto', uma mistura de arroz e feijão, é um prato básico nacional.",
     "O vulcão Cerro Negro é um dos mais ativos da Nicarágua e um local popular para a prática de 'volcano boarding'.",
@@ -1767,7 +1767,7 @@ const curiosities = {
     "Devido aos testes nucleares, o Atol de Bikini é um Patrimônio Mundial da UNESCO, como um lembrete dos perigos da era nuclear.",
     "As Ilhas Marshall têm uma das maiores zonas econômicas exclusivas do mundo, rica em atum.",
     "A navegação tradicional usando mapas de varas ('stick charts') é uma habilidade cultural importante.",
-    "O país é um dos quatro únicos no mundo que não possui um exército (junto com Andorra, Liechtenstein e Vaticano).",
+    "O país é um dos vários no mundo que não possuem forças armadas; sua defesa é responsabilidade dos Estados Unidos.",
     "As Ilhas Marshall estão em grave risco devido à elevação do nível do mar.",
     "A moeda oficial é o dólar americano."
 ],
@@ -2238,7 +2238,7 @@ const curiosities = {
     "O Lago Pitch, em Trindade, é o maior depósito natural de asfalto do mundo.",
     "O país é um dos mais ricos e desenvolvidos do Caribe devido às suas reservas de petróleo e gás natural.",
     "A população é dividida principalmente entre descendentes de africanos e indianos.",
-    "O pimentão mais picante do mundo, o 'Trinidad Moruga Scorpion', foi desenvolvido no país.",
+    "A pimenta 'Trinidad Moruga Scorpion', desenvolvida no país, já foi considerada a mais picante do mundo, em 2012.",
     "A ilha de Tobago é considerada por muitos o cenário do romance 'Robinson Crusoe'.",
     "O 'calipso' e a 'soca' são gêneros musicais que se originaram no país."
 ],

@@ -36,6 +36,7 @@ def load_data():
 
 
 FIG, PAISES = load_data()
+HAB = (FIG.get("animais") or {}).get("hab") or {}   # slug -> frase do bioma (fundo da figurinha)
 
 
 def slug_name(s):
@@ -157,7 +158,55 @@ def subject_gemini(it):
         % (it["nome"], it["pais"], it["nome"], it["fis"], jersey, _flag_block(it["pais"], flagdesc)))
 
 
+# ---- animais em extincao: mesmo estilo cinematografico das lendas, fundo = bioma real ----
+BASE_ANIM = "\n".join([
+    "Highly detailed semi-realistic digital painting in a polished, cinematic wildlife-illustration style -- roughly 75% photorealistic.",
+    "Think refined natural-history cover art: convincingly real fur, feathers, scales, skin, eyes and light, while keeping a subtle",
+    "hand-painted, illustrated quality so it is clearly NOT a photograph. Soft realistic lighting with a gentle cinematic key light",
+    "and soft shadows, fine texture (individual hairs, feather barbs, scale detail), a moist catchlight in the eye, soft specular",
+    "highlights. Linework minimal and very subtle -- no thick uniform outlines, no hard cel-shading, no flat comic look. Rich,",
+    "natural, saturated colour with smooth painterly gradients. Stylised realism, painterly not photographic. NOT a flat vector,",
+    "NOT a sticker, NOT a cartoon, NOT a hard-inked comic, NOT a 3D render, NOT a real photograph. No text, no letters, no numbers,",
+    "no border, no watermark, no signature, no logo, no flag, no people, no hands, no cages or fences. One single complete",
+    "animal, full body visible and uncropped, centred, calm and dignified. Deliver 1200x800 PNG (3:2 landscape).",
+    "--- SUBJECT: ",
+])
+
+
+def _habitat_block(hab):
+    return (
+        "BACKGROUND -- the setting is the animal's REAL habitat: %s. "
+        "Paint it as a believable environment that fills the WHOLE frame, edge to edge, as the world behind the animal. "
+        "Build the image in two layers: BOTTOM layer = that habitat, painted once; TOP layer = the animal, painted over it. "
+        "Keep the background slightly soft / gently depth-blurred and a touch darker so the animal clearly stands out in front. "
+        "Match the plants, rock, water, snow, light and season to that exact biome -- never mix in scenery from a different "
+        "biome (no forest behind a desert animal, no savanna behind a rainforest animal, no ice behind a jungle animal). "
+        "Natural daylight unless the habitat text says night. Nothing man-made, no other large animals." % hab
+    )
+
+
+def subject_anim(it):
+    hab = HAB.get(it.get("slug") or "") or "its natural habitat"
+    return (
+        "the complete %s shown FULL BODY from head to tail and feet, nothing cropped, in a natural relaxed pose "
+        "(standing, walking, perched, climbing, swimming or resting as suits the species), seen from a gentle "
+        "three-quarter angle, the animal filling about 60-70%% of the frame and sitting comfortably inside it, head "
+        "turned slightly toward the viewer with a calm, alert gaze and a clean catchlight in the eye. Render it as a "
+        "detailed, accurate, faithful likeness of the real species -- correct anatomy, proportions, markings and "
+        "colours, every hair, feather or scale described, like a premium natural-history field-guide plate.\n%s\n"
+        "Semi-realistic painterly wildlife-poster illustration, detailed and cinematic, reading as ~75%% realism "
+        "between a photograph and an illustration; the whole animal iconic and readable as a small collectible card."
+        % (it["en"], _habitat_block(hab))
+    )
+
+
+def prompt_anim(it):
+    return BASE_ANIM + subject_anim(it)
+
+
 def prompt_for(sec, it):
+    if sec == "animais":
+        return prompt_anim(it)
     return (BASE_LEN if sec == "lendas" else BASE) + subject_gpt(sec, it)
 
 
