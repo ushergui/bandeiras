@@ -204,9 +204,67 @@ def prompt_anim(it):
     return BASE_ANIM + subject_anim(it)
 
 
+# ---- comidas + legumes: mesmo estilo cinematografico ~75% real dos animais ----
+# regra de ouro: NAO inventar ingrediente / variedade -- respeitar a cultura de origem.
+BASE_FOOD = "\n".join([
+    "Highly detailed semi-realistic digital painting in a polished, cinematic food-illustration style -- roughly 75% photorealistic.",
+    "Think refined cookbook-cover / natural-history plate art: convincingly real texture, moisture, crumb, grain, char, steam and",
+    "light, while keeping a subtle hand-painted, illustrated quality so it is clearly NOT a photograph. Soft realistic lighting with",
+    "a gentle cinematic key light and soft shadows, believable specular highlights and reflections, shallow depth of field. Linework",
+    "minimal and very subtle -- no thick uniform outlines, no hard cel-shading, no flat comic look. Rich, natural, appetising colour",
+    "with smooth painterly gradients. Stylised realism, painterly not photographic. NOT a flat vector, NOT a sticker, NOT a cartoon,",
+    "NOT a hard-inked comic, NOT a 3D render, NOT a real photograph. No text, no letters, no numbers, no border, no watermark, no",
+    "signature, no logo, no brand, no flag, no people, no hands. Deliver 1200x800 PNG (3:2 landscape).",
+    "--- SUBJECT: ",
+])
+
+
+def subject_comida(it):
+    return (
+        "%s, served as a single honest portion and seen from a natural three-quarter table angle, filling about 60-70%% of the "
+        "frame and sitting comfortably inside it, with a gentle wisp of steam if the dish is served hot.\n"
+        "CULTURAL ACCURACY -- read carefully. This is a real national dish and must be shown truthfully: include ONLY the "
+        "components named above and nothing else. Do NOT add, swap or imagine any ingredient, garnish, herb, spice, sauce, side, "
+        "topping, bread or decoration that is not named. Do NOT turn it into fusion food, do NOT do tall fine-dining tower "
+        "plating, do NOT prettify it with scattered micro-herbs or sauce dots. Present it exactly the way it is traditionally "
+        "cooked and served at home in its own country -- correct colour, texture, consistency and portion -- in its usual "
+        "vessel (plain plate, bowl, clay pot, cast-iron pan, banana leaf, paper, skewer or board, whichever is authentic).\n"
+        "BACKGROUND -- a plain, softly blurred neutral surface (simple wood, stone or cloth) under warm kitchen light; nothing "
+        "identifiable behind it, no other dishes, no cutlery unless essential, no props, no text, no flag, no logo.\n"
+        "Semi-realistic painterly food-poster illustration, detailed and cinematic, reading as ~75%% realism between a photograph "
+        "and an illustration; the dish iconic and instantly readable as a small collectible card."
+        % it["en"]
+    )
+
+
+def subject_legume(it):
+    return (
+        "%s, shown as the true cultivated plant -- a fresh generous helping of it: one whole specimen for the large ones, or a "
+        "small natural pile / bunch / cluster for the small ones (beans, peas, lentils, peanuts, mushrooms, grains), uncropped, "
+        "from a gentle three-quarter angle, filling about 55-70%% of the frame, exactly as it looks freshly harvested -- correct "
+        "species and common variety, real shape, size, proportions, surface and natural colour, with the true texture of its "
+        "skin, leaves, pod or husk. You may add one clean cut half beside the whole one ONLY if that is a normal, familiar way "
+        "to show this vegetable.\n"
+        "ACCURACY -- do NOT invent a fantasy variety, do NOT change its colour or form, do NOT stylise it into something "
+        "decorative, and do NOT add leaves, flowers, roots, tendrils, water drops, seasoning, cloth or props that do not "
+        "genuinely belong to this plant.\n"
+        "BACKGROUND -- a plain, softly blurred neutral surface (simple wood, stone or earth tones) under soft daylight; nothing "
+        "identifiable behind it, no text, no flag, no logo, no people, no hands.\n"
+        "Semi-realistic painterly still-life illustration, detailed and cinematic, reading as ~75%% realism between a photograph "
+        "and an illustration; the vegetable iconic and instantly readable as a small collectible card."
+        % it["en"]
+    )
+
+
+def prompt_food(sec, it):
+    return BASE_FOOD + (subject_legume(it) if sec == "legumes" else subject_comida(it))
+
+
 def prompt_for(sec, it):
     if sec == "animais":
         return prompt_anim(it)
+    if sec in ("legumes", "comidas"):
+        return prompt_food(sec, it)
     return (BASE_LEN if sec == "lendas" else BASE) + subject_gpt(sec, it)
 
 
@@ -437,8 +495,9 @@ PAGE = r"""<!doctype html><html lang="pt-BR"><head><meta charset="utf-8">
 const $=s=>document.querySelector(s),api=(u,o)=>fetch(u,o).then(r=>r.json());
 let DATA=null,ORDER=[],cur='animais',q='',hideDone=false;
 const NOTE={animais:"Figurinha por animal, ordem alfabética, sem bandeira no card. Os países vão na curiosidade.",
- frutas:"Figurinha por fruta.",legumes:"Figurinha por legume/hortaliça.",
- comidas:"Uma comida por país (prato escolhido por nós).",
+ frutas:"Figurinha por fruta.",
+ legumes:"Figurinha por legume/hortaliça. Estilo semirrealista ~75% (igual aos animais), variedade real da planta.",
+ comidas:"Uma comida por país (prato escolhido por nós). Estilo semirrealista ~75% — só os ingredientes reais do prato, servido como na cultura de origem.",
  lendas:"Craques por país. Prompt já tem nome + físico + uniforme da época + número + fundo com a bandeira.",
  moedas:"NÃO gera com IA — baixa a imagem real pelo Wikimedia. Dá pra fazer upload aqui também.",
  clubes:"Escudos baixados por script: venv\\Scripts\\python.exe tools\\fetch_escudos.py . O que faltar, use o botão de busca ou faça upload."};
