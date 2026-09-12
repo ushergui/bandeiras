@@ -202,6 +202,8 @@
   gap: 12px;
   background: transparent;
   padding: 0;
+  min-width: 0;
+  flex: 1 1 auto;
 }
 .hub-avatar {
   width: 52px;
@@ -219,8 +221,13 @@
   font-size: 0.9rem;
   color: var(--text-muted);
   line-height: 1.25;
+  min-width: 0;
 }
-.hub-hello b { color: var(--text-white); font-size: 1.15rem; font-weight: 900; }
+.hub-hello b {
+  color: var(--text-white); font-size: 1.15rem; font-weight: 900;
+  display: block; max-width: 100%;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
 .hub-logout {
   padding: 9px 15px;
   border-radius: 10px;
@@ -378,6 +385,10 @@
 .setup-opts { display: grid; gap: 8px; }
 .setup-cols-2 { grid-template-columns: 1fr 1fr; }
 .setup-cols-3 { grid-template-columns: repeat(3, 1fr); }
+/* "Contrarrelógio" é um 3º jeito de jogar, diferente o bastante de Jornada/Rápido
+   pra ganhar a linha inteira embaixo dos outros dois, em vez de espremer 3 numa
+   grade pensada pra 2 */
+#setup-sec-type .setup-opt#setup-type-tt { grid-column: 1 / -1; }
 .setup-levels { grid-template-columns: repeat(5, 1fr); }
 
 .setup-opt {
@@ -809,6 +820,14 @@
 .icon-btn:hover { background: rgba(255, 255, 255, 0.12); }
 .icon-btn.muted { opacity: 0.55; }
 
+/* celular estreito: cabem 4 ícones + "Sair" sem empurrar nada pra fora da tela */
+@media (max-width: 380px) {
+  .hub-actions { gap: 5px; }
+  .icon-btn { width: 34px; height: 34px; font-size: 1rem; border-radius: 10px; }
+  .hub-avatar { width: 44px; height: 44px; font-size: 1.4rem; }
+  .hub-logout { padding: 8px 11px; font-size: 0.76rem; }
+}
+
 /* ---- menu de som (efeitos / vozes) ---- */
 .sound-wrap { position: relative; }
 .sound-menu {
@@ -971,19 +990,11 @@
 @keyframes tearGlow { 50% { opacity: .35; } }
 .pack-stage.opening .pack-tear-line { display: none; }
 
-/* ---- tela "o que fazer com as novas" ---- */
-.pack-decide { text-align: left; margin-top: 8px; }
+/* ---- aviso curto: as novas já foram pra pilha (rev 12/09, era um fluxo de decisão figurinha a figurinha) ---- */
+.pack-decide { text-align: center; margin-top: 4px; }
 .pack-decide.hidden { display: none; }
-.pack-decide-title { font-weight: 900; font-size: 0.9rem; margin: 0 0 8px; color: var(--text-white); }
 #pack-decide-list { display: flex; flex-direction: column; gap: 6px; }
-
-/* uma figurinha nova de cada vez */
-.decide-one { display: flex; flex-direction: column; align-items: center; gap: 8px; text-align: center; padding: 4px 0; }
-.decide-step { font-size: .72rem; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; color: var(--text-muted); }
-.decide-one-img { width: 92px; height: 61px; object-fit: cover; border-radius: 8px; box-shadow: 0 6px 18px rgba(0,0,0,.4); }
-.decide-one-name { font-size: 1rem; font-weight: 900; color: var(--text-white); line-height: 1.15; max-width: 100%; }
-.decide-one-btns { display: flex; gap: 8px; flex-wrap: wrap; justify-content: center; width: 100%; }
-.decide-one-btns .decide-glue, .decide-one-btns .decide-keep { flex: 1 1 auto; min-width: 140px; padding: 11px 12px; font-size: .85rem; border-radius: 11px; }
+.pack-decide-hint { font-size: 0.85rem; font-weight: 700; color: var(--text-muted); line-height: 1.4; margin: 0; }
 
 .decide-row {
   display: flex; align-items: center; gap: 8px;
@@ -2696,6 +2707,19 @@
 #close-achievement-button:hover,
 #close-constructive-button:hover,
 #level-up-continue-button:hover { filter: brightness(1.1); }
+
+/* telas de composição longas (desafio / oferta no mural) no celular: encostam
+   no topo e usam a tela quase inteira, em vez de sobrar espaço preto em cima
+   e cortar as últimas opções embaixo (mesmo tratamento do pacote) */
+@media (max-width: 767.98px) {
+  #duel-compose-modal, #ot-compose-modal { align-items: flex-start !important; }
+  #duel-compose-modal .modal-content,
+  #ot-compose-modal .modal-content {
+    border-radius: 0 0 22px 22px !important;
+    max-height: 100dvh !important;
+    padding-top: calc(18px + var(--safe-top)) !important;
+  }
+}
 
 #dcm-kind .dcm-mode, #dcm-pace .dcm-mode { flex-direction: column; align-items: flex-start; gap: 2px; }
 #dcm-pace .dcm-mode { flex: 1 1 28%; align-items: center; }

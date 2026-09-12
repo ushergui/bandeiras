@@ -18,8 +18,8 @@
     <link rel="apple-touch-icon" href="assets/icons/apple-touch-icon.png">
 
     <link rel="stylesheet" href="style.css?v=20260909d">
-    <link rel="stylesheet" href="css/app-shell.css?v=20260909d">
-    <link rel="stylesheet" href="css/screens.css?v=20260909d">
+    <link rel="stylesheet" href="css/app-shell.css?v=20260912a">
+    <link rel="stylesheet" href="css/screens.css?v=20260912a">
     <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800;900&display=swap" rel="stylesheet">
     <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
     <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
@@ -226,6 +226,19 @@
                         <span class="so-title">⚡ Rápido</span>
                         <span class="so-sub">Treino livre, você escolhe tudo</span>
                     </button>
+                    <button class="setup-opt hidden" id="setup-type-tt" data-setup="type" data-value="Contrarrelogio">
+                        <span class="so-title">⏱️ Contrarrelógio</span>
+                        <span class="so-sub">Sem enrolação: só o nome do país e 4 opções — acerte o máximo até o tempo acabar</span>
+                    </button>
+                </div>
+            </section>
+
+            <section class="setup-sec hidden" id="setup-sec-duration">
+                <h2 class="hub-title">Duração</h2>
+                <div class="setup-opts setup-cols-3">
+                    <button class="setup-opt" data-setup="duration" data-value="30">⏱️<span>30s</span></button>
+                    <button class="setup-opt" data-setup="duration" data-value="60">⏱️<span>1 min</span></button>
+                    <button class="setup-opt" data-setup="duration" data-value="120">⏱️<span>2 min</span></button>
                 </div>
             </section>
 
@@ -925,7 +938,6 @@
             </div>
             <div id="opened-stickers" class="opened-stickers-grid hidden"></div>
             <div id="pack-decide" class="pack-decide hidden">
-                <p class="pack-decide-title">O que fazer com as novas?</p>
                 <div id="pack-decide-list"></div>
             </div>
             <div id="pack-end-actions" class="pack-end-actions hidden">
@@ -1032,7 +1044,7 @@
     </div>
 
     <script src="js/vendor/gsap.min.js?v=20260911a"></script>
-    <script src="script.js?v=20260909d"></script>
+    <script src="script.js?v=20260912a"></script>
     <script src="js/data-online.js?v=20260909d"></script>
 </body>
 

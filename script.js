@@ -898,8 +898,15 @@ document.addEventListener('DOMContentLoaded', () => {
         'BandeiraPorPais': {
             title: "Qual a Bandeira?",
             setup: () => setupStandardRound((c) => {
-                elements.instruction.textContent = `Qual é a bandeira ${c.artigo} ${c.nome}?`;
-                if (!c._kind) playAudio(`bandeiras/${c.nome}`);
+                // contrarrelógio: sem enrolação -- só o nome (texto e áudio),
+                // sem a pergunta completa ("Qual é a bandeira de...")
+                if (gameConfig.type === 'Contrarrelogio') {
+                    elements.instruction.textContent = c.nome;
+                    if (!c._kind) playAudio(`nomes_paises/${c.nome}`);
+                } else {
+                    elements.instruction.textContent = `Qual é a bandeira ${c.artigo} ${c.nome}?`;
+                    if (!c._kind) playAudio(`bandeiras/${c.nome}`);
+                }
             }, 'flag')
         },
         'PaisPorCapital': {
@@ -1194,11 +1201,18 @@ document.addEventListener('DOMContentLoaded', () => {
                 gameState._base = [...countries, ...ESTADO_ITEMS];
             }
         }
+        if (gameConfig.type === 'Contrarrelogio') startTTTimer();
         updateStats(); updateProgressBar(); nextRound();
     }
 
     function nextRound() {
         if (gameState.chances === 0 && gameConfig.lives !== 'infinite') { gameOver(false); return; }
+
+        // contrarrelógio nunca "acaba o baralho" -- embaralha tudo de novo e
+        // segue jogando até o tempo zerar
+        if (gameConfig.type === 'Contrarrelogio' && !gameState.availableCountries.length) {
+            gameState.availableCountries = shuffle([...gameState._base]);
+        }
 
         gameState.roundNum = (gameState.roundNum || 0) + 1;
         if (gameState.duel) {
@@ -1241,6 +1255,7 @@ document.addEventListener('DOMContentLoaded', () => {
         else isCor = el.dataset.codigo === correctAnswer.codigo; // NomePorBandeira
         const val = el.dataset.codigo || el.dataset.continente;
         const responseMs = roundStartAt ? Date.now() - roundStartAt : null;
+        const isTimeTrial = gameConfig.type === 'Contrarrelogio';
 
         // registra a resposta para o país da rodada (algoritmo de aprendizado)
         if (correctAnswer && correctAnswer.codigo) updateCountryStats(correctAnswer.codigo, isCor, responseMs);
@@ -1264,7 +1279,7 @@ document.addEventListener('DOMContentLoaded', () => {
             buttons.next.classList.remove('hidden'); buttons.facts.classList.remove('hidden');
             updateStats(); updateProgressBar();
 
-            if (!gameState.duel && gameState.availableCountries.length === 0) setTimeout(handleLevelComplete, 1000);
+            if (!gameState.duel && !isTimeTrial && gameState.availableCountries.length === 0) setTimeout(handleLevelComplete, 1000);
         } else {
             playSound('wrong'); el.classList.add('wrong', 'disabled'); gameState.streak = 0;
             if (gameConfig.lives !== 'infinite') gameState.chances--;
@@ -1285,7 +1300,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     if (o.dataset.codigo === correctAnswer.codigo) o.classList.add('correct');
                 });
                 const isLive = gameState.duel && gameState.duel.live;
-                if (!isLive) {
+                if (!isLive && !isTimeTrial) {
                     const c = countries.find(x => x.codigo === val);
                     document.getElementById('constructive-img-wrong').src = `assets/flags/${val}.png`;
                     document.getElementById('constructive-name-wrong').textContent = c ? c.nome : 'Desconhecido';
@@ -1325,6 +1340,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
         // DUELO AO VIVO: sem "Próxima", mantém o ritmo — anda sozinho
         if (gameState.duel && gameState.duel.live && !gameState._duelDone) liveAfterAnswer(isCor);
+        // CONTRARRELÓGIO: mesma ideia -- sem "Próxima", segue sozinho até o tempo acabar
+        if (isTimeTrial) timeTrialAfterAnswer(isCor);
     }
 
     // --- MEMÓRIA (Setup) ---
@@ -1432,6 +1449,34 @@ document.addEventListener('DOMContentLoaded', () => {
     function unflipCards() { lockBoard = true; setTimeout(() => { firstCard.classList.remove('flipped'); secondCard.classList.remove('flipped'); resetBoard(); }, 1500); }
     function resetBoard() { [hasFlippedCard, lockBoard] = [false, false];[firstCard, secondCard] = [null, null]; }
 
+    // ─── CONTRARRELÓGIO: cronômetro da partida inteira (não por pergunta) ───
+    let _ttTimer = null;
+    function clearTTTimer() { if (_ttTimer) { clearInterval(_ttTimer); _ttTimer = null; } }
+    function tickTTTimer() {
+        const left = Math.max(0, (gameState.ttEndAt || 0) - Date.now());
+        const secs = Math.ceil(left / 1000);
+        if (elements.stat3) elements.stat3.textContent = `⏱️ ${secs}s`;
+        updateProgressBar(100 - (left / (gameConfig.duration * 1000)) * 100);
+        if (left <= 0) { clearTTTimer(); gameOver(true); }
+    }
+    function startTTTimer() {
+        clearTTTimer();
+        gameState.ttEndAt = Date.now() + gameConfig.duration * 1000;
+        tickTTTimer();
+        _ttTimer = setInterval(tickTTTimer, 200);
+    }
+
+    // depois de responder (certo ou errado), sem modal e sem esperar clique em
+    // "Próxima" -- só um instante pra ler o feedback e já fala o próximo país
+    function timeTrialAfterAnswer(isCor) {
+        document.getElementById('constructive-feedback-modal').classList.add('hidden');
+        buttons.next.classList.add('hidden'); buttons.facts.classList.add('hidden');
+        setTimeout(() => {
+            if (gameConfig.type !== 'Contrarrelogio' || !_ttTimer) return;
+            nextRound();
+        }, isCor ? 550 : 900);
+    }
+
     // --- UTILS ---
     function handleLevelComplete() {
         updateProgressBar(100); playSound('completed'); dispararConfetes();
@@ -1448,6 +1493,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     function gameOver(win) {
+        clearTTTimer();
         gameLocked = true; buttons.next.classList.add('hidden'); buttons.facts.classList.add('hidden');
         buttons.hint.classList.add('hidden');
         buttons.backToMenu.textContent = 'Sair';
@@ -1458,9 +1504,16 @@ document.addEventListener('DOMContentLoaded', () => {
         const replay = document.getElementById('replay-audio-btn');
         if (replay) replay.hidden = true;
 
-        elements.instruction.textContent = win ? 'Missão Cumprida!' : 'Fim de Jogo';
-        elements.feedback.textContent = win ? `Pontuação Final: ${gameState.score}` : `Tente de novo! Pontos: ${gameState.score}`;
-        elements.feedback.style.color = win ? '#32CD32' : '#DC143C';
+        if (gameConfig.type === 'Contrarrelogio') {
+            const tot = session.correct + session.wrong;
+            elements.instruction.textContent = '⏱️ Tempo esgotado!';
+            elements.feedback.textContent = `Você acertou ${session.correct} de ${tot} em ${gameConfig.duration}s!`;
+            elements.feedback.style.color = '#32CD32';
+        } else {
+            elements.instruction.textContent = win ? 'Missão Cumprida!' : 'Fim de Jogo';
+            elements.feedback.textContent = win ? `Pontuação Final: ${gameState.score}` : `Tente de novo! Pontos: ${gameState.score}`;
+            elements.feedback.style.color = win ? '#32CD32' : '#DC143C';
+        }
 
         renderLearnSummary();
         speakText(win ? `Incrível ${currentUser}! Você venceu.` : `Bom jogo ${currentUser}. Tente novamente.`);
@@ -1505,6 +1558,11 @@ document.addEventListener('DOMContentLoaded', () => {
             try { history.pushState({ screen: key }, ''); } catch (e) {}
         }
         updateAppNav(key);
+        // sai da tela de jogo por qualquer caminho (botão "Sair", voltar do
+        // navegador/gesto, trocar de tela) -- sem isso o cronômetro do
+        // contrarrelógio continuava rodando escondido e podia disparar
+        // "gameOver" numa tela que o jogador já tinha deixado.
+        if (key !== 'game') clearTTTimer();
         if (key !== 'game') setTimeout(flushAchievementQueue, 350);
         if (key === 'main') refreshHub();
         if (key === 'album' && typeof renderAlbum === 'function') renderAlbum();
@@ -1605,6 +1663,11 @@ document.addEventListener('DOMContentLoaded', () => {
             elements.stat2.textContent = `🔀 ${memoryMoves}`;
             elements.stat3.textContent = `⭐ ${gameState.score}`;
             updateProgressBar((gameState.pairsFound / gameState.totalQuestionsInLevel) * 100);
+        } else if (gameConfig.type === 'Contrarrelogio') {
+            // ⏱ (stat3) e a barra vêm do cronômetro da partida (tickTTTimer),
+            // não do tamanho do baralho -- aqui só o placar de acertos/sequência
+            elements.stat1.textContent = `🎯 ${session.correct}`;
+            elements.stat2.textContent = `🔥 ${gameState.streak}`;
         } else {
             elements.stat1.textContent = `⭐ ${gameState.score}`;
             elements.stat2.textContent = `🔥 ${gameState.streak}`;
@@ -2008,6 +2071,7 @@ document.addEventListener('DOMContentLoaded', () => {
             return;
         }
         if (_live) { liveCleanup(); }
+        clearTTTimer();
         elements.mainContainer.classList.remove('memory-mode'); showScreen('main');
     });
     
@@ -3665,7 +3729,7 @@ document.addEventListener('DOMContentLoaded', () => {
         if (ev === 'ready') { _live.oppReady = true; refreshLiveRoomOpp(); }
         else if (ev === 'go') {
             if (p && p.pace) _live.pace = p.pace;
-            if (_live.phase === 'room') startLiveCountdown();
+            if (_live.phase === 'room') scheduleLiveCountdown(p && p.startAt);
         }
         else if (ev === 'progress') {
             _live.oppScore = p.score || 0; _live.oppQ = p.q || _live.oppQ;
@@ -3695,8 +3759,15 @@ document.addEventListener('DOMContentLoaded', () => {
         const r = await OnlineDuels.startLive(_live.id);
         b.disabled = false; b.textContent = 'Começar o duelo!';
         if (r && r.error) { showToast(r.error, 'error'); return; }
-        _live.room.send('go', { pace: _live.pace });
-        startLiveCountdown();
+        // (rev 12/09) sem isso, quem clica em "Começar" via anfitrião sempre
+        // largava na frente: o host disparava a contagem local na hora, e o
+        // convidado só ao RECEBER a mensagem 'go' pela rede -- a diferença de
+        // latência virava vantagem real (ex.: computador host vs. celular
+        // guest). Agora os dois combinam um instante (relógio do próprio
+        // aparelho) e agendam a contagem pra começar juntos.
+        const startAt = Date.now() + LIVE_START_BUFFER_MS;
+        _live.room.send('go', { pace: _live.pace, startAt });
+        scheduleLiveCountdown(startAt);
     });
     document.getElementById('lr-cancel').addEventListener('click', () => leaveLiveRoom(true));
     document.getElementById('lr-back').addEventListener('click', () => leaveLiveRoom(true));
@@ -3710,6 +3781,14 @@ document.addEventListener('DOMContentLoaded', () => {
         renderLiveDuels();
     }
 
+    // tempo de folga pro broadcast 'go' chegar no convidado antes do horário
+    // combinado -- se a rede for mais lenta que isso, cai pro comportamento
+    // antigo (começa na hora que a mensagem chegar) em vez de travar.
+    const LIVE_START_BUFFER_MS = 900;
+    function scheduleLiveCountdown(startAt) {
+        const delay = Math.max(0, (startAt || Date.now()) - Date.now());
+        setTimeout(startLiveCountdown, delay);
+    }
     function startLiveCountdown() {
         if (!_live) return;
         _live.phase = 'countdown';
@@ -5718,60 +5797,18 @@ document.addEventListener('DOMContentLoaded', () => {
         }, true);
     })();
 
-    // "o que fazer com as novas" — uma de cada vez, com botão "Próxima"
-    let _decideQueue = [];
+    // (rev 12/09) antes pedia pra decidir Colar/Guardar figurinha a figurinha
+    // aqui — deixava o modal comprido, tinha que rolar pra ver os botões de
+    // baixo. Toda figurinha nova já cai direto na pilha em drawPack(); só
+    // avisa em 1 linha e a colagem em si acontece depois, no álbum (a seção
+    // marca o que dá pra colar + setinhas pra navegar até a próxima).
     function buildDecideList(results) {
         const box = document.getElementById('pack-decide');
         const list = document.getElementById('pack-decide-list');
-        list.innerHTML = '';
-        // dedup por código (se veio 2x a mesma nova)
-        const seen = new Set();
-        _decideQueue = results.filter(r => {
-            if (!r.isNew || seen.has(r.country.codigo)) return false;
-            seen.add(r.country.codigo); return true;
-        });
-        box.removeAttribute('data-total');
-        if (!_decideQueue.length) { box.classList.add('hidden'); return; }
+        const hasNew = results.some(r => r.isNew);
+        if (!hasNew) { box.classList.add('hidden'); list.innerHTML = ''; return; }
+        list.innerHTML = '<p class="pack-decide-hint">✨ As novas já foram guardadas na sua pilha — cole quando quiser lá no álbum.</p>';
         box.classList.remove('hidden');
-        renderDecideStep();
-    }
-
-    function renderDecideStep() {
-        const box = document.getElementById('pack-decide');
-        const list = document.getElementById('pack-decide-list');
-        const total = box.dataset.total ? +box.dataset.total : (box.dataset.total = _decideQueue.length, _decideQueue.length);
-        if (!_decideQueue.length) {
-            box.classList.add('hidden');
-            box.removeAttribute('data-total');
-            list.innerHTML = '';
-            refreshHub();
-            return;
-        }
-        const r = _decideQueue[0];
-        const done = total - _decideQueue.length + 1;
-        list.innerHTML = `
-            <div class="decide-one">
-                <span class="decide-step">${done} de ${total}</span>
-                <img class="decide-one-img" src="${itemImg(r.country)}" alt="">
-                <span class="decide-one-name">${r.country.nome}</span>
-                <div class="decide-one-btns">
-                    <button class="decide-glue">✅ Colar no álbum</button>
-                    <button class="decide-keep">📦 Guardar na pilha</button>
-                </div>
-            </div>`;
-        requestAnimationFrame(() => fitFigNames(list));
-        const advance = () => { _decideQueue.shift(); renderDecideStep(); };
-        list.querySelector('.decide-glue').addEventListener('click', (e) => {
-            const ok = glueSticker(r.country.codigo, r.rarity);
-            if (window.SFX) window.SFX.play(ok ? 'sticker_paste' : 'tap');
-            if (ok && !calmMode && typeof confetti !== 'undefined') {
-                const b = e.currentTarget.getBoundingClientRect();
-                confetti({ particleCount: 40, spread: 50, startVelocity: 24,
-                    origin: { x: (b.left + b.width / 2) / innerWidth, y: (b.top + b.height / 2) / innerHeight } });
-            }
-            advance();
-        });
-        list.querySelector('.decide-keep').addEventListener('click', advance);
     }
 
     if (buttons.closePack) buttons.closePack.addEventListener('click', () => {
@@ -5837,7 +5874,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const setupEl = document.getElementById('game-setup');
 
     function openSetup(mode) {
-        gameConfig = { mode, type: null, level: null, lives: 'infinite', pool: 'paises' };
+        gameConfig = { mode, type: null, level: null, lives: 'infinite', pool: 'paises', duration: null };
         const meta = MODE_META[mode] || { icon: '🎮', label: mode };
         document.getElementById('setup-mode-icon').textContent = meta.icon;
         document.getElementById('setup-mode-name').textContent = meta.label;
@@ -5845,6 +5882,10 @@ document.addEventListener('DOMContentLoaded', () => {
         const poolDefault = setupEl.querySelector('.setup-opt[data-setup="pool"][data-value="paises"]');
         if (poolDefault) poolDefault.classList.add('selected');
         if (mode === 'Memoria') gameConfig.type = 'Memoria'; // pula o passo "como jogar"
+        // contrarrelógio só existe em "Qual a Bandeira?" (é lá que a narração
+        // vira "só o nome do país" -- nos outros modos a pergunta já é curta)
+        const ttBtn = document.getElementById('setup-type-tt');
+        if (ttBtn) ttBtn.classList.toggle('hidden', mode !== 'BandeiraPorPais');
         updateSetupUI();
         showScreen('setup');
     }
@@ -5853,16 +5894,20 @@ document.addEventListener('DOMContentLoaded', () => {
         const isMemory = gameConfig.mode === 'Memoria';
         const isJornada = gameConfig.type === 'Jornada';
         const isRapido = gameConfig.type === 'Rápido';
+        const isTimeTrial = gameConfig.type === 'Contrarrelogio';
         document.getElementById('setup-sec-type').classList.toggle('hidden', isMemory);
         document.getElementById('setup-sec-level').classList.toggle('hidden', !(isMemory || isRapido));
         document.getElementById('setup-sec-lives').classList.toggle('hidden', !isRapido);
+        const secDuration = document.getElementById('setup-sec-duration');
+        if (secDuration) secDuration.classList.toggle('hidden', !isTimeTrial);
         const secPool = document.getElementById('setup-sec-pool');
         if (secPool) secPool.classList.toggle('hidden', gameConfig.mode !== 'BandeiraPorPais');
 
         const ready =
             (isMemory && gameConfig.level != null) ||
             isJornada ||
-            (isRapido && gameConfig.level != null);
+            (isRapido && gameConfig.level != null) ||
+            (isTimeTrial && gameConfig.duration != null);
         document.getElementById('setup-start').disabled = !ready;
     }
 
@@ -5875,12 +5920,15 @@ document.addEventListener('DOMContentLoaded', () => {
         if (kind === 'type') {
             gameConfig.type = raw;
             if (raw === 'Jornada') { gameConfig.level = null; gameConfig.lives = 'infinite'; }
+            if (raw === 'Contrarrelogio') { gameConfig.level = null; gameConfig.lives = 'infinite'; }
         } else if (kind === 'level') {
             gameConfig.level = parseInt(raw, 10);
         } else if (kind === 'lives') {
             gameConfig.lives = raw === 'infinite' ? 'infinite' : parseInt(raw, 10);
         } else if (kind === 'pool') {
             gameConfig.pool = raw;
+        } else if (kind === 'duration') {
+            gameConfig.duration = parseInt(raw, 10);
         }
         updateSetupUI();
     }));

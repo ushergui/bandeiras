@@ -76,6 +76,21 @@ body {
     max-height: 92dvh !important;
     padding-bottom: calc(24px + var(--safe-bottom)) !important;
   }
+
+  /* avisos curtos (level up / conquista / "quase lá") ficam centralizados
+     na tela em vez de colados no rodapé -- eram cortados pela barra do
+     navegador/gestos, o botão de continuar ficava quase invisível */
+  #level-up-modal, #achievement-modal, #constructive-feedback-modal {
+    align-items: center !important;
+    padding: 16px !important;
+  }
+  #level-up-modal .modal-content,
+  #achievement-modal .modal-content,
+  #constructive-feedback-modal .modal-content {
+    border-radius: 22px !important;
+    max-height: 88dvh !important;
+    padding-bottom: 26px !important;
+  }
 }
 
 /* ---------- DESKTOP / TABLET: cartão centralizado ---------- */
