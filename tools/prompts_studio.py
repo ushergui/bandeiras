@@ -3,7 +3,7 @@
 Estudio de Prompts das Figurinhas -- ferramenta de desenvolvimento (local).
 
 Sobe http://localhost:5002 com a tela dos prompts (animais, frutas, legumes,
-comidas, lendas, moedas). Cada card tem: prompt pronto pra colar no ChatGPT,
+comidas, lendas, elementos). Cada card tem: prompt pronto pra colar no ChatGPT,
 curiosidade, botao "marcar pronta" (persistido em disco) e UPLOAD da imagem
 gerada -- que cai direto em assets/stickers/<secao>/<slug>.png e aparece no card.
 
@@ -185,18 +185,41 @@ def _habitat_block(hab):
     )
 
 
+# correções pontuais depois da revisão das 225 imagens geradas (10/09): a IA
+# confundiu 2 espécies com parentes mais famosos. Fica só o texto extra de
+# anatomia pra essas -- o resto do prompt (pose, bioma, estilo) é igual.
+ANIM_ANATOMY_FIX = {
+    "perereca-lemur": (
+        "ANATOMY -- be careful, this is the lemur leaf frog, NOT the much more famous red-eyed tree frog: its eyes "
+        "are bronze/coppery-brown with a HORIZONTAL pupil, never red or orange, and never a vertical cat-like pupil. "
+        "Body pale grey-green to olive at rest (it can shift towards brown), slender and willowy rather than plump, "
+        "resting flat and low against a broad leaf with its legs tucked tight along its sides so it reads as a smooth "
+        "leaf-like outline, not sitting upright. No red, no orange eyes, no vertical pupil anywhere."
+    ),
+    "estrela-do-mar-girassol": (
+        "ANATOMY -- be careful, a sea star has NO face: no eyes, no pupils, no nose, no mouth visible from above, "
+        "nothing that reads as a head. It is a soft, fleshy, radially symmetric disc with a thick granular/bumpy "
+        "surface (short soft spines, not smooth) in mottled orange, purple and brown, from which 16 to 24 short "
+        "tapering arms radiate evenly all the way around like a many-pointed star, seen from above or a gentle "
+        "three-quarter-above angle so the whole radial star shape and every arm is visible. Do not draw eyes, a "
+        "face, or an octopus-like head at the centre -- only the plain fleshy disc where the arms meet."
+    ),
+}
+
+
 def subject_anim(it):
     hab = HAB.get(it.get("slug") or "") or "its natural habitat"
+    fix = ANIM_ANATOMY_FIX.get(it.get("slug") or "")
     return (
         "the complete %s shown FULL BODY from head to tail and feet, nothing cropped, in a natural relaxed pose "
         "(standing, walking, perched, climbing, swimming or resting as suits the species), seen from a gentle "
         "three-quarter angle, the animal filling about 60-70%% of the frame and sitting comfortably inside it, head "
         "turned slightly toward the viewer with a calm, alert gaze and a clean catchlight in the eye. Render it as a "
         "detailed, accurate, faithful likeness of the real species -- correct anatomy, proportions, markings and "
-        "colours, every hair, feather or scale described, like a premium natural-history field-guide plate.\n%s\n"
+        "colours, every hair, feather or scale described, like a premium natural-history field-guide plate.\n%s%s\n"
         "Semi-realistic painterly wildlife-poster illustration, detailed and cinematic, reading as ~75%% realism "
         "between a photograph and an illustration; the whole animal iconic and readable as a small collectible card."
-        % (it["en"], _habitat_block(hab))
+        % (it["en"], ("\n" + fix + "\n") if fix else "", _habitat_block(hab))
     )
 
 
@@ -204,7 +227,7 @@ def prompt_anim(it):
     return BASE_ANIM + subject_anim(it)
 
 
-# ---- comidas + legumes: mesmo estilo cinematografico ~75% real dos animais ----
+# ---- legumes: estilo cinematografico ~75% real dos animais (inalterado) ----
 # regra de ouro: NAO inventar ingrediente / variedade -- respeitar a cultura de origem.
 BASE_FOOD = "\n".join([
     "Highly detailed semi-realistic digital painting in a polished, cinematic food-illustration style -- roughly 75% photorealistic.",
@@ -218,21 +241,34 @@ BASE_FOOD = "\n".join([
     "--- SUBJECT: ",
 ])
 
+# ---- comidas tipicas: 100% foto-realista (10/09, "Opcao A" aprovada pelo user) ----
+# regra de ouro: NAO inventar ingrediente -- respeitar a cultura de origem.
+BASE_COMIDA = "\n".join([
+    "A professional editorial food photography shot -- shot on a DSLR camera, 100mm macro lens, f/2.8 aperture, shallow depth of",
+    "field with the dish in crisp focus and the background softly blurred. Soft natural window light from one side, gentle",
+    "realistic shadows, faint steam rising if the dish is hot, visible glossy texture, moisture and real food surface detail.",
+    "100% photorealistic photograph, hyper-detailed, indistinguishable from a real photo taken by a professional food",
+    "photographer for a cookbook or restaurant menu -- NOT a painting, NOT an illustration, NOT a digital painting, NOT",
+    "3D-rendered, NOT a cartoon, NOT stylised. No text, no letters, no numbers, no border, no watermark, no signature, no logo,",
+    "no brand, no flag, no people, no hands. Deliver a 1200x800 photograph (3:2 landscape).",
+    "--- SUBJECT: ",
+])
+
 
 def subject_comida(it):
     return (
-        "%s, served as a single honest portion and seen from a natural three-quarter table angle, filling about 60-70%% of the "
-        "frame and sitting comfortably inside it, with a gentle wisp of steam if the dish is served hot.\n"
+        "%s, served as a single honest portion on a rustic table, seen from a natural three-quarter angle, filling about "
+        "60-70%% of the frame and sitting comfortably inside it.\n"
         "CULTURAL ACCURACY -- read carefully. This is a real national dish and must be shown truthfully: include ONLY the "
         "components named above and nothing else. Do NOT add, swap or imagine any ingredient, garnish, herb, spice, sauce, side, "
         "topping, bread or decoration that is not named. Do NOT turn it into fusion food, do NOT do tall fine-dining tower "
         "plating, do NOT prettify it with scattered micro-herbs or sauce dots. Present it exactly the way it is traditionally "
         "cooked and served at home in its own country -- correct colour, texture, consistency and portion -- in its usual "
         "vessel (plain plate, bowl, clay pot, cast-iron pan, banana leaf, paper, skewer or board, whichever is authentic).\n"
-        "BACKGROUND -- a plain, softly blurred neutral surface (simple wood, stone or cloth) under warm kitchen light; nothing "
-        "identifiable behind it, no other dishes, no cutlery unless essential, no props, no text, no flag, no logo.\n"
-        "Semi-realistic painterly food-poster illustration, detailed and cinematic, reading as ~75%% realism between a photograph "
-        "and an illustration; the dish iconic and instantly readable as a small collectible card."
+        "BACKGROUND -- a plain, softly blurred neutral surface (simple weathered wood, stone or cloth) under warm natural "
+        "light; nothing identifiable behind it, no other dishes, no cutlery unless essential, no props, no text, no flag, no logo.\n"
+        "The photograph must be 100%% photorealistic -- real food, real light, real texture -- iconic and instantly readable "
+        "as a small collectible card."
         % it["en"]
     )
 
@@ -257,7 +293,48 @@ def subject_legume(it):
 
 
 def prompt_food(sec, it):
-    return BASE_FOOD + (subject_legume(it) if sec == "legumes" else subject_comida(it))
+    if sec == "comidas":
+        return BASE_COMIDA + subject_comida(it)
+    return BASE_FOOD + subject_legume(it)
+
+
+# ---- elementos quimicos: mesmo estilo cinematografico ~75% real ----
+# v2 (11/09): a v1 pedia "fundo neutro desfocado" -- exatamente a receita de foto
+# de produto/e-commerce, o oposto do efeito pintura que os animais conseguem por
+# terem um habitat de verdade ao redor. Agora exige uma CENA com ambiente real
+# (oficina, laboratorio, ceu noturno, fabrica...) em vez de objeto isolado, e
+# proibe explicitamente o "look" de foto de catalogo/estudio.
+BASE_ELEM = "\n".join([
+    "Highly detailed semi-realistic digital painting in a polished, cinematic illustration style -- roughly 75% photorealistic,",
+    "the same painterly 'science encyclopaedia for kids' treatment as a nature-illustration book plate. Convincingly real",
+    "material, metal, glass, gas-glow, crystal and light, with VISIBLE hand-painted brushwork so it unmistakably reads as an",
+    "illustration -- never as a photograph, and never as a clean rendered product shot.",
+    "Full atmospheric SCENE with a real environment and sense of depth around the subject (a workshop, laboratory, factory",
+    "floor, night sky, industrial site, outdoors -- whatever truly fits) -- NOT an isolated object floating on a plain blurred",
+    "studio background. Dramatic but natural cinematic lighting, rich saturated colour, soft painterly gradients, a sense of",
+    "place and mood, like a scene from a storybook.",
+    "Absolutely AVOID: product photography, e-commerce / catalogue photo look, plain white or grey seamless backdrop, softbox",
+    "studio lighting, sterile stock-photo composition, flat vector, sticker, cartoon, 3D render, cel-shading, thick outlines.",
+    "No text, no letters, no numbers, no periodic-table tile or square, no chemical symbol, no border, no watermark, no logo,",
+    "no brand, no flag, no people, no hands. One clear main subject filling about 55-65% of the frame, set inside its real",
+    "environment. Deliver 1200x800 PNG (3:2 landscape).",
+    "--- SUBJECT: ",
+])
+
+
+def subject_elemento(it):
+    if it.get("real"):
+        head = ("a clean, well-lit sample of the pure chemical element %s shown the way it really looks: %s. Render the true "
+                "colour, lustre and texture of the actual element -- do not invent a colour or form." % (it["en"], it["subj"]))
+    else:
+        head = ("%s -- the everyday object or scene that depends on the element %s. Paint the object realistically and "
+                "accurately; the element itself may be invisible (inside the object) and that is fine." % (it["subj"], it["en"]))
+    return (head + "\nSemi-realistic painterly illustration, detailed and cinematic, reading as ~75% realism between a "
+            "photograph and an illustration; the subject iconic and instantly readable as a small collectible card.")
+
+
+def prompt_elem(it):
+    return BASE_ELEM + subject_elemento(it)
 
 
 def prompt_for(sec, it):
@@ -265,6 +342,8 @@ def prompt_for(sec, it):
         return prompt_anim(it)
     if sec in ("legumes", "comidas"):
         return prompt_food(sec, it)
+    if sec == "elementos":
+        return prompt_elem(it)
     return (BASE_LEN if sec == "lendas" else BASE) + subject_gpt(sec, it)
 
 
@@ -273,9 +352,15 @@ def prompt_gemini(it):
 
 
 # --------- itens enriquecidos p/ a tela ---------
+# seções que NÃO aparecem no estúdio (arte já pronta / não vamos gerar):
+HIDE_SECOES = {"clubes"}   # escudos já estão no jogo, baixados por fetch_escudos.py
+
+
 def build_items():
     out = {}
     for sec, s in FIG.items():
+        if sec in HIDE_SECOES:
+            continue
         arr = []
         for it in s["itens"]:
             k = key_for(sec, it)
@@ -287,13 +372,11 @@ def build_items():
                 "code": it.get("code"),
                 "pais": PAISES.get(it.get("code"), (it.get("code") or "").upper()) if it.get("code") else "",
                 "sub": "",
-                "prompt": prompt_for(sec, it) if s["tipo"] not in ("moeda", "img") else "",
+                "prompt": prompt_for(sec, it) if s["tipo"] != "img" else "",
                 "prompt_gemini": prompt_gemini(it) if sec == "lendas" else "",
                 "busca": it.get("busca", ""),
             }
             if sec == "comidas":
-                row["titulo"] = row["pais"]; row["sub"] = it["nome"]
-            elif sec == "moedas":
                 row["titulo"] = row["pais"]; row["sub"] = it["nome"]
             elif s["tipo"] == "img":
                 row["titulo"] = it["nome"]
@@ -303,9 +386,16 @@ def build_items():
                 row["titulo"] = it["nome"]
                 row["pais"] = it["pais"]
                 row["sub"] = "%s · camisa nº %s%s" % (it["pais"], it["num"], " (goleiro)" if it.get("gk") else "")
+            elif sec == "elementos":
+                row["titulo"] = it["n"]
+                row["z"] = it["z"]
+                row["sub"] = "nº %d · %s · %s" % (it["z"], it["simbolo"], "amostra do elemento" if it.get("real") else "uso")
             arr.append(row)
-        arr.sort(key=lambda r: (r.get("pais") or "", r["titulo"]) if sec in ("comidas", "moedas", "lendas")
-                 else r["titulo"])
+        if sec == "elementos":
+            arr.sort(key=lambda r: r["z"])
+        else:
+            arr.sort(key=lambda r: (r.get("pais") or "", r["titulo"]) if sec in ("comidas", "lendas")
+                     else r["titulo"])
         out[sec] = {"nome": s["nome"], "emoji": s["emoji"], "tipo": s["tipo"], "itens": arr}
     return out
 
@@ -340,8 +430,8 @@ def scan_images():
     return res
 
 
-# secao -> lado maior do webp (escudo/moeda menor)
-_WEBP_SIDE = {"clubes": 400, "moedas": 400}
+# secao -> lado maior do webp (escudo menor)
+_WEBP_SIDE = {"clubes": 400}
 
 
 def make_webp(base, src_ext):
@@ -368,9 +458,58 @@ def make_webp(base, src_ext):
 
 # ---------------------------------------------------------------- servidor
 from flask import Flask, request, jsonify, send_from_directory, Response
+import urllib.request, urllib.parse
 
 app = Flask(__name__)
 app.json.sort_keys = False
+
+_UA = {"User-Agent": "detetive-global-dev/1.0 (moedas, uso educativo local)"}
+
+
+def commons_search(term, limit=8):
+    """Busca arquivos no Wikimedia Commons (fotos reais, dominio publico/CC) -- devolve
+    [{title, thumb, url, page}]. Voce escolhe qual bate com a moeda de verdade; nada
+    e salvo sem voce clicar."""
+    api = ("https://commons.wikimedia.org/w/api.php?action=query&format=json&generator=search"
+           "&gsrnamespace=6&gsrsearch=%s&gsrlimit=%d&prop=imageinfo&iiprop=url|mime&iiurlwidth=300"
+           % (urllib.parse.quote(term), limit))
+    req = urllib.request.Request(api, headers=_UA)
+    with urllib.request.urlopen(req, timeout=20) as r:
+        data = json.loads(r.read().decode("utf-8", "ignore"))
+    pages = (data.get("query") or {}).get("pages") or {}
+    out = []
+    for p in pages.values():
+        ii = (p.get("imageinfo") or [{}])[0]
+        mime = ii.get("mime") or ""
+        if not mime.startswith("image/") or mime == "image/svg+xml":
+            continue
+        title = p.get("title") or ""
+        out.append({
+            "title": title,
+            "thumb": ii.get("thumburl"),
+            "url": ii.get("url"),
+            "page": "https://commons.wikimedia.org/wiki/" + title.replace(" ", "_"),
+        })
+    return out
+
+
+def save_image_from_url(url, base):
+    """Baixa uma imagem (Wikimedia ou qualquer http/https) e salva como <base><ext>,
+    mesma logica do upload manual (troca extensao antiga + gera .webp)."""
+    req = urllib.request.Request(url, headers=_UA)
+    with urllib.request.urlopen(req, timeout=30) as r:
+        data = r.read()
+        ctype = (r.headers.get("Content-Type") or "").lower()
+    ext = ".jpg" if "jpeg" in ctype else ".png" if "png" in ctype else os.path.splitext(url.split("?")[0])[1].lower()
+    if ext not in IMG_EXT:
+        ext = ".jpg"
+    os.makedirs(os.path.dirname(base), exist_ok=True)
+    for e in IMG_EXT:
+        if os.path.isfile(base + e):
+            os.remove(base + e)
+    open(base + ext, "wb").write(data)
+    make_webp(base, ext)
+    return ext
 
 
 @app.get("/")
@@ -433,6 +572,35 @@ def api_upload_del():
     return jsonify({"ok": True})
 
 
+@app.get("/api/commons_search")
+def api_commons_search():
+    q = request.args.get("q") or ""
+    if not q.strip():
+        return jsonify({"erro": "sem termo de busca"}), 400
+    try:
+        return jsonify({"ok": True, "results": commons_search(q)})
+    except Exception as e:
+        return jsonify({"erro": str(e)}), 502
+
+
+@app.post("/api/commons_fetch")
+def api_commons_fetch():
+    d = request.get_json(force=True)
+    sec, key, url = d.get("sec"), d.get("key"), d.get("url")
+    item = next((it for it in ITEMS.get(sec, {}).get("itens", []) if it["key"] == key), None)
+    if not item or not url:
+        return jsonify({"erro": "item ou url invalido"}), 400
+    base = os.path.join(STICKERS, item["file"].replace("/", os.sep))
+    try:
+        ext = save_image_from_url(url, base)
+    except Exception as e:
+        return jsonify({"erro": "download falhou: %s" % e}), 502
+    p = load_progress()
+    lst = set(p["done"].get(sec, [])); lst.add(key)
+    p["done"][sec] = sorted(lst); save_progress(p)
+    return jsonify({"ok": True, "url": "/sticker/" + item["file"] + ext + "?t=" + str(os.path.getmtime(base + ext))})
+
+
 @app.get("/sticker/<path:rel>")
 def sticker(rel):
     return send_from_directory(STICKERS, rel)
@@ -471,6 +639,11 @@ PAGE = r"""<!doctype html><html lang="pt-BR"><head><meta charset="utf-8">
  .card.done .db{background:color-mix(in srgb,var(--good) 20%,transparent);border-color:var(--good);color:var(--good)}
  pre{margin:8px 14px 0;padding:11px 12px;border-radius:8px;background:var(--codebg);color:var(--codeink);font:12px/1.5 ui-monospace,monospace;white-space:pre-wrap;word-break:break-word;max-height:180px;overflow:auto}
  .cur{margin:8px 14px 0;padding:8px 11px;border-radius:8px;background:var(--sf2);font-size:.82rem}
+ .commons-grid{margin:8px 14px 0;padding:8px;border-radius:8px;background:var(--sf2);display:flex;flex-wrap:wrap;gap:6px;align-items:center}
+ .cg-item{padding:0;border:2px solid transparent;border-radius:6px;overflow:hidden;cursor:pointer;background:none;width:64px;height:64px;flex-shrink:0}
+ .cg-item:hover{border-color:var(--acc)}
+ .cg-item img{width:100%;height:100%;object-fit:cover;display:block}
+ .cg-msg{font-size:.74rem;color:var(--mut);flex-basis:100%}
  .act{display:flex;flex-wrap:wrap;gap:8px;padding:12px 14px}
  .b{flex:1 1 44%;padding:9px;border-radius:8px;border:1px solid var(--line);background:var(--sf);color:var(--ink);font:inherit;font-weight:800;font-size:.8rem;cursor:pointer;text-align:center;text-decoration:none}
  .b.p{background:var(--acc);border-color:var(--acc);color:#fff}
@@ -498,8 +671,8 @@ const NOTE={animais:"Figurinha por animal, ordem alfabética, sem bandeira no ca
  frutas:"Figurinha por fruta.",
  legumes:"Figurinha por legume/hortaliça. Estilo semirrealista ~75% (igual aos animais), variedade real da planta.",
  comidas:"Uma comida por país (prato escolhido por nós). Estilo semirrealista ~75% — só os ingredientes reais do prato, servido como na cultura de origem.",
+ elementos:"1 figurinha por elemento (Z 1–98). 'amostra' = mostra o elemento puro; 'uso' = mostra um objeto do dia a dia que depende dele. Estilo semirrealista ~75%. O número atômico e o símbolo entram no card do jogo, não na imagem.",
  lendas:"Craques por país. Prompt já tem nome + físico + uniforme da época + número + fundo com a bandeira.",
- moedas:"NÃO gera com IA — baixa a imagem real pelo Wikimedia. Dá pra fazer upload aqui também.",
  clubes:"Escudos baixados por script: venv\\Scripts\\python.exe tools\\fetch_escudos.py . O que faltar, use o botão de busca ou faça upload."};
 function toast(m){const t=$('#toast');t.textContent=m;t.classList.add('on');clearTimeout(t._);t._=setTimeout(()=>t.classList.remove('on'),1600);}
 function done(sec){return new Set(DATA.progress[sec]||[]);}
@@ -542,10 +715,12 @@ function card(s,it){
   ${url?`<div class="thumb"><img src="${url}"><button class="rm" data-a="rm">remover</button></div>`:''}
   ${it.prompt?`<pre>${hl}</pre>`:''}
   ${it.cur?`<div class="cur">${it.cur}</div>`:''}
+  ${it.busca?`<div class="commons-grid hidden" data-role="commons"></div>`:''}
   <div class="act">
    ${it.prompt?`<button class="b p" data-a="copy">${it.prompt_gemini?'Copiar (ChatGPT)':'Copiar prompt'}</button>`:''}
    ${it.prompt_gemini?`<button class="b p" data-a="copyg">Copiar (Gemini)</button>`:''}
-   ${it.busca?`<a class="b p" target="_blank" href="https://commons.wikimedia.org/w/index.php?search=${encodeURIComponent(it.busca)}&title=Special:MediaSearch&type=image">Buscar no Wikimedia ↗</a>`:''}
+   ${it.busca?`<button class="b p" data-a="commons">🔎 Ver fotos reais</button>`:''}
+   ${it.busca?`<a class="b" target="_blank" href="https://commons.wikimedia.org/w/index.php?search=${encodeURIComponent(it.busca)}&title=Special:MediaSearch&type=image">Buscar manualmente ↗</a>`:''}
    <button class="b" data-a="up">${url?'Trocar imagem':'Upload da imagem'}</button>
    ${it.cur?`<button class="b" data-a="ccur">Copiar curiosidade</button>`:''}
   </div></div>`;
@@ -581,6 +756,30 @@ function wire(s,it){
   if(!confirm('remover a imagem?'))return;
   await fetch('/api/upload',{method:'DELETE',headers:{'Content-Type':'application/json'},body:JSON.stringify({sec:cur,key:it.key})});
   delete DATA.images[cur][it.key];render();
+ };
+ const cm=el.querySelector('[data-a=commons]');
+ if(cm)cm.onclick=async()=>{
+  const box=el.querySelector('[data-role=commons]');
+  box.classList.remove('hidden');
+  box.innerHTML='<span class="cg-msg">buscando no Wikimedia Commons...</span>';
+  const r=await fetch('/api/commons_search?q='+encodeURIComponent(it.busca)).then(x=>x.json()).catch(()=>null);
+  if(!r||!r.ok||!r.results||!r.results.length){box.innerHTML='<span class="cg-msg">nada encontrado -- tenta "Buscar manualmente".</span>';return;}
+  box.innerHTML=r.results.map((c,i)=>`<button class="cg-item" data-i="${i}" title="${(c.title||'').replace(/"/g,'&quot;')}"><img src="${c.thumb}" loading="lazy"></button>`).join('')
+   +'<span class="cg-msg">clique na foto certa pra baixar em alta -- confere se é mesmo a moeda/nota antes</span>';
+  box.querySelectorAll('.cg-item').forEach(btn=>{
+   const c=r.results[+btn.dataset.i];
+   btn.onclick=async()=>{
+    if(!confirm('Baixar esta imagem como a figurinha de "'+it.titulo+'"?\\n\\n'+c.title))return;
+    toast('baixando...');
+    const rf=await fetch('/api/commons_fetch',{method:'POST',headers:{'Content-Type':'application/json'},
+     body:JSON.stringify({sec:cur,key:it.key,url:c.url})}).then(x=>x.json()).catch(()=>null);
+    if(rf&&rf.ok){
+     (DATA.images[cur]=DATA.images[cur]||{})[it.key]=rf.url;
+     const s=new Set(DATA.progress[cur]||[]);s.add(it.key);DATA.progress[cur]=[...s];
+     toast('imagem salva e marcada como pronta');pills();render();
+    } else toast((rf&&rf.erro)||'erro ao baixar');
+   };
+  });
  };
 }
 $('#q').oninput=e=>{q=e.target.value.trim().toLowerCase();render();};

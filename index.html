@@ -321,10 +321,27 @@
             <div class="album-page-head">
                 <span id="album-continent-name">Continente</span>
                 <span id="album-continent-count" class="acc-count">0/0</span>
+                <button id="elem-view-toggle" class="elem-view-toggle" type="button" hidden></button>
             </div>
 
             <div id="album-grid" class="album-grid"></div>
+            <div id="album-pt-grid" class="pt-wrap hidden">
+                <div class="pt-grid"></div>
+                <div class="pt-legend"></div>
+            </div>
         </div>
+
+        <!-- FORA de qualquer .screen de propósito: .screen tem will-change:transform,
+             que vira um "containing block" pra position:fixed -- um botão fixed
+             dentro de uma .screen gruda no tamanho da TELA (as vezes 15000px de
+             álbum), não na janela visível. Aqui fora, fixed gruda na janela de
+             verdade. Visibilidade é controlada via JS (só aparecem no álbum). -->
+        <div id="album-glue-nav" class="album-glue-nav hidden">
+            <button id="glue-nav-prev" type="button" aria-label="Figurinha anterior pra colar">▲</button>
+            <span id="glue-nav-count">0</span>
+            <button id="glue-nav-next" type="button" aria-label="Próxima figurinha pra colar">▼</button>
+        </div>
+        <button id="album-top-btn" class="album-top-btn hidden" type="button" aria-label="Voltar ao topo">⬆</button>
 
         <div id="trades-menu" class="screen trades hidden">
             <header class="setup-head">
@@ -890,16 +907,19 @@
     </div>
 
     <div id="pack-modal" class="modal-backdrop hidden">
+        <div id="impact-flash"></div>
         <div class="modal-content pack-content">
             <h2 id="pack-title">Pacote de Figurinhas</h2>
             <div id="pack-animation-container" class="pack-stage">
                 <div class="pack-wrapper">
                     <div class="pack-glow"></div>
+                    <span class="pack-back"></span>
                     <span class="pack-lid"></span>
                     <span class="pack-emoji">🎁</span>
                     <span class="pack-brand">🌍 Detetive Global</span>
                     <span class="pack-tear-line"></span>
                     <span class="pack-hint">✋ Arraste para rasgar</span>
+                    <span class="pack-glint"></span>
                 </div>
             </div>
             <div id="opened-stickers" class="opened-stickers-grid hidden"></div>
@@ -1010,6 +1030,7 @@
         </div>
     </div>
 
+    <script src="js/vendor/gsap.min.js?v=20260911a"></script>
     <script src="script.js?v=20260909d"></script>
     <script src="js/data-online.js?v=20260909d"></script>
 </body>

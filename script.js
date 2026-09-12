@@ -624,12 +624,17 @@ document.addEventListener('DOMContentLoaded', () => {
     function loadDailyProgress(name) {
         const raw = window.DG_ONLINE ? API._sync.daily(packDayKey()) : Store._get(`dg_daily_${name}`, null);
         if (!raw || raw.day !== packDayKey()) {
-            return { day: packDayKey(), acertos: 0, bonus: {}, masteredToday: 0, modes: {} };
+            return { day: packDayKey(), acertos: 0, bonus: {}, modes: {} };
         }
         if (!raw.modes) raw.modes = {};
         if (!raw.bonus) raw.bonus = {};
         return raw;
     }
+    // "modesWon" e "trocas" NÃO são campos novos no banco (o online só persiste
+    // acertos/modes/bonus — schema fixo no Supabase) -- aninhados dentro de
+    // `modes`/`bonus`, que já são JSONB livres e trafegam inteiros. Zero SQL novo.
+    function dpModesWon(dp) { if (!dp.modes.__won) dp.modes.__won = {}; return dp.modes.__won; }
+    function dpTrocas(dp) { return (dp.bonus && dp.bonus._trocas) || 0; }
     function saveDailyProgress() {
         if (!currentUser || !_cache.dailyProgress) return;
         if (window.DG_ONLINE) API.saveDaily(currentUser, _cache.dailyProgress.day, _cache.dailyProgress);
@@ -670,7 +675,8 @@ document.addEventListener('DOMContentLoaded', () => {
         if (rw.qty) setTimeout(() => grantBonusPack('streak' + s.count, rw.qty, rw.msg), 1400);
     }
 
-    // marca que o jogador jogou uma partida deste modo hoje -> +2 pacotes ao fechar todos
+    // registro simples de "jogou esse modo hoje" (estatística; não dá pacote --
+    // quem dá pacote agora é markModeWon, só quando VENCE de verdade)
     function markModePlayed(mode) {
         if (!currentUser || !ALL_MODES.includes(mode)) return;
         const dp = _cache.dailyProgress || (_cache.dailyProgress = loadDailyProgress(currentUser));
@@ -679,9 +685,21 @@ document.addEventListener('DOMContentLoaded', () => {
         if (d.modes[mode]) return;
         d.modes[mode] = 1;
         saveDailyProgress();
-        const feitos = ALL_MODES.filter(m => d.modes[m]).length;
-        if (feitos === ALL_MODES.length) grantBonusPack('todososmodos', 2, 'Jogou todos os modos hoje! 🎯');
-        else showToast(`Modo concluído — ${feitos}/${ALL_MODES.length} modos hoje`, 'info');
+    }
+
+    // vencer (offline) em pelo menos 2 modos diferentes no dia -> +2 pacotes.
+    // Só chamada de dentro de gameOver(true) -- duelo online NUNCA passa por lá,
+    // então fica de fora automaticamente (a meta pede "offline" mesmo).
+    function markModeWon(mode) {
+        if (!currentUser || !ALL_MODES.includes(mode)) return;
+        const dp = _cache.dailyProgress || (_cache.dailyProgress = loadDailyProgress(currentUser));
+        if (dp.day !== packDayKey()) { _cache.dailyProgress = loadDailyProgress(currentUser); }
+        const d = _cache.dailyProgress;
+        const won = dpModesWon(d);
+        if (won[mode]) return;
+        won[mode] = 1;
+        saveDailyProgress();
+        if (Object.keys(won).length === 2) grantBonusPack('vencer2modos', 2, 'Venceu em 2 modos diferentes hoje!');
     }
 
     // Narração por voz sintética (TTS) removida a pedido — usamos só os
@@ -755,14 +773,14 @@ document.addEventListener('DOMContentLoaded', () => {
         if (dp.day !== packDayKey()) { _cache.dailyProgress = loadDailyProgress(currentUser); }
         const d = _cache.dailyProgress;
         d.acertos = (d.acertos || 0) + 1;
-        if (newlyMastered) d.masteredToday = (d.masteredToday || 0) + 1;
         saveDailyProgress();
 
-        if (d.acertos === 10) grantBonusPack('acertos10', 1, '10 acertos hoje!');
-        if (d.acertos === 25) grantBonusPack('acertos25', 1, '25 acertos hoje!');
-        if (newlyMastered && d.masteredToday <= 3) {
-            grantBonusPack('mastered' + d.masteredToday, 1, 'Dominou uma bandeira nova!');
-        }
+        if (d.acertos === 20) grantBonusPack('acertos20', 1, '20 acertos hoje!');
+        if (d.acertos === 50) grantBonusPack('acertos50', 1, '50 acertos hoje!');
+        // "dominar bandeiras" saiu daqui -- virou missão FIXA (não diária, não
+        // reseta), ver checkAchievements(): cada 2 bandeiras dominadas pra
+        // sempre rende 1 pacote. updateCountryStats() já chama checkAchievements()
+        // logo em seguida, então não precisa de nada extra aqui.
     }
 
     // peso de aprendizado: nunca visto e revisão vencida têm prioridade;
@@ -1419,7 +1437,6 @@ document.addEventListener('DOMContentLoaded', () => {
         updateProgressBar(100); playSound('completed'); dispararConfetes();
         markModePlayed(gameConfig.mode);
         if (gameConfig.mode === 'Memoria') grantBonusPack('memoria', 1, 'Tabuleiro da Memória completo!');
-        else if (gameConfig.type === 'Jornada') grantBonusPack('jornada', 1, 'Nível da Jornada completo!');
         if (gameConfig.type === 'Jornada') {
             gameState.currentLevel++; (_cache.journeyLevel = gameState.currentLevel, API.saveJourney(currentUser, gameState.currentLevel));
             if (gameState.currentLevel > 5) gameOver(true);
@@ -1451,6 +1468,15 @@ document.addEventListener('DOMContentLoaded', () => {
         // conta como "modo jogado hoje" se realmente jogou (respondeu algo)
         const jogou = (session.correct + session.wrong) > 0 || (typeof memoryMoves === 'number' && memoryMoves > 0);
         if (jogou) markModePlayed(gameConfig.mode);
+        if (win) {
+            markModeWon(gameConfig.mode);
+            // meta "jornada": terminar uma partida nível 3+ com vidas LIMITADAS
+            // (5 ou 10 -- infinito não vale). Jornada de verdade é sempre vidas
+            // infinitas (forçado no setup), então isso só acontece no Rápido.
+            if (typeof gameConfig.lives === 'number' && (gameConfig.level || 0) >= 3) {
+                grantBonusPack('jornada', 1, 'Terminou nível 3+ com vidas limitadas!');
+            }
+        }
     }
 
     function renderLearnSummary() {
@@ -1694,6 +1720,19 @@ document.addEventListener('DOMContentLoaded', () => {
             { id: 'perfect', t: 'Intocável', desc: 'Fez uma sequência de 20 acertos em um país! (+3 Pacotes)', packs: 3, c: x => Object.values(x).some(v => v.streak >= 20) },
             { id: 'master', t: 'Mestre Geográfico', desc: 'Fez 100 acertos no total! (+5 Pacotes)', packs: 5, c: x => Object.values(x).reduce((acc, curr) => acc + curr.acertos, 0) >= 100 }
         ];
+
+        // missão FIXA (não diária, nunca reseta): cada 2 bandeiras DOMINADAS
+        // (mastery>=85) rende 1 pacote, pra sempre. Gera ids sintéticos
+        // "mastery2","mastery4",... só até o total atual -- cada um dispara UMA
+        // vez (o `!u.includes(a.id)` abaixo já garante isso), então reaproveita
+        // 100% do armazenamento de conquistas (online e offline) sem nada novo.
+        const totalMastered = Object.values(p).filter(v => (v.mastery || 0) >= 85).length;
+        for (let n = 2; n <= totalMastered; n += 2) {
+            achs.push({
+                id: 'mastery' + n, t: 'Colecionador de Bandeiras',
+                desc: `Dominou ${n} bandeiras! (+1 Pacote)`, packs: 1, c: () => true,
+            });
+        }
 
         achs.forEach(a => {
             if (!u.includes(a.id) && a.c(p)) {
@@ -2453,11 +2492,34 @@ document.addEventListener('DOMContentLoaded', () => {
         if (code === 'wls') return 'assets/flags/gb-wls.png';
         return `assets/flags/${code}.png`;
     }
+    // tabela periódica: cor + rótulo por categoria de elemento
+    const ELEM_CAT_META = {
+        'metal-alcalino':          { label: 'Metal alcalino',          color: '#ef4444' },
+        'metal-alcalino-terroso':  { label: 'Metal alcalino-terroso',  color: '#f97316' },
+        'metal-de-transicao':      { label: 'Metal de transição',      color: '#eab308' },
+        'metal-pos-transicao':     { label: 'Metal pós-transição',     color: '#84cc16' },
+        'semimetal':               { label: 'Semimetal',               color: '#22c55e' },
+        'nao-metal':               { label: 'Não-metal',               color: '#14b8a6' },
+        'halogenio':               { label: 'Halogênio',               color: '#06b6d4' },
+        'gas-nobre':               { label: 'Gás nobre',               color: '#3b82f6' },
+        'lantanideo':              { label: 'Lantanídeo',              color: '#8b5cf6' },
+        'actinideo':               { label: 'Actinídeo',               color: '#d946ef' },
+    };
+
     // seção -> como montar cada figurinha sintética
     const FIG_SECTIONS = [
         { key: 'frutas', book: 'Frutas', dir: 'frutas', pre: 'fru',
           file: it => it.slug, name: it => it.n, sub: () => '',
           paises: it => it.paises || [] },
+        { key: 'animais', book: 'Animais em extinção', dir: 'animais', pre: 'ani',
+          file: it => it.slug, name: it => it.n, sub: () => '',
+          paises: it => it.paises || [] },
+        { key: 'legumes', book: 'Legumes e hortaliças', dir: 'legumes', pre: 'leg',
+          file: it => it.slug, name: it => it.n, sub: () => '',
+          paises: it => it.paises || [] },
+        { key: 'comidas', book: 'Comidas típicas', dir: 'comidas', pre: 'com',
+          file: it => it.code, name: it => it.nome, sub: () => '',
+          paises: it => [it.code] },
         { key: 'lendas', book: 'Lendas do futebol', dir: 'lendas', pre: 'len',
           file: it => it.code + '-' + slugName(it.nome), name: it => it.nome,
           sub: it => `${it.pais}${it.num ? ' · #' + it.num : ''}`,
@@ -2465,6 +2527,10 @@ document.addEventListener('DOMContentLoaded', () => {
         { key: 'clubes', book: 'Clubes', dir: 'clubes', pre: 'clu',
           file: it => it.slug, name: it => it.nome, sub: it => it.liga || '',
           bg: it => bgForCode(it.code), flag: it => flagPath(it.code) },
+        { key: 'elementos', book: 'Tabela periódica', dir: 'elementos', pre: 'ele',
+          file: it => it.slug, name: it => it.n,
+          sub: it => (ELEM_CAT_META[it.cat] || {}).label || '',
+          paises: it => it.paises || [] },
     ];
     if (window.FIG_DATA) {
         FIG_SECTIONS.forEach(sc => {
@@ -2482,7 +2548,13 @@ document.addEventListener('DOMContentLoaded', () => {
                     _kind: 'fig', _sec: sc.key, _sub: sc.sub(it), _cur: it.cur || '',
                     _bg: sc.bg ? sc.bg(it) : '',
                     _flag: sc.flag ? sc.flag(it) : '',
-                    _paises: sc.paises ? sc.paises(it) : [],
+                    // bandeirinhas do zoom: usa it.paises (frutas/animais/legumes) e,
+                    // se não tiver, cai pro país de origem (comidas têm it.code)
+                    _paises: (Array.isArray(it.paises) && it.paises.length) ? it.paises
+                             : (sc.paises ? sc.paises(it) : (it.code ? [it.code] : [])),
+                    // só a tabela periódica usa isso (posição na grade + categoria)
+                    _z: it.z, _grupo: it.grupo, _periodo: it.periodo, _cat: it.cat, _simbolo: it.simbolo,
+                    _status: it.status,   // grau de ameaça (só animais)
                 });
             });
         });
@@ -2502,6 +2574,21 @@ document.addEventListener('DOMContentLoaded', () => {
         if (c._sec === 'lendas') return 'is-portrait';
         return '';
     }
+
+    // selo de grau de ameaça (animais) — anel redondo que enche 3/3 crítico,
+    // 2/3 em perigo, 1/3 vulnerável/quase ameaçado. Só aparece pra quem já tem
+    // a figurinha (mesma regra de segredo do resto).
+    const THREAT_META = {
+        CR: { pct: 100, color: '#ef4444', label: 'Criticamente em perigo' },
+        EN: { pct: 66, color: '#f97316', label: 'Em perigo' },
+        VU: { pct: 33, color: '#eab308', label: 'Vulnerável' },
+        NT: { pct: 33, color: '#eab308', label: 'Quase ameaçado' },
+    };
+    function threatBadgeHTML(c, big) {
+        const t = c && c._status && THREAT_META[c._status];
+        if (!t) return '';
+        return `<span class="threat-badge${big ? ' big' : ''}" style="--tb-pct:${t.pct};--tb-color:${t.color}" title="${t.label}"></span>`;
+    }
     function itemShape(c, cls) {
         return (c && c._img) ? '' :
             `<img class="fig-shape ${cls || ''}" src="assets/shapes/${c.codigo}.svg" alt="" loading="lazy" onerror="this.remove()">`;
@@ -2512,7 +2599,9 @@ document.addEventListener('DOMContentLoaded', () => {
         'América do Sul', 'América do Norte', 'América Central',
         'Europa', 'Ásia', 'África', 'Oceania',
         'Estados do Brasil', 'Capitais do Brasil',
-        'Frutas', 'Lendas do futebol', 'Clubes'
+        'Frutas', 'Lendas do futebol', 'Clubes',
+        'Animais em extinção', 'Legumes e hortaliças', 'Comidas típicas',
+        'Tabela periódica'   // sempre o último livro do álbum
     ];
     const CONTINENT_META = {
         'América do Sul':   { emoji: '🌎', accent: '#34d399', sigla: 'AMS' },
@@ -2527,6 +2616,10 @@ document.addEventListener('DOMContentLoaded', () => {
         'Frutas':             { emoji: '🍍', accent: '#f472b6', sigla: 'FRU' },
         'Lendas do futebol':  { emoji: '⚽', accent: '#38bdf8', sigla: 'LEN' },
         'Clubes':             { emoji: '🛡️', accent: '#a78bfa', sigla: 'CLU' },
+        'Animais em extinção':  { emoji: '🐾', accent: '#a3e635', sigla: 'ANI' },
+        'Legumes e hortaliças': { emoji: '🥕', accent: '#16a34a', sigla: 'LEG' },
+        'Comidas típicas':    { emoji: '🍲', accent: '#fb923c', sigla: 'COM' },
+        'Tabela periódica':   { emoji: '⚛️', accent: '#6366f1', sigla: 'ELE' },
     };
     let currentContinent = null;
 
@@ -2548,9 +2641,10 @@ document.addEventListener('DOMContentLoaded', () => {
         return { have, total: list.length };
     }
 
-    // quantas figurinhas dá pra colar (nova ou upgrade de Legend) num continente
-    function gluableInfo(cont) {
-        let count = 0, firstCode = null;
+    // codigos (na ordem do livro) que dá pra colar agora (nova ou upgrade de
+    // Legend) — base tanto do selo do continente quanto do navegador flutuante.
+    function gluableCodesInBook(cont) {
+        const out = [];
         ALBUM_ITEMS.forEach(c => {
             if (cont && c.continente !== cont) return;
             if (!pilhaOf(c.codigo).length) return;
@@ -2560,13 +2654,89 @@ document.addEventListener('DOMContentLoaded', () => {
                 const best = bestPilha(c.codigo);
                 can = best && RARITY_ORDER.indexOf(best) > RARITY_ORDER.indexOf(col);
             }
-            if (can) { count++; if (!firstCode) firstCode = c.codigo; }
+            if (can) out.push(c.codigo);
         });
-        return { count, firstCode };
+        return out;
+    }
+
+    // quantas figurinhas dá pra colar (nova ou upgrade de Legend) num continente
+    function gluableInfo(cont) {
+        const codes = gluableCodesInBook(cont);
+        return { count: codes.length, firstCode: codes[0] || null };
+    }
+
+    // ─── navegador flutuante ▲/▼: pula pra próxima/anterior figurinha colável
+    // dentro do livro aberto — livros grandes (Lendas, 485 itens) espalham as
+    // repetidas longe umas das outras; sem isso é rolar a tela toda vez.
+    // Sensível à ROLAGEM DE VERDADE (não a um índice memorizado): ▼ só existe
+    // se tiver colável abaixo do que está visível agora; ▲ pula pra colável
+    // acima, e se não tiver nenhuma acima vira "voltar ao topo da seção". ───
+    function glueCardEl(code) {
+        return (elements.albumGrid && elements.albumGrid.querySelector(`[title^="${stickerCode(code)} "]`))
+            || document.querySelector(`.pt-cell[data-code="${code}"]`);
+    }
+    // varre os coláveis do livro e acha, pela posição real na tela AGORA,
+    // o próximo abaixo da área visível e o mais próximo acima dela
+    function glueNavTargets() {
+        const codes = gluableCodesInBook(currentContinent);
+        if (!codes.length) return { codes, below: null, above: null };
+        const vh = window.innerHeight || document.documentElement.clientHeight;
+        let below = null, above = null;
+        codes.forEach(code => {
+            const el = glueCardEl(code);
+            if (!el) return;
+            const r = el.getBoundingClientRect();
+            if (r.top >= vh) { if (below === null) below = code; }
+            else if (r.bottom <= 0) { above = code; }
+        });
+        return { codes, below, above };
+    }
+    function glueNavGoTop() {
+        const head = document.querySelector('.album-page-head');
+        const target = (head && head.getBoundingClientRect().top < 0) ? head : elements.albumGrid;
+        if (!target) return;
+        try { target.scrollIntoView({ behavior: window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth', block: 'start' }); } catch (e) {}
+    }
+    function updateGlueNav() {
+        const nav = document.getElementById('album-glue-nav');
+        if (!nav) return;
+        const { codes, below, above } = glueNavTargets();
+        nav.classList.toggle('hidden', codes.length === 0);
+        const countEl = document.getElementById('glue-nav-count');
+        if (countEl) countEl.textContent = codes.length;
+        const prevBtn = document.getElementById('glue-nav-prev');
+        const nextBtn = document.getElementById('glue-nav-next');
+        if (nextBtn) nextBtn.hidden = !below;
+        if (prevBtn) {
+            prevBtn.hidden = false;
+            prevBtn.textContent = above ? '▲' : '⤒';
+            prevBtn.title = above ? 'Figurinha anterior pra colar' : 'Voltar ao topo desta seção';
+        }
+        nav.dataset.below = below || '';
+        nav.dataset.above = above || '';
+    }
+    // depois de rolar (rolagem suave leva um tempinho), reconfere -- clicar de
+    // novo rápido antes da rolagem terminar não pode repetir o mesmo alvo
+    function glueNavResync() { setTimeout(updateGlueNav, 450); }
+    function glueNavPrevClick() {
+        const nav = document.getElementById('album-glue-nav');
+        const above = nav && nav.dataset.above;
+        if (above) scrollToCard(above, true); else glueNavGoTop();
+        glueNavResync();
+    }
+    function glueNavNextClick() {
+        const nav = document.getElementById('album-glue-nav');
+        const below = nav && nav.dataset.below;
+        if (below) scrollToCard(below, true);
+        glueNavResync();
     }
 
     function scrollToCard(code, glow) {
-        const card = elements.albumGrid && elements.albumGrid.querySelector(`[title^="${stickerCode(code)} "]`);
+        // lista normal (título "COD · Nome") ou, se o livro é a tabela periódica
+        // em modo grade, a célula correspondente (não tem título, é achada pelo
+        // data-code direto).
+        const card = (elements.albumGrid && elements.albumGrid.querySelector(`[title^="${stickerCode(code)} "]`))
+            || document.querySelector(`.pt-cell[data-code="${code}"]`);
         if (!card) return;
         try { card.scrollIntoView({ behavior: 'smooth', block: 'center' }); } catch (e) {}
         if (glow) { card.classList.add('point-here'); setTimeout(() => card.classList.remove('point-here'), 2800); }
@@ -2628,7 +2798,7 @@ document.addEventListener('DOMContentLoaded', () => {
             cardEl.innerHTML = `<div class="fig-card missing locked ${c._img ? 'is-collection' : ''} ${figKindClass(c)}" style="--acc:${acc}">
                 <div class="fig"><span class="fig-bg dim"></span>
                 <span class="fz-qmark">?</span>
-                <div class="fig-foot"><span class="fig-name">${c.nome}</span></div></div></div>`;
+                <div class="fig-foot"><span class="fig-name fig-name-locked">???</span></div></div></div>`;
         }
         cardEl.querySelectorAll('img').forEach(i => i.loading = 'eager');
 
@@ -2638,8 +2808,11 @@ document.addEventListener('DOMContentLoaded', () => {
         if (c.codigo.indexOf('cap-') === 0) ufBra = c.codigo.slice(4);
         else if (c.codigo.indexOf('uf-') === 0) ufBra = c.codigo.slice(3);
 
+        // "onde"/bandeiras/curiosidade só aparecem se você já viu a figurinha
+        // (colada, na pilha, ou reveal do pacote) -- senão é segredo total até desbloquear
         let where = '';
-        if (c._sec === 'lendas' || c._sec === 'clubes') where = FLAG(c._flag) + ` ${c._sub || c.continente}`;
+        if (!owned) where = '🔒 Figurinha bloqueada';
+        else if (c._sec === 'lendas' || c._sec === 'clubes') where = FLAG(c._flag) + ` ${c._sub || c.continente}`;
         else if (c._kind === 'fig') where = `${(CONTINENT_META[c.continente] || {}).emoji || '🎴'} ${c._sub || c.continente}`;
         else if (ufBra) where = FLAG(`assets/stickers/bra/${ufBra}.png`) + ` ${c._sub || ('Capital: ' + c.capital)}`;
         else if (c._kind === 'img') where = `📍 ${c._sub}`;
@@ -2653,23 +2826,35 @@ document.addEventListener('DOMContentLoaded', () => {
             : canGlueHere ? '📥 Na sua pilha — falta colar no álbum'
             : '🔒 Você ainda não tem essa figurinha';
 
-        // frutas: "Onde são mais consumidas?" -> 5 bandeirinhas (sem nomes)
-        const fpais = (c._sec === 'frutas' && Array.isArray(c._paises)) ? c._paises : [];
+        // frutas/legumes/comidas/animais: bandeirinha(s) centralizadas embaixo (sem nomes)
+        const FZ_FLAG_LBL = {
+            frutas: 'Onde são mais consumidas?', legumes: 'Onde são mais consumidos?',
+            comidas: 'De qual país é?', animais: 'Onde ainda vive?', elementos: 'Onde é produzido?',
+        };
+        const fpais = (owned && ['frutas', 'legumes', 'comidas', 'animais', 'elementos'].includes(c._sec) && Array.isArray(c._paises))
+            ? c._paises.slice(0, 5) : [];
         const fpaisHTML = fpais.length ? `
             <div class="fz-flags">
-              <span class="fz-flags-lbl">Onde são mais consumidas?</span>
+              <span class="fz-flags-lbl">${FZ_FLAG_LBL[c._sec] || 'Onde é encontrado?'}</span>
               <div class="fz-flags-row">${fpais.map(cd =>
                 `<img src="${flagPath(cd)}" alt="" onerror="this.style.display='none'">`).join('')}</div>
             </div>` : '';
 
         // "Saber mais": história da bandeira / paisagem / curiosidade do país
-        const saiba = figZoomSaibaMais(c);
+        // (só existe se você já conhece a figurinha -- senão fica tudo em segredo)
+        const saiba = owned ? figZoomSaibaMais(c) : { text: '', audio: '' };
+
+        // grau de ameaça (animais) -- selo grande + texto, só se já conhece
+        const threat = owned && c._status && THREAT_META[c._status];
+        const threatHTML = threat ? `
+            <div class="fz-threat">${threatBadgeHTML(c, true)}<span>Grau de ameaça: <b>${threat.label}</b></span></div>` : '';
 
         info.innerHTML = `
-            <h3>${c.nome}</h3>
+            <h3>${owned ? c.nome : '???'}</h3>
             <span class="fz-code">${stickerCode(code)}</span>
             <p>${where}</p>
             <p class="fz-rar">${rarTxt}${pilha.length ? ` · ${pilha.length} na pilha` : ''}</p>
+            ${threatHTML}
             ${canGlueHere ? `<button class="fz-glue-btn" type="button">Colar no álbum →</button>` : ''}
             ${fpaisHTML}
             ${saiba.text ? `<button class="fz-more-btn" type="button">Saber mais ✨</button>
@@ -2677,7 +2862,13 @@ document.addEventListener('DOMContentLoaded', () => {
               ${saiba.audio ? `<button class="fz-play" type="button">🔊 Ouvir</button>` : ''}</div>` : ''}`;
 
         const glueBtn = info.querySelector('.fz-glue-btn');
-        if (glueBtn) glueBtn.addEventListener('click', () => { closeFigZoom(); goColarNoAlbum(code); });
+        // cola de verdade (antes só navegava pro álbum e ficava esperando você
+        // tocar de novo no "+" -- na tabela periódica isso nem tinha "+" visível
+        // fora do grão da célula, então parecia que não colava nada).
+        if (glueBtn) glueBtn.addEventListener('click', () => {
+            doGlue(code, null, glueBtn);
+            closeFigZoom();
+        });
         const moreBtn = info.querySelector('.fz-more-btn');
         if (moreBtn) moreBtn.addEventListener('click', () => {
             info.querySelector('.fz-more').classList.remove('hidden');
@@ -2698,6 +2889,10 @@ document.addEventListener('DOMContentLoaded', () => {
             if (c._sec === 'lendas') audio = 'lendas/' + c.codigo.replace('len-', '');
             else if (c._sec === 'frutas') audio = 'frutas/' + c.codigo.replace('fru-', '');
             else if (c._sec === 'clubes') audio = 'clubes/' + c.codigo.replace('clu-', '');
+            else if (c._sec === 'animais') audio = 'animais/' + c.codigo.replace('ani-', '');
+            else if (c._sec === 'legumes') audio = 'legumes/' + c.codigo.replace('leg-', '');
+            else if (c._sec === 'comidas') audio = 'comidas/' + c.codigo.replace('com-', '');
+            else if (c._sec === 'elementos') audio = 'elementos/' + c.codigo.replace('ele-', '');
             return { text: c._cur || '', audio };
         }
         const BR = window.CURIOSITIES_BR || { bandeiras: {}, paisagens: {} };
@@ -2711,7 +2906,9 @@ document.addEventListener('DOMContentLoaded', () => {
         }
         const all = (typeof curiosities !== 'undefined') ? curiosities : {};
         const facts = all[c.codigo];
-        return { text: facts && facts.length ? facts[Math.floor(Math.random() * facts.length)] : '', audio: '' };
+        if (!facts || !facts.length) return { text: '', audio: '' };
+        const idx = Math.floor(Math.random() * facts.length);
+        return { text: facts[idx], audio: `curiosidades/${c.codigo}_${idx}` };
     }
     function closeFigZoom() {
         const box = document.getElementById('fig-zoom');
@@ -2740,6 +2937,63 @@ document.addEventListener('DOMContentLoaded', () => {
         if (window.SFX) window.SFX.play('whoosh');
     }
 
+    // Tabela periódica: livro "Tabela periódica" tem 2 visualizações — lista (igual
+    // aos outros livros, padrão no celular) e a grade real da tabela (padrão no
+    // desktop; no celular precisa tocar pra trocar). Preferência fica só na sessão.
+    let elementosView = null;
+    function elementosDefaultView() {
+        try { return window.matchMedia('(min-width: 768px)').matches ? 'tabela' : 'lista'; }
+        catch (e) { return 'lista'; }
+    }
+
+    function renderPeriodicTable(meta) {
+        const wrap = document.getElementById('album-pt-grid');
+        if (!wrap) return;
+        const gridEl = wrap.querySelector('.pt-grid');
+        const legendEl = wrap.querySelector('.pt-legend');
+        const itens = ALBUM_ITEMS.filter(c => c.continente === 'Tabela periódica');
+        gridEl.innerHTML = itens.map(c => {
+            const colada = coladaRarity(c.codigo);
+            const pilha = pilhaOf(c.codigo);
+            const known = !!colada || pilha.length > 0;
+            const gluable = !colada && pilha.length > 0;
+            const catMeta = ELEM_CAT_META[c._cat] || { color: meta.accent };
+            // segredo total: enquanto não conhece o elemento, a célula fica
+            // vazia (nem número atômico nem símbolo, nem a cor da categoria
+            // -- senão já entrega de graça a tabela toda) -- só a posição.
+            // Ao ganhar a figurinha (colar OU cair na pilha), revela os dois.
+            const content = known ? `<span class="pt-z">${c._z}</span><span class="pt-s">${c._simbolo}</span>` : '';
+            return `<div class="pt-cell${known ? ' known' : ''}${gluable ? ' gluable' : ''}" data-code="${c.codigo}"
+                style="grid-column:${c._grupo};grid-row:${c._periodo};--pt-c:${catMeta.color}">
+                ${content}
+            </div>`;
+        }).join('');
+        legendEl.innerHTML = Object.values(ELEM_CAT_META).map(m =>
+            `<span><i style="background:${m.color}"></i>${m.label}</span>`).join('');
+        // igual à lista: tocar num elemento com pilha pronta (e ainda não colado)
+        // cola na hora; senão abre o zoom. Antes só abria o zoom -- sem "+" na
+        // grade da tabela não tinha NENHUM jeito de colar por aqui.
+        gridEl.querySelectorAll('.pt-cell').forEach(cell => {
+            cell.addEventListener('click', () => {
+                const code = cell.dataset.code;
+                if (cell.classList.contains('gluable')) {
+                    if (glueSticker(code)) {
+                        if (window.SFX) window.SFX.play('sticker_paste');
+                        if (!calmMode && typeof confetti !== 'undefined') {
+                            const r = cell.getBoundingClientRect();
+                            confetti({ particleCount: 45, spread: 55, startVelocity: 24,
+                                origin: { x: (r.left + r.width / 2) / innerWidth, y: (r.top + r.height / 2) / innerHeight } });
+                        }
+                        renderAlbum();
+                        refreshHub();
+                    }
+                    return;
+                }
+                openFigZoom(code);
+            });
+        });
+    }
+
     function renderAlbum() {
         const grid = elements.albumGrid;
         if (!grid) return;
@@ -2752,6 +3006,20 @@ document.addEventListener('DOMContentLoaded', () => {
             screen.style.setProperty('--cont-bg', hasBg ? `url("/assets/img/bg/${meta.sigla.toLowerCase()}.jpg")` : 'none');
         }
 
+        const isElemBook = currentContinent === 'Tabela periódica';
+        const toggleBtn = document.getElementById('elem-view-toggle');
+        const ptWrap = document.getElementById('album-pt-grid');
+        if (isElemBook && elementosView === null) elementosView = elementosDefaultView();
+        if (toggleBtn) {
+            toggleBtn.hidden = !isElemBook;
+            toggleBtn.textContent = elementosView === 'tabela' ? '📋 Ver em lista' : '🔲 Ver tabela periódica';
+        }
+        const showTable = isElemBook && elementosView === 'tabela';
+        grid.classList.toggle('hidden', showTable);
+        if (ptWrap) ptWrap.classList.toggle('hidden', !showTable);
+        if (showTable) renderPeriodicTable(meta);
+
+        if (!showTable) {
         grid.innerHTML = '';
         ALBUM_ITEMS.filter(c => c.continente === currentContinent).forEach(c => {
             const code = stickerCode(c.codigo);
@@ -2762,8 +3030,13 @@ document.addEventListener('DOMContentLoaded', () => {
             item.style.setProperty('--acc', meta.accent);
             applyFigBg(item, c);
 
+            // "conhecida" = já colada ou já tem cópia na pilha (você já viu ao abrir o pacote);
+            // nunca vista = segredo total (sem nome/curiosidade/áudio), só a silhueta como pista
+            const known = !!colada || pilha.length > 0;
             const subline = c._sub ? `<span class="fig-sub">${c._sub}</span>` : '';
-            const foot = `<div class="fig-foot"><span class="fig-name">${c.nome}</span>${subline}<span class="fig-code">${code}</span></div>`;
+            const foot = known
+                ? `<div class="fig-foot"><span class="fig-name">${c.nome}</span>${subline}<span class="fig-code">${code}</span></div>`
+                : `<div class="fig-foot"><span class="fig-name fig-name-locked">???</span><span class="fig-code">${code}</span></div>`;
 
             if (!colada) {
                 const canGlue = pilha.length > 0;
@@ -2789,12 +3062,13 @@ document.addEventListener('DOMContentLoaded', () => {
                         <span class="fig-bg"></span>
                         ${itemShape(c)}
                         <span class="fig-foil"></span>
+                        ${threatBadgeHTML(c)}
                         <div class="fig-flagwrap"><img class="fig-flag" src="${itemImg(c)}" alt="${c.nome}" loading="lazy"></div>
                         ${foot}
                         ${badge}${up}
                     </div>`;
             }
-            item.title = `${code} · ${c.nome}`;
+            item.title = known ? `${code} · ${c.nome}` : code;
             item.dataset.code = c.codigo;
             grid.appendChild(item);
         });
@@ -2818,6 +3092,7 @@ document.addEventListener('DOMContentLoaded', () => {
             });
         });
         requestAnimationFrame(() => fitFigNames(grid));
+        }
 
         const st = continentStats(currentContinent);
         const set = (id, v) => { const el = document.getElementById(id); if (el) el.textContent = v; };
@@ -2837,6 +3112,7 @@ document.addEventListener('DOMContentLoaded', () => {
         if (tb) tb.classList.toggle('has-repeats', reps > 0);
 
         buildContinentNav();
+        updateGlueNav();
     }
 
     // cola com animação (a figurinha "desce" e gruda) + confete + som
@@ -2882,6 +3158,43 @@ document.addEventListener('DOMContentLoaded', () => {
     if (buttons.showAlbum) buttons.showAlbum.addEventListener('click', openAlbum);
     const albumHomeBtn = document.getElementById('album-home');
     if (albumHomeBtn) albumHomeBtn.addEventListener('click', () => showScreen('main'));
+
+    // navegador ▲/▼ (próxima/anterior figurinha colável, sensível à rolagem
+    // de verdade) + botão "voltar ao topo"
+    (function wireAlbumFloatingNav() {
+        const prevBtn = document.getElementById('glue-nav-prev');
+        const nextBtn = document.getElementById('glue-nav-next');
+        if (prevBtn) prevBtn.addEventListener('click', glueNavPrevClick);
+        if (nextBtn) nextBtn.addEventListener('click', glueNavNextClick);
+
+        const topBtn = document.getElementById('album-top-btn');
+        const albumScreen = document.getElementById('album-menu');
+        if (!topBtn || !albumScreen || !elements.mainContainer) return;
+        // conforme a largura da tela, quem rola é o #main-container OU a
+        // janela (o resto do app já reseta os dois em showScreen — segue o
+        // mesmo padrão aqui em vez de assumir um só).
+        const scrollY = () => Math.max(elements.mainContainer.scrollTop, window.scrollY || document.documentElement.scrollTop || 0);
+        let ticking = false;
+        const onScroll = () => {
+            const visible = !albumScreen.classList.contains('hidden');
+            topBtn.classList.toggle('hidden', !(visible && scrollY() > 320));
+            // ▲/▼ do navegador de colar reagem à rolagem real, não só ao gluear
+            // (getBoundingClientRect força layout -- joga num rAF pra não
+            // recalcular a cada pixel rolado)
+            if (visible && !ticking) {
+                ticking = true;
+                requestAnimationFrame(() => { updateGlueNav(); ticking = false; });
+            }
+        };
+        elements.mainContainer.addEventListener('scroll', onScroll);
+        window.addEventListener('scroll', onScroll, { passive: true });
+        topBtn.addEventListener('click', () => {
+            const reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+            const behavior = reduce ? 'auto' : 'smooth';
+            elements.mainContainer.scrollTo({ top: 0, behavior });
+            window.scrollTo({ top: 0, behavior });
+        });
+    })();
 
     // ─── TROCA ENTRE CONTAS ──────────────────────────────
     const ALL_CODES = countries.map(c => c.codigo);
@@ -2937,6 +3250,9 @@ document.addEventListener('DOMContentLoaded', () => {
         if (!gameState.duel || gameState._duelDone) return;
         gameState._duelDone = true;
         const d = gameState.duel;
+        // meta: jogar 1 partida online por dia -- não importa se ganha, empata
+        // ou perde, então concede aqui, sempre, antes de saber o resultado.
+        grantBonusPack('online', 1, 'Jogou uma partida online!');
         clearQTimer();
         gameLocked = true;
         buttons.next.classList.add('hidden'); buttons.facts.classList.add('hidden');
@@ -4321,6 +4637,11 @@ document.addEventListener('DOMContentLoaded', () => {
     document.getElementById('open-trades-btn').addEventListener('click', openTrades);
     document.getElementById('trades-back').addEventListener('click', () => showScreen('album'));
 
+    document.getElementById('elem-view-toggle').addEventListener('click', () => {
+        elementosView = elementosView === 'tabela' ? 'lista' : 'tabela';
+        renderAlbum();
+    });
+
     // ═══════════════ TROCAS ONLINE (mural + direto) ═══════════════
     let otTab = 'mural', otUnsub = null;
 
@@ -4602,19 +4923,19 @@ document.addEventListener('DOMContentLoaded', () => {
         const b = dp.bonus || {};
         const streak = _cache.loginStreak || 0;
         const ac = dp.acertos || 0;
-        const mast = dp.masteredToday || 0;
-        const modesN = ALL_MODES.filter(m => (dp.modes || {})[m]).length;
+        const trocas = dpTrocas(dp);
+        const wonN = Object.keys(dp.modes.__won || {}).length;
         const nextStreak = streakReward(streak + 1);
 
         const rows = [
             { done: _cache.freePacksDay === packDayKey(), label: `<b>${DAILY_FREE_PACKS} pacotes grátis</b> às 6h da manhã`, prog: '' },
-            { done: modesN >= ALL_MODES.length, label: 'Jogar <b>1 partida de cada modo</b> → +2 pacotes', prog: `${modesN}/${ALL_MODES.length}` },
-            { done: !!b.acertos10 || ac >= 10, label: 'Acertar <b>10</b> no dia', prog: `${Math.min(ac, 10)}/10` },
-            { done: !!b.acertos25 || ac >= 25, label: 'Acertar <b>25</b> no dia', prog: `${Math.min(ac, 25)}/25` },
-            { done: mast >= 3, label: '<b>Dominar</b> bandeiras novas', prog: `${Math.min(mast, 3)}/3` },
+            { done: wonN >= 2, label: '<b>Vencer</b> uma partida em pelo menos <b>2 modos</b> diferentes → +2 pacotes', prog: `${Math.min(wonN, 2)}/2` },
+            { done: !!b.acertos20 || ac >= 20, label: 'Acertar <b>20</b> no dia', prog: `${Math.min(ac, 20)}/20` },
+            { done: !!b.acertos50 || ac >= 50, label: 'Acertar <b>50</b> no dia', prog: `${Math.min(ac, 50)}/50` },
             { done: !!b.streak15, label: '<b>Sequência de 15</b> numa partida', prog: '' },
-            { done: !!b.jornada, label: 'Terminar um nível da <b>Jornada</b>', prog: '' },
-            { done: !!b.troca, label: 'Fazer <b>1 troca</b> de figurinha', prog: '' },
+            { done: !!b.jornada, label: 'Terminar uma partida nível <b>3+</b> com vidas <b>5 ou 10</b> (infinito não vale)', prog: '' },
+            { done: !!b.troca || trocas >= 3, label: 'Fazer <b>3 trocas</b> de figurinha', prog: `${Math.min(trocas, 3)}/3` },
+            { done: !!b.online, label: 'Jogar <b>1 partida online</b> (ganhando ou perdendo)', prog: '' },
             {
                 done: !!b['streak' + streak] && streakReward(streak).qty > 0,
                 label: streak >= 2
@@ -4655,7 +4976,13 @@ document.addEventListener('DOMContentLoaded', () => {
         if (res.error) { showToast(res.error, 'error'); return; }
         _cache.stickers = Trades._read(currentUser);
         if (window.SFX) window.SFX.play('trade');
-        grantBonusPack('troca', 1, 'Primeira troca do dia!');
+        // meta: 3 trocas no dia (não é mais na 1ª)
+        const dp = _cache.dailyProgress || (_cache.dailyProgress = loadDailyProgress(currentUser));
+        if (dp.day !== packDayKey()) { _cache.dailyProgress = loadDailyProgress(currentUser); }
+        if (!dp.bonus) dp.bonus = {};
+        dp.bonus._trocas = (dp.bonus._trocas || 0) + 1;
+        saveDailyProgress();
+        if (dp.bonus._trocas >= 3) grantBonusPack('troca', 1, '3 trocas hoje!');
         showToast(`Troca feita! Você deu ${gname} e recebeu ${rname}.`, 'success');
         if (!calmMode && typeof confetti !== 'undefined') confetti({ particleCount: 50, spread: 60, origin: { y: 0.6 } });
         tradeGive = tradeGet = null;
@@ -4735,6 +5062,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 <span class="fig-bg"></span>
                 ${itemShape(c)}
                 <span class="fig-foil"></span>
+                ${threatBadgeHTML(c)}
                 <div class="fig-flagwrap"><img class="fig-flag" src="${itemImg(c)}" alt="${c.nome}"></div>
                 <div class="fig-foot"><span class="fig-name">${c.nome}</span><span class="fig-code">${stickerCode(c.codigo)}</span></div>
             </div>
@@ -4931,7 +5259,12 @@ document.addEventListener('DOMContentLoaded', () => {
         const prize = document.getElementById('tm-prize');
         if (prize) prize.addEventListener('click', () => { if (_lastPrize) openFigZoom(_lastPrize.codigo, { reveal: true }); });
         const glueB = document.getElementById('tm-prize-glue');
-        if (glueB) glueB.addEventListener('click', () => { if (_lastPrize) goColarNoAlbum(_lastPrize.codigo); });
+        if (glueB) glueB.addEventListener('click', () => {
+            if (!_lastPrize) return;
+            doGlue(_lastPrize.codigo, 'base', glueB);
+            hidePrizeActions();
+            renderMachine();
+        });
         const moreB = document.getElementById('tm-prize-more');
         if (moreB) moreB.addEventListener('click', () => { hidePrizeActions(); renderMachine(); });
     })();
@@ -5005,7 +5338,12 @@ document.addEventListener('DOMContentLoaded', () => {
         document.getElementById('pack-decide').classList.add('hidden');
         elements.packAnimationContainer.classList.remove('hidden', 'opening');
         const pw = elements.packAnimationContainer.querySelector('.pack-wrapper');
-        if (pw) { pw.classList.remove('tearing'); pw.style.setProperty('--tear', '0'); }
+        if (pw) {
+            pw.classList.remove('tearing');
+            pw.style.setProperty('--tear', '0');
+            pw.style.setProperty('--rx', '0deg'); pw.style.setProperty('--ry', '0deg');
+            pw.style.setProperty('--mx', '50%'); pw.style.setProperty('--my', '40%');
+        }
         const endActions = document.getElementById('pack-end-actions');
         if (endActions) endActions.classList.add('hidden');
         modals.pack.classList.remove('hidden');
@@ -5013,12 +5351,36 @@ document.addEventListener('DOMContentLoaded', () => {
     if (buttons.openPack) buttons.openPack.addEventListener('click', openPackModal);
     if (buttons.openMore) buttons.openMore.addEventListener('click', openPackModal);
 
-    // sorteia o pacote e joga tudo na PILHA (o jogador decide o que colar depois)
+    // categoria de uma figurinha pro sorteio do pacote: "pais" = qualquer bandeira
+    // (país do mundo, estado ou capital do BR — tudo sem _sec); senão a seção
+    // ilustrada dela (frutas/lendas/clubes/animais/legumes/elementos/...).
+    function albumCategoryOf(c) { return (c && c._sec) || 'pais'; }
+    let _albumByCategory = null;
+    function albumByCategory() {
+        if (_albumByCategory) return _albumByCategory;
+        const map = {};
+        ALBUM_ITEMS.forEach(c => {
+            const k = albumCategoryOf(c);
+            (map[k] = map[k] || []).push(c);
+        });
+        _albumByCategory = map;
+        return map;
+    }
+
+    // sorteia o pacote e joga tudo na PILHA (o jogador decide o que colar depois).
+    // Peso por CATEGORIA (10/09): cada uma das 4 figurinhas vem de uma categoria
+    // diferente — "país" (bandeira, qualquer livro) conta como 1 categoria só,
+    // cada seção ilustrada é outra. Sem repetir categoria dentro do MESMO pacote;
+    // o próximo pacote sorteia as categorias de novo, do zero.
     function drawPack() {
         const stickers = loadStickers();
         const results = [];
+        const byCat = albumByCategory();
+        const cats = shuffle(Object.keys(byCat)).slice(0, PACK_SIZE);
         for (let i = 0; i < PACK_SIZE; i++) {
-            const drawn = shuffle([...ALBUM_ITEMS])[0];
+            const cat = cats[i] || cats[i % cats.length]; // salvaguarda se um dia tiver < PACK_SIZE categorias
+            const pool = byCat[cat];
+            const drawn = pool[Math.floor(Math.random() * pool.length)];
             let rarity = rollRarity();
             // não caiu lenda -> 10% de chance de sair brilhante (qualquer figurinha, qualquer livro)
             if (rarity === 'base' && Math.random() < SHINY_CHANCE) rarity = 'shiny';
@@ -5032,6 +5394,17 @@ document.addEventListener('DOMContentLoaded', () => {
         return results;
     }
 
+    // impacto reservado pra prata/ouro: flash de tela + tremor + vibração forte
+    // + confete extra — chamado bem no instante em que a melhor carta "pousa".
+    function triggerBestImpact() {
+        const flash = document.getElementById('impact-flash');
+        const content = document.querySelector('#pack-modal .pack-content');
+        if (!calmMode && flash) { flash.classList.remove('hit'); void flash.offsetWidth; flash.classList.add('hit'); }
+        if (!calmMode && content) { content.classList.remove('impact-shake'); void content.offsetWidth; content.classList.add('impact-shake'); }
+        if (navigator.vibrate) { try { navigator.vibrate([18, 40, 18, 40, 70]); } catch (e) {} }
+        if (!calmMode && typeof confetti !== 'undefined') confetti({ particleCount: 90, spread: 100, startVelocity: 42, origin: { y: 0.45 } });
+    }
+
     function runPackOpen() {
         if (elements.packAnimationContainer.classList.contains('opening')) return;
         if (!removePack()) { showToast('Você não tem pacotes!', 'error'); return; }
@@ -5041,9 +5414,15 @@ document.addEventListener('DOMContentLoaded', () => {
 
         setTimeout(() => {
             const results = drawPack();
+            // guarda de onde o envelope "explodiu" na tela — as cartas vão
+            // voar dali até o lugar delas na grade (GSAP), não só nascer prontas.
+            const originRect = elements.packAnimationContainer.getBoundingClientRect();
+            const originX = originRect.left + originRect.width / 2;
+            const originY = originRect.top + originRect.height / 2;
             elements.packAnimationContainer.classList.add('hidden');
             elements.openedStickers.innerHTML = '';
             elements.openedStickers.classList.remove('hidden');
+            elements.openedStickers.classList.remove('gsap-driven');
 
             const best = results.reduce((b, r) => Math.max(b, RARITY_ORDER.indexOf(r.rarity)), 0);
             if (window.SFX) {
@@ -5051,15 +5430,23 @@ document.addEventListener('DOMContentLoaded', () => {
                 setTimeout(() => window.SFX.play(rev), 200);
             }
 
-            results.forEach((r, i) => {
+            // revela do pior pro melhor — a melhor figurinha do pacote sempre
+            // fecha o pacote, com uma pausa dramática antes dela (clímax).
+            const shown = results.slice().sort((a, b) => RARITY_ORDER.indexOf(a.rarity) - RARITY_ORDER.indexOf(b.rarity));
+            const bestIdx = shown.length - 1;
+            let bestDelayMs = 0;
+            shown.forEach((r, i) => {
                 const card = document.createElement('div');
                 const legend = LEGEND_RARS.includes(r.rarity);
                 const shiny = isShinyRar(r.rarity, r.country);
+                const isBest = i === bestIdx;
                 card.className = `pack-card fig-card rarity-${r.rarity}` + (r.isNew ? ' is-new' : '')
-                    + (shiny ? ' shiny' : '') + (legend ? ' legend' : '')
+                    + (shiny ? ' shiny' : '') + (legend ? ' legend' : '') + (isBest ? ' pc-best' : '')
                     + (r.country._img ? ' is-collection' : '') + (figKindClass(r.country) ? ' ' + figKindClass(r.country) : '')
                     + (legend ? '' : figBgClass(r.country));
-                card.style.animationDelay = `${i * 0.14}s`;
+                const delay = i * 0.16 + (isBest ? 0.4 : 0);
+                if (isBest) bestDelayMs = delay * 1000 + (calmMode ? 200 : 560);
+                card.style.animationDelay = `${delay}s`;
                 card.style.setProperty('--acc', (CONTINENT_META[r.country.continente] || {}).accent || '#60a5fa');
                 if (!legend) applyFigBg(card, r.country);
                 card.innerHTML = `
@@ -5080,7 +5467,44 @@ document.addEventListener('DOMContentLoaded', () => {
                 confetti({ particleCount: n, spread: 75, origin: { y: 0.5 } });
             }
 
-            buildDecideList(results);
+            // ─── GSAP: as cartas voam de onde o envelope rasgou até a vaga delas
+            // na grade (posição real calculada, não fixa) — clímax com pausa +
+            // "back.out" de verdade na melhor carta. Sem GSAP/reduced-motion:
+            // cai pro fallback CSS (@keyframes packCardIn), já testado sozinho.
+            const reduceMotion = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+            const cardEls = [...elements.openedStickers.children];
+            if (window.gsap && !calmMode && !reduceMotion && cardEls.length) {
+                elements.openedStickers.classList.add('gsap-driven');
+                const tl = gsap.timeline();
+                cardEls.forEach((el, i) => {
+                    el.style.animationDelay = '';
+                    const r = el.getBoundingClientRect();
+                    const dx = originX - (r.left + r.width / 2);
+                    const dy = originY - (r.top + r.height / 2);
+                    const isBest = el.classList.contains('pc-best');
+                    gsap.set(el, {
+                        x: dx, y: dy, scale: .48, opacity: 0,
+                        rotateY: i % 2 ? -125 : -105, rotateZ: (Math.random() * 20 - 10),
+                        transformPerspective: 700,
+                    });
+                    const pos = isBest ? '+=0.38' : (i === 0 ? 0 : '-=0.28');
+                    tl.to(el, {
+                        x: 0, y: 0, scale: 1, opacity: 1, rotateY: 0, rotateZ: 0,
+                        duration: isBest ? 0.85 : 0.5,
+                        ease: isBest ? 'back.out(2.4)' : 'back.out(1.5)',
+                    }, pos);
+                    if (isBest) tl.call(() => {
+                        if (best >= 4) triggerBestImpact();
+                        else if (best >= 2 && navigator.vibrate) { try { navigator.vibrate(22); } catch (e) {} }
+                    }, [], '-=0.18');
+                });
+            } else if (best >= 4) {
+                setTimeout(triggerBestImpact, bestDelayMs);
+            } else if (best >= 2 && navigator.vibrate) {
+                setTimeout(() => { try { navigator.vibrate(22); } catch (e) {} }, bestDelayMs);
+            }
+
+            buildDecideList(shown);
             const endActions = document.getElementById('pack-end-actions');
             if (endActions) endActions.classList.remove('hidden');
             if (buttons.openMore) {
@@ -5092,40 +5516,142 @@ document.addEventListener('DOMContentLoaded', () => {
         }, 650);
     }
 
-    // ─── ENVELOPE: rasgo guiado seguindo o cursor ───────
+    // ─── tensão sonora do rasgo — sintetizada na hora (Web Audio), sem
+    // arquivo — sobe suave conforme o rasgo avança + um brilho fino "quase lá"
+    // perto do fim. Triângulo (não serra — nada de zumbido áspero de alarme),
+    // volume baixo, some se "modo calmo"/SFX off.
+    const TearFX = (function () {
+        let ctx = null, osc = null, osc2 = null, gain = null, gain2 = null, filter = null, active = false;
+        function ensureCtx() {
+            if (!ctx) { try { ctx = new (window.AudioContext || window.webkitAudioContext)(); } catch (e) { return null; } }
+            if (ctx.state === 'suspended') ctx.resume().catch(() => {});
+            return ctx;
+        }
+        function start() {
+            if (active || calmMode || !(window.SFX && window.SFX.enabled)) return;
+            const c = ensureCtx(); if (!c) return;
+            osc = c.createOscillator(); osc.type = 'triangle';
+            filter = c.createBiquadFilter(); filter.type = 'lowpass'; filter.Q.value = 0.6; filter.frequency.value = 220;
+            gain = c.createGain(); gain.gain.value = 0;
+            osc.connect(filter); filter.connect(gain); gain.connect(c.destination);
+            osc.frequency.value = 68;
+            // 2ª onda, bem baixinha: só um brilho de "tá quase" no fim do rasgo
+            osc2 = c.createOscillator(); osc2.type = 'sine'; osc2.frequency.value = 640;
+            gain2 = c.createGain(); gain2.gain.value = 0;
+            osc2.connect(gain2); gain2.connect(c.destination);
+            try { osc.start(); osc2.start(); active = true; } catch (e) {}
+        }
+        function update(frac) {
+            if (!active || !ctx) return;
+            const t = ctx.currentTime;
+            osc.frequency.setTargetAtTime(68 + frac * 150, t, 0.05);
+            filter.frequency.setTargetAtTime(200 + frac * 1100, t, 0.05);
+            gain.gain.setTargetAtTime(Math.min(0.055, 0.014 + frac * 0.045), t, 0.05);
+            const shimmer = Math.max(0, (frac - 0.72) / 0.28); // só nos últimos 28% do rasgo
+            osc2.frequency.setTargetAtTime(640 + frac * 460, t, 0.08);
+            gain2.gain.setTargetAtTime(shimmer * 0.03, t, 0.08);
+        }
+        function stop(fast) {
+            if (!active) return;
+            active = false;
+            const c = ctx, o = osc, o2 = osc2, g = gain, g2 = gain2;
+            if (c) {
+                if (g) { try { g.gain.setTargetAtTime(0, c.currentTime, fast ? 0.03 : 0.12); } catch (e) {} }
+                if (g2) { try { g2.gain.setTargetAtTime(0, c.currentTime, fast ? 0.03 : 0.12); } catch (e) {} }
+            }
+            setTimeout(() => { try { o.stop(); } catch (e) {} try { o2.stop(); } catch (e) {} }, fast ? 120 : 220);
+            osc = null; osc2 = null; gain = null; gain2 = null; filter = null;
+        }
+        return { start, update, stop };
+    })();
+
+    // ─── farpas de papel voando na direção do rasgo (DOM, sem canvas) ───
+    function spawnPaperBits(wrap, xFrac, yFrac, n) {
+        if (calmMode) return;
+        for (let i = 0; i < n; i++) {
+            const bit = document.createElement('span');
+            bit.className = 'paper-bit';
+            const ang = -70 + Math.random() * 140; // tende pra cima
+            const dist = 36 + Math.random() * 64;
+            const rad = ang * Math.PI / 180;
+            bit.style.setProperty('--dx', (Math.sin(rad) * dist).toFixed(1) + 'px');
+            bit.style.setProperty('--dy', (-Math.cos(rad) * dist).toFixed(1) + 'px');
+            bit.style.setProperty('--rot', (Math.random() * 360 - 180).toFixed(0) + 'deg');
+            bit.style.left = (xFrac * 100).toFixed(1) + '%';
+            bit.style.top = (yFrac * 100).toFixed(1) + '%';
+            wrap.appendChild(bit);
+            bit.addEventListener('animationend', () => bit.remove());
+            setTimeout(() => bit.remove(), 900); // salvaguarda se o animationend não disparar
+        }
+    }
+
+    // ─── ENVELOPE: rasgo guiado seguindo o cursor + inclinação 3D + brilho ───
     (function wirePackTear() {
         const stage = elements.packAnimationContainer;
         if (!stage) return;
         const wrap = () => stage.querySelector('.pack-wrapper');
-        let dragging = false, moved = false, w = null;
+        let dragging = false, moved = false, w = null, lastBitStep = -1;
 
         const setTear = f => { f = Math.max(0, Math.min(1, f)); if (w) w.style.setProperty('--tear', f.toFixed(3)); return f; };
+
+        // inclina o envelope + move o brilho especular conforme o ponteiro
+        // (hover no desktop antes de rasgar, e durante o próprio arrasto)
+        const updateTilt = (el, clientX, clientY) => {
+            const r = el.getBoundingClientRect();
+            const nx = (clientX - r.left) / r.width;   // 0..1
+            const ny = (clientY - r.top) / r.height;   // 0..1
+            el.style.setProperty('--ry', ((nx - 0.5) * 18).toFixed(2) + 'deg');
+            el.style.setProperty('--rx', ((0.5 - ny) * 14).toFixed(2) + 'deg');
+            el.style.setProperty('--mx', (nx * 100).toFixed(1) + '%');
+            el.style.setProperty('--my', (ny * 100).toFixed(1) + '%');
+            return { nx, ny };
+        };
+        const resetTilt = el => {
+            el.style.setProperty('--rx', '0deg'); el.style.setProperty('--ry', '0deg');
+            el.style.setProperty('--mx', '50%'); el.style.setProperty('--my', '40%');
+        };
+        // hover no desktop antes de tocar (não faz nada se já estiver rasgando)
+        stage.addEventListener('pointermove', e => {
+            if (dragging || stage.classList.contains('opening')) return;
+            const el = wrap(); if (!el) return;
+            updateTilt(el, e.clientX, e.clientY);
+        });
+        stage.addEventListener('pointerleave', () => { const el = wrap(); if (el && !dragging) resetTilt(el); });
 
         stage.addEventListener('pointerdown', e => {
             if (stage.classList.contains('opening')) return;
             w = wrap(); if (!w) return;
-            dragging = true; moved = false;
+            dragging = true; moved = false; lastBitStep = -1;
             w.classList.add('tearing');
             const r = w.getBoundingClientRect();
             setTear((e.clientX - r.left) / r.width);
+            updateTilt(w, e.clientX, e.clientY);
+            TearFX.start();
             try { stage.setPointerCapture(e.pointerId); } catch (_) {}
         });
         stage.addEventListener('pointermove', e => {
             if (!dragging || !w) return;
             moved = true;
             const r = w.getBoundingClientRect();
+            const { ny } = updateTilt(w, e.clientX, e.clientY);
             const f = setTear((e.clientX - r.left) / r.width);
+            TearFX.update(f);
+            const step = Math.floor(f * 12);
+            if (step > lastBitStep && f > 0.05) { lastBitStep = step; spawnPaperBits(w, f, ny, 1); }
             if (f >= 0.62) finishTear();
         });
         const cancelTear = () => {
             if (!dragging) return;
             dragging = false;
-            if (w) { w.classList.remove('tearing'); w.style.setProperty('--tear', '0'); }
+            TearFX.stop(true);
+            if (w) { w.classList.remove('tearing'); w.style.setProperty('--tear', '0'); resetTilt(w); }
         };
         const finishTear = () => {
             if (!dragging) return;
             dragging = false;
-            if (w) w.classList.remove('tearing');
+            TearFX.stop();
+            if (navigator.vibrate) { try { navigator.vibrate(16); } catch (e) {} }
+            if (w) { w.classList.remove('tearing'); spawnPaperBits(w, 0.5, 0.15, 9); }
             runPackOpen();
         };
         stage.addEventListener('pointerup', () => { if (dragging) cancelTear(); });
@@ -5139,6 +5665,23 @@ document.addEventListener('DOMContentLoaded', () => {
             if (window.SFX) window.SFX.play('tap');
             setTimeout(() => el.classList.remove('hinting'), 900);
         });
+    })();
+
+    // ─── holo interativo nas cartas raras da revelação (segue o dedo/mouse) ───
+    (function wirePackHolo() {
+        const grid = elements.openedStickers;
+        if (!grid) return;
+        const holoCard = el => el && el.closest && el.closest('.pack-card.shiny, .pack-card.legend');
+        grid.addEventListener('pointermove', e => {
+            const card = holoCard(e.target); if (!card) return;
+            const r = card.getBoundingClientRect();
+            card.style.setProperty('--mx', (((e.clientX - r.left) / r.width) * 100).toFixed(1) + '%');
+            card.style.setProperty('--my', (((e.clientY - r.top) / r.height) * 100).toFixed(1) + '%');
+            card.classList.add('holo-active');
+        });
+        grid.addEventListener('pointerleave', e => {
+            const card = holoCard(e.target); if (card) card.classList.remove('holo-active');
+        }, true);
     })();
 
     // "o que fazer com as novas" — uma de cada vez, com botão "Próxima"
