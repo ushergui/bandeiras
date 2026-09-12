@@ -1946,6 +1946,40 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     })();
 
+    // ─── botão "Instalar app" no hub (Android/Chrome/Edge) ───
+    // O navegador dispara "beforeinstallprompt" quando o PWA já cumpre os
+    // requisitos (manifest + service worker + https) e ainda não tá instalado.
+    // Guardamos o evento e só mostramos o botão nesse momento -- sem isso,
+    // não tem como abrir o prompt nativo de instalação na hora que a pessoa
+    // quiser (só dá uma vez, tem que ser direto no clique do usuário).
+    // iOS Safari não dispara esse evento (Apple não suporta) -- por isso o
+    // botão nunca aparece lá; nesse caso a pessoa instala pelo menu
+    // "Compartilhar → Adicionar à Tela de Início" mesmo, manual.
+    (function wireInstallApp() {
+        const btn = document.getElementById('install-app-btn');
+        if (!btn) return;
+        let deferredPrompt = null;
+        window.addEventListener('beforeinstallprompt', e => {
+            e.preventDefault();
+            deferredPrompt = e;
+            btn.hidden = false;
+        });
+        window.addEventListener('appinstalled', () => {
+            deferredPrompt = null;
+            btn.hidden = true;
+            showToast('App instalado! Já pode abrir pelo ícone. 🎉', 'success');
+        });
+        btn.addEventListener('click', async () => {
+            if (!deferredPrompt) return;
+            btn.disabled = true;
+            deferredPrompt.prompt();
+            try { await deferredPrompt.userChoice; } catch (e) {}
+            deferredPrompt = null;
+            btn.hidden = true;
+            btn.disabled = false;
+        });
+    })();
+
     // Botão "Sair" (no menu principal) → volta para o login
     buttons.changeProfile.addEventListener('click', () => {
         Auth.logout();
