@@ -210,7 +210,11 @@ def gen_one(model, sf, saida, texto):
     wav = "assets/audio/%s.wav" % saida
     mp3 = "assets/audio/%s.mp3" % saida
     os.makedirs(os.path.dirname(wav), exist_ok=True)
-    audio = model.generate(text=texto, ref_audio=REF)
+    # sem "language=", o OmniVoice roda em modo "language-agnostic" e de vez em
+    # quando escorrega pra outro idioma no meio da frase (a propria doc do
+    # modelo avisa que fixar o idioma melhora a consistencia) -- forcando "pt"
+    # ele para de misturar.
+    audio = model.generate(text=texto, ref_audio=REF, language="pt")
     sf.write(wav, audio[0], 24000)
     subprocess.run([FFMPEG, "-y", "-i", wav, "-codec:a", "libmp3lame", "-q:a", "4", mp3],
                    check=True, capture_output=True)
