@@ -115,6 +115,11 @@
     if (online) {
       const { error } = await sb.from(table).upsert(row);
       if (error) enqueue(table, row);
+      // reforca a janela quando o upsert confirma -- numa rede lenta o envio
+      // pode passar dos 4s marcados la em cima, e um pullAll (reconectou,
+      // voltou de segundo plano) que caisse bem nesse intervalo sobrescrevia
+      // o pacote/bonus recem-ganho com a foto antiga do servidor.
+      else wroteNow(table);
     } else {
       enqueue(table, row);
     }
@@ -294,7 +299,17 @@
     async addAchievement(key) {
       if (st.achievements.includes(key)) return;
       st.achievements.push(key); mirror();
-      if (online) { const { error } = await sb.from('achievements').insert({ user_id: uid, key }); if (error) enqueue('achievements', { user_id: uid, key }); }
+      // faltava isso: sem marcar a escrita, o pullAll() (dispara ao reconectar/
+      // voltar de segundo plano) sempre considerava "achievements" livre pra
+      // sobrescrever com a foto antiga do servidor -- se isso acontecesse antes
+      // do insert abaixo terminar, a conquista "sumia" localmente e disparava
+      // de novo (modal + pacote repetidos) na proxima rodada.
+      wroteNow('achievements');
+      if (online) {
+        const { error } = await sb.from('achievements').insert({ user_id: uid, key });
+        if (error) enqueue('achievements', { user_id: uid, key });
+        else wroteNow('achievements'); // reforca a janela ja com o insert confirmado
+      }
       else enqueue('achievements', { user_id: uid, key });
     },
 
